@@ -100,9 +100,13 @@
             </div>
           </template>
         </el-input>
-        <el-button class="btn" type="primary" @click="submit" :loading="addLoading"
-        >{{ $t('add') }}
-        </el-button>
+        <div class="add-actions">
+          <el-button @click="randomPrefix">
+            <Icon icon="mingcute:refresh-2-line" width="16" height="16" style="margin-right: 4px"/>
+            随机生成
+          </el-button>
+          <el-button type="primary" @click="submit" :loading="addLoading">{{ $t('add') }}</el-button>
+        </div>
       </div>
       <div
           class="add-email-turnstile"
@@ -325,6 +329,9 @@ function remove(account) {
   });
 }
 
+// 顶栏一键生成邮箱后，把新地址同步进这个列表
+watch(() => accountStore.newAccountSignal, () => refresh())
+
 function refresh() {
   if (loading.value) {
     return
@@ -365,6 +372,14 @@ function setAsTop(account, index) {
     accounts.splice(1, 0, item);
 
   });
+}
+
+// 随机前缀。字符集去掉 0/1/i/l/o，念出来或手抄时不会认错
+function randomPrefix() {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789'
+  const buf = new Uint32Array(10)
+  crypto.getRandomValues(buf)
+  addForm.email = Array.from(buf, n => chars[n % chars.length]).join('')
 }
 
 async function copyAccount(account) {
@@ -490,8 +505,10 @@ function submit() {
     accounts.push(account)
     verifyToken = ''
     settingStore.settings.addVerifyOpen = account.addVerifyOpen
+    // 添加完多半是要马上去某个站粘贴，顺手放进剪贴板；失败就当没这回事
+    navigator.clipboard?.writeText(account.email).catch(() => {})
     ElMessage({
-      message: t('addSuccessMsg'),
+      message: t('addSuccessMsg') + '：' + account.email,
       type: "success",
       plain: true
     })
@@ -634,6 +651,17 @@ path[fill="#ffdda1"] {
 .setting-icon {
   position: relative;
   top: 6px;
+}
+
+.add-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.add-actions .el-button {
+  flex: 1;
+  margin: 0;
 }
 
 :deep(.el-input-group__append) {

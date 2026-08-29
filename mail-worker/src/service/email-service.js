@@ -871,6 +871,71 @@ const emailService = {
 		return result;
 	},
 
+	// 地址记录：从收到的邮件反推用过哪些地址，不依赖有没有建过账号。
+	// 生成了却没用过的地址不会出现在这里——它压根没收过信，本来就不该被记一笔。
+	// GROUP BY 里裸取 send_email/subject/code 是 SQLite 的既定行为：
+	// 与 MAX(email_id) 同一行的值，正好是这个地址最近一封信。
+	async addressList(c, params, userId) {
+
+		const userRow = await userService.selectById(c, userId);
+		const isAdmin = userRow?.email === c.env.admin;
+
+		let { size, num, keyword } = params;
+		size = Math.min(Number(size) || 30, 100);
+		num = Math.max(Number(num) || 1, 1);
+
+		const where = ['e.type = 0', 'e.is_del = 0'];
+		const binds = [];
+
+		// 非管理员只看自己名下的；管理员额外能看到无归属（user_id = 0）的
+		if (!isAdmin) {
+			where.push('e.user_id = ?');
+			binds.push(userId);
+		}
+
+		if (keyword) {
+			where.push('(e.to_email LIKE ? OR e.send_email LIKE ? OR e.subject LIKE ?)');
+			binds.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+		}
+
+		const sql = `
+			SELECT e.to_email                          AS toEmail,
+			       COUNT(*)                            AS mailCount,
+			       MIN(e.create_time)                  AS firstTime,
+			       MAX(e.email_id)                     AS lastEmailId,
+			       e.create_time                       AS lastTime,
+			       e.send_email                        AS lastSender,
+			       e.subject                           AS lastSubject,
+			       e.code                              AS lastCode,
+			       (SELECT a.account_id FROM account a
+			         WHERE a.email = e.to_email COLLATE NOCASE AND a.is_del = 0
+			         LIMIT 1)                          AS accountId
+			FROM email e
+			WHERE ${where.join(' AND ')}
+			GROUP BY e.to_email COLLATE NOCASE
+			ORDER BY lastEmailId DESC
+			LIMIT ? OFFSET ?
+		`;
+
+		binds.push(size, (num - 1) * size);
+
+		const { results } = await c.env.db.prepare(sql).bind(...binds).all();
+		return results || [];
+	},
+
+	// 把此前落在「无收件人」里的历史邮件认领给刚添加的邮箱
+	// 无归属邮件在收信时写的是 userId=0 / accountId=0 / status=NOONE
+	async claimNoOne(c, toEmail, userId, accountId) {
+		const res = await orm(c).update(email)
+			.set({ userId: userId, accountId: accountId, status: emailConst.status.RECEIVE })
+			.where(and(
+				eq(email.userId, 0),
+				eq(email.status, emailConst.status.NOONE),
+				sql`${email.toEmail} COLLATE NOCASE = ${toEmail}`
+			)).run();
+		return res.meta?.changes ?? 0;
+	},
+
 	async allList(c, params) {
 
 		let { emailId, size, name, subject, accountEmail, userEmail, type, timeSort, full } = params;

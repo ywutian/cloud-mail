@@ -1,5 +1,6 @@
 <template>
   <div class="email-container">
+    <div class="header-slot"><slot name="header"></slot></div>
     <div class="header-actions">
       <el-checkbox
           v-model="checkAll"
@@ -899,7 +900,8 @@ function loadData() {
 
 .email-container {
   display: grid;
-  grid-template-rows: auto 1fr;
+  /* 三行：header slot（没传内容时高度为 0）、工具栏、列表 */
+  grid-template-rows: auto auto 1fr;
   padding: 0;
   font-size: 14px;
   color: var(--el-text-color-primary);

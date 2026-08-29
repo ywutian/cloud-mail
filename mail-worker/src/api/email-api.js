@@ -9,6 +9,11 @@ app.get('/email/list', async (c) => {
 	return c.json(result.ok(data));
 });
 
+app.get('/email/addresses', async (c) => {
+	const list = await emailService.addressList(c, c.req.query(), userContext.getUserId(c));
+	return c.json(result.ok(list));
+});
+
 app.get('/email/latest', async (c) => {
 	const list = await emailService.latest(c, c.req.query(), userContext.getUserId(c));
 	return c.json(result.ok(list));

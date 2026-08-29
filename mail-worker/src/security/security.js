@@ -15,6 +15,7 @@ const exclude = [
 	'/setting/websiteConfig',
 	'/webhooks',
 	'/init',
+	'/open',
 	'/public/genToken',
 	'/telegram',
 	'/test',

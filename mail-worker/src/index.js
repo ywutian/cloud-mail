@@ -11,6 +11,11 @@ export default {
 
 		const url = new URL(req.url)
 
+		// temp.* 是给别人的公开入口，进来直接到查码页，不给看登录页
+		if (url.hostname.startsWith('temp.') && url.pathname === '/') {
+			return Response.redirect(url.origin + '/find', 302)
+		}
+
 		if (url.pathname.startsWith('/api/')) {
 			url.pathname = url.pathname.replace('/api', '')
 			req = new Request(url.toString(), req)

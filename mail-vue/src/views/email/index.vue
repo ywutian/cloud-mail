@@ -12,6 +12,25 @@
                actionLeft="4px"
                @jump="jumpContent"
   >
+    <template #header>
+      <div class="temp-addr">
+        <div class="temp-addr-label">随机地址 · 直接拿去注册</div>
+        <div class="temp-addr-row">
+          <Icon class="temp-addr-icon" icon="eva:email-outline" width="22" height="22"/>
+          <span class="temp-addr-text" :class="tempAddr ? '' : 'is-empty'" @click="copyTemp">
+            {{ tempAddr || '生成中…' }}
+          </span>
+          <el-button type="primary" :disabled="!tempAddr" @click="copyTemp">
+            <Icon icon="fluent:copy-24-regular" width="16" height="16" style="margin-right: 5px"/>
+            复制
+          </el-button>
+          <el-button v-perm="'account:add'" :loading="randomLoading" title="换一个新地址" @click="newTempAddr">
+            <Icon v-if="!randomLoading" icon="mingcute:refresh-2-line" width="16" height="16"/>
+          </el-button>
+        </div>
+      </div>
+    </template>
+
     <template #first>
       <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-down-outline"
             v-if="params.timeSort === 0" width="28" height="28"/>
@@ -34,6 +53,8 @@ import {sleep} from "@/utils/time-utils.js";
 import router from "@/router/index.js";
 import {Icon} from "@iconify/vue";
 import { useRoute } from 'vue-router'
+import {accountAdd} from "@/request/account.js";
+import {ElMessage} from "element-plus";
 
 defineOptions({
   name: 'email'
@@ -51,12 +72,87 @@ const params = reactive({
 onMounted(() => {
   emailStore.emailScroll = scroll;
   latest()
+  initTempAddr()
 })
 
 
 watch(() => accountStore.currentAccountId, () => {
   scroll.value.refreshList();
 })
+
+const TEMP_ADDR_KEY = 'tempAddr'
+const TEMP_SAVED_KEY = 'tempAddrSaved'
+
+const tempAddr = ref('')      // 显示的候选地址，未必已经建号
+const tempSaved = ref(false)  // 是否已在后端建成邮箱
+const randomLoading = ref(false)
+
+// 只生成字符串，不碰后端。没被复制过的地址就是个候选，不该占数据库和配额。
+// 字符集去掉 0/1/i/l/o，手抄不会认错；用 crypto 而非 Math.random，地址可猜就会招垃圾邮件
+function genTempAddr() {
+  const domain = settingStore.domainList?.[0]
+  if (!domain) return false
+
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789'
+  const buf = new Uint32Array(10)
+  crypto.getRandomValues(buf)
+  tempAddr.value = Array.from(buf, n => chars[n % chars.length]).join('') + domain
+  tempSaved.value = false
+
+  try {
+    localStorage.setItem(TEMP_ADDR_KEY, tempAddr.value)
+    localStorage.setItem(TEMP_SAVED_KEY, '0')
+  } catch { /* 隐私模式存不下就算了 */ }
+  return true
+}
+
+function initTempAddr() {
+  let saved = '', savedFlag = '0'
+  try {
+    saved = localStorage.getItem(TEMP_ADDR_KEY) || ''
+    savedFlag = localStorage.getItem(TEMP_SAVED_KEY) || '0'
+  } catch { /* 读不到就当没有 */ }
+
+  if (saved) {
+    tempAddr.value = saved
+    tempSaved.value = savedFlag === '1'
+    return
+  }
+  genTempAddr()
+}
+
+function newTempAddr() {
+  if (!genTempAddr()) {
+    ElMessage({message: '没有可用域名', type: 'error', plain: true})
+  }
+}
+
+// 复制 = 打算用它，到这一步才真的建邮箱，收到的信才能进收件箱
+async function copyTemp() {
+  if (!tempAddr.value || randomLoading.value) return
+
+  if (!tempSaved.value) {
+    randomLoading.value = true
+    try {
+      const account = await accountAdd(tempAddr.value, '')
+      tempSaved.value = true
+      try { localStorage.setItem(TEMP_SAVED_KEY, '1') } catch { /* 忽略 */ }
+      accountStore.newAccountSignal++
+    } catch (e) {
+      ElMessage({message: e?.message || '创建邮箱失败', type: 'error', plain: true})
+      return
+    } finally {
+      randomLoading.value = false
+    }
+  }
+
+  try {
+    await navigator.clipboard.writeText(tempAddr.value)
+    ElMessage({message: '已复制 ' + tempAddr.value, type: 'success', plain: true})
+  } catch {
+    ElMessage({message: '邮箱已创建，但浏览器不允许复制，请手动选中', type: 'error', plain: true})
+  }
+}
 
 function changeTimeSort() {
   params.timeSort = params.timeSort ? 0 : 1
@@ -154,5 +250,54 @@ function getEmailList(emailId, size) {
 <style>
 .icon {
   cursor: pointer;
+}
+
+.temp-addr {
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.temp-addr-label {
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--el-text-color-placeholder);
+  margin-bottom: 8px;
+}
+
+.temp-addr-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.temp-addr-icon {
+  color: var(--el-color-primary);
+  flex-shrink: 0;
+}
+
+.temp-addr-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--el-text-color-primary);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.temp-addr-text.is-empty {
+  color: var(--el-text-color-placeholder);
+  font-weight: 400;
+  cursor: default;
+}
+
+@media (max-width: 767px) {
+  .temp-addr-text {
+    font-size: 15px;
+  }
 }
 </style>

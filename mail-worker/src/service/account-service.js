@@ -98,6 +98,9 @@ const accountService = {
 
 		accountRow = await orm(c).insert(account).values({ email: email, userId: userId, name: emailUtils.getName(email) }).returning().get();
 
+		// 这个地址此前收到的信在「无收件人」里，一并收编进新邮箱
+		accountRow.claimedCount = await emailService.claimNoOne(c, accountRow.email, userId, accountRow.accountId);
+
 		if (addEmailVerify === settingConst.addEmailVerify.COUNT && !addVerifyOpen) {
 			const row = await verifyRecordService.increaseAddCount(c);
 			addVerifyOpen = row.count >= addVerifyCount
