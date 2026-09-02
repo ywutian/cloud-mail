@@ -48,15 +48,16 @@
         </div>
 
         <transition-group name="tm-fade" tag="div">
-          <article v-for="m in mails" :key="m.emailId" class="tm-mail">
+          <article v-for="m in mails" :key="m.emailId" class="tm-mail" @click="openMail(m)">
             <div class="tm-mail-body">
               <div class="tm-mail-from">{{ m.sendName || m.sendEmail }}</div>
               <div class="tm-mail-subject">{{ m.subject || '(无主题)' }}</div>
             </div>
-            <button v-if="m.code" class="tm-code" @click="copyCode(m.code)" title="点击复制">
+            <button v-if="m.code" class="tm-code" title="点击复制" @click.stop="copyCode(m.code)">
               {{ m.code }}
             </button>
             <time class="tm-mail-time">{{ fmt(m.createTime) }}</time>
+            <Icon class="tm-mail-arrow" icon="mingcute:right-line" width="17" height="17"/>
           </article>
         </transition-group>
 
@@ -68,13 +69,39 @@
 
       <p class="tm-foot">邮件只保留最近 10 分钟</p>
     </div>
+
+    <div v-if="viewing" class="tm-modal" @click.self="closeMail">
+      <div class="tm-view">
+        <header class="tm-view-head">
+          <div class="tm-view-meta">
+            <div class="tm-view-subject">{{ viewing.subject || '(无主题)' }}</div>
+            <div class="tm-view-from">
+              {{ viewing.sendName || viewing.sendEmail }}
+              <span v-if="viewing.sendName && viewing.sendEmail" class="tm-view-addr">
+                &lt;{{ viewing.sendEmail }}&gt;
+              </span>
+            </div>
+          </div>
+          <button v-if="viewing.code" class="tm-code" title="点击复制" @click="copyCode(viewing.code)">
+            {{ viewing.code }}
+          </button>
+          <button class="tm-view-close" title="关闭" @click="closeMail">
+            <Icon icon="mingcute:close-line" width="18" height="18"/>
+          </button>
+        </header>
+
+        <div v-if="viewLoading" class="tm-view-loading">正在打开…</div>
+        <iframe v-else class="tm-view-frame" :srcdoc="viewHtml" referrerpolicy="no-referrer"
+                sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import {defineOptions, onMounted, onUnmounted, ref} from "vue";
+import {computed, defineOptions, onMounted, onUnmounted, ref} from "vue";
 import {Icon} from "@iconify/vue";
-import {openDomains, openRecentMails} from "@/request/open.js";
+import {openDomains, openMailContent, openRecentMails} from "@/request/open.js";
 
 defineOptions({
   name: 'find'
@@ -92,8 +119,56 @@ const copied = ref(false)
 const countdown = ref(REFRESH_SEC)
 const domains = ref([])
 
+const viewing = ref(null)
+const viewLoading = ref(false)
+
 let timer = null
 let copyTimer = null
+
+// 邮件 HTML 放进 iframe 渲染。sandbox 没给 allow-scripts，也没给 allow-same-origin：
+// 脚本、内联事件、javascript: 链接一律不执行，邮件自带的 <style> 也污染不到本页。
+// 所以这里不需要再引一个 sanitize 库。
+const viewHtml = computed(() => {
+  if (!viewing.value) return ''
+  const raw = viewing.value.content
+      || `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(viewing.value.text || '(空邮件)')}</pre>`
+  return `<!doctype html><meta charset="utf-8">`
+      + `<base target="_blank">`
+      + `<style>body{margin:0;padding:18px;background:#fff;color:#1a1a1a;`
+      + `font:14px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;`
+      + `word-break:break-word}`
+      + `img{max-width:100%;height:auto}a{color:#2563eb}`
+      + `table{max-width:100%}</style>`
+      + raw
+})
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+      ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]))
+}
+
+async function openMail(m) {
+  viewing.value = m
+  viewLoading.value = true
+  try {
+    const full = await openMailContent(m.emailId, address.value)
+    if (viewing.value && viewing.value.emailId === m.emailId) {
+      viewing.value = full
+    }
+  } catch {
+    if (viewing.value) viewing.value = {...m, text: '这封邮件打不开了，可能已经过期'}
+  } finally {
+    viewLoading.value = false
+  }
+}
+
+function closeMail() {
+  viewing.value = null
+}
+
+function onEsc(e) {
+  if (e.key === 'Escape' && viewing.value) closeMail()
+}
 
 onMounted(async () => {
   try {
@@ -113,6 +188,7 @@ onMounted(async () => {
   }
 
   load()
+  window.addEventListener('keydown', onEsc)
   // 一个定时器同时管倒计时和触发刷新，比两个各跑各的干净
   timer = setInterval(() => {
     countdown.value -= 1
@@ -126,6 +202,7 @@ onMounted(async () => {
 onUnmounted(() => {
   if (timer) clearInterval(timer)
   if (copyTimer) clearTimeout(copyTimer)
+  window.removeEventListener('keydown', onEsc)
 })
 
 // 字符集去掉 0/1/i/l/o，念出来或手抄不会认错
@@ -458,6 +535,17 @@ function fmt(t) {
   gap: 14px;
   padding: 15px 18px;
   border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.tm-mail:hover {
+  background: var(--card-2);
+}
+
+.tm-mail-arrow {
+  flex-shrink: 0;
+  color: var(--ink-3);
 }
 
 .tm-mail:last-child {
@@ -536,6 +624,96 @@ function fmt(t) {
   margin: 18px 0 0;
   text-align: center;
   font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* ---------- 正文弹窗 ---------- */
+
+.tm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: rgba(4, 7, 11, .78);
+  backdrop-filter: blur(3px);
+}
+
+.tm-view {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 660px;
+  max-height: 84vh;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  overflow: hidden;
+}
+
+.tm-view-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tm-view-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.tm-view-subject {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.tm-view-from {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tm-view-addr {
+  color: var(--ink-3);
+}
+
+.tm-view-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card-2);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+
+.tm-view-close:hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+
+.tm-view-frame {
+  flex: 1;
+  min-height: 320px;
+  width: 100%;
+  border: none;
+  background: #fff;
+}
+
+.tm-view-loading {
+  padding: 60px 18px;
+  text-align: center;
+  font-size: 13px;
   color: var(--ink-3);
 }
 

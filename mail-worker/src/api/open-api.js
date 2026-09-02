@@ -8,6 +8,11 @@ app.get('/open/recentMails', async (c) => {
 	return c.json(result.ok(list));
 });
 
+app.get('/open/mailContent', async (c) => {
+	const row = await openService.mailContent(c, c.req.query());
+	return c.json(result.ok(row));
+});
+
 // 公开页要知道域名才能拼地址，没登录拿不到 settingStore
 app.get('/open/domains', async (c) => {
 	let domains = c.env.domain;

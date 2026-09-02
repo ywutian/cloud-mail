@@ -19,12 +19,23 @@ zone 级 catch-all → 这个 Worker。
 
 ```bash
 cd ~/Documents/cloud-mail/mail-vue \
-  && PATH="/opt/homebrew/Cellar/node/26.0.0/bin:$PATH" pnpm build \
+  && PATH="/opt/homebrew/Cellar/node/26.0.0/bin:$PATH" pnpm --config.verifyDepsBeforeRun=false build \
   && cd ../mail-worker \
-  && PATH="/opt/homebrew/Cellar/node/26.0.0/bin:$PATH" npx wrangler deploy
+  && CLOUDFLARE_API_TOKEN=$(cat ~/.cf-okkmail-token) PATH="/opt/homebrew/Cellar/node/26.0.0/bin:$PATH" npx wrangler deploy
 ```
 
-`PATH` 那段不能省：系统默认 node 是 v20，wrangler 要 ≥22，brew 装的 26 没有 link。
+三处都不能省：
+
+- **`PATH`** — 系统默认 node 是 v20，wrangler 要 ≥22，brew 装的 26 没有 link。
+- **`--config.verifyDepsBeforeRun=false`** — 否则 pnpm 会先做依赖检查、决定清空重建
+  `node_modules`，然后因为没有 TTY 无法确认而中止
+  （`ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`）。
+- **`CLOUDFLARE_API_TOKEN`** — 用 token 而不是 `wrangler login`。OAuth 登录是全局的，
+  在别的项目登录另一个 Cloudflare 账号会把它覆盖掉，回来部署就是 `Authentication error [10000]`。
+  token 存在 `~/.cf-okkmail-token`（权限 600），限定在本账号 + `okkmail.cc` 这个 zone。
+
+token 权限清单（模板「Edit Cloudflare Workers」+ 手动加 D1）：Workers Scripts / KV / R2 /
+Pages / Observability / Containers = Edit，**D1 = Edit**，Zone `okkmail.cc` 的 Workers Routes = Edit。
 
 ## 反直觉的默认值（都踩过）
 
@@ -60,8 +71,8 @@ curl "https://box.okkmail.cc/api/init/<jwt_secret>"
 | `index.js` | `temp.*` 根路径 302 到 `/find` |
 | `security/security.js` | `exclude` 加 `/open`（免鉴权前缀） |
 | `hono/webs.js` | 注册 `open-api` |
-| `api/open-api.js` | **新增**。`/open/recentMails`、`/open/domains` |
-| `service/open-service.js` | **新增**。10 分钟窗口查询 + 域名校验 |
+| `api/open-api.js` | **新增**。`/open/recentMails`、`/open/mailContent`、`/open/domains` |
+| `service/open-service.js` | **新增**。10 分钟窗口查询 + 域名校验；读正文必须 emailId 和 address 同时匹配，否则能遍历 id 读别人的信 |
 | `api/email-api.js` | 加 `/email/addresses` |
 | `service/email-service.js` | 加 `addressList()`（地址聚合）、`claimNoOne()`（认领无归属邮件） |
 | `service/account-service.js` | `add()` 末尾调 `claimNoOne`，添加邮箱时把历史信一并收编 |
@@ -70,7 +81,7 @@ curl "https://box.okkmail.cc/api/init/<jwt_secret>"
 
 | 文件 | 改动 |
 |---|---|
-| `views/find/` | **新增**。公开临时邮箱页，固定暗色 |
+| `views/find/` | **新增**。公开临时邮箱页，固定暗色，含正文弹窗 |
 | `views/address/` | **新增**。地址记录页 |
 | `request/open.js` | **新增**。公开接口 |
 | `views/email/index.vue` | 收件箱顶部随机地址条（点复制才建号） |
