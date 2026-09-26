@@ -39,4 +39,6 @@ crons = ["0 * * * *"]
 [vars]
 domain = ["okkmail.cc"]
 admin = "admin@okkmail.cc"
-jwt_secret = "181036ec100cd1347a0293860f482745626dd138c62f90d9a508d5cd2f5c8df1"
+
+[secrets]
+required = ["jwt_secret"]

@@ -8,19 +8,24 @@ import permService from '../service/perm-service';
 import { t } from '../i18n/i18n'
 import app from '../hono/hono';
 
-const exclude = [
+const publicPaths = new Set([
 	'/login',
 	'/register',
-	'/oss',
 	'/setting/websiteConfig',
 	'/webhooks',
 	'/init',
-	'/open',
+	'/open/inbox',
+	'/open/recentMails',
+	'/open/mailContent',
+	'/open/attachment',
+	'/open/domains',
 	'/public/genToken',
-	'/telegram',
-	'/test',
-	'/oauth'
-];
+	'/oauth/linuxDo/login',
+	'/oauth/github/login',
+	'/oauth/google/login',
+	'/oauth/bindUser'
+]);
+const publicPrefixes = ['/oss/', '/media/', '/telegram/getEmail/'];
 
 const requirePerms = [
 	'/email/send',
@@ -94,11 +99,7 @@ app.use('*', async (c, next) => {
 
 	const path = c.req.path;
 
-	const index = exclude.findIndex(item => {
-		return path.startsWith(item);
-	});
-
-	if (index > -1) {
+	if (publicPaths.has(path) || publicPrefixes.some(prefix => path.startsWith(prefix))) {
 		return await next();
 	}
 
@@ -122,9 +123,12 @@ app.use('*', async (c, next) => {
 	}
 
 	const { userId, token } = result;
+	if (!Number.isSafeInteger(userId) || userId <= 0 || typeof token !== 'string') {
+		throw new BizError(t('authExpired'), 401);
+	}
 	const authInfo = await c.env.kv.get(KvConst.AUTH_INFO + userId, { type: 'json' });
 
-	if (!authInfo) {
+	if (!authInfo || authInfo.user?.userId !== userId || !Array.isArray(authInfo.tokens)) {
 		throw new BizError(t('authExpired'), 401);
 	}
 

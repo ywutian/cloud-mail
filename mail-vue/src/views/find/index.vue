@@ -23,7 +23,8 @@
             <Icon :icon="copied ? 'fluent:checkmark-24-filled' : 'fluent:copy-24-regular'" width="17" height="17"/>
             {{ copied ? '已复制' : '复制地址' }}
           </button>
-          <button class="tm-btn" @click="genAddr">
+          <button class="tm-btn" :disabled="!address" @click="copyAccessLink">复制查询链接</button>
+          <button class="tm-btn" :disabled="creating" @click="genAddr">
             <Icon icon="mingcute:refresh-2-line" width="17" height="17"/>
             换一个
           </button>
@@ -32,6 +33,7 @@
             {{ loading ? '查收中' : `${countdown}s 后刷新` }}
           </div>
         </div>
+        <p class="tm-access-note">知道地址的人都能查看最近 10 分钟的邮件，请勿用它接收敏感信息。</p>
       </section>
 
       <div class="tm-manual">
@@ -63,7 +65,7 @@
 
         <div v-if="!mails.length" class="tm-empty">
           <Icon icon="fluent:mail-inbox-24-regular" width="34" height="34"/>
-          <p>{{ searched ? '最近 10 分钟没有收到邮件' : '等待邮件…' }}</p>
+          <p>{{ inboxError || (searched ? '最近 10 分钟没有收到邮件' : '等待邮件…') }}</p>
         </div>
       </section>
 
@@ -75,33 +77,80 @@
         <header class="tm-view-head">
           <div class="tm-view-meta">
             <div class="tm-view-subject">{{ viewing.subject || '(无主题)' }}</div>
-            <div class="tm-view-from">
-              {{ viewing.sendName || viewing.sendEmail }}
-              <span v-if="viewing.sendName && viewing.sendEmail" class="tm-view-addr">
-                &lt;{{ viewing.sendEmail }}&gt;
-              </span>
-            </div>
           </div>
-          <button v-if="viewing.code" class="tm-code" title="点击复制" @click="copyCode(viewing.code)">
-            {{ viewing.code }}
-          </button>
-          <button class="tm-view-close" title="关闭" @click="closeMail">
+          <button class="tm-view-close" title="关闭 (Esc)" @click="closeMail">
             <Icon icon="mingcute:close-line" width="18" height="18"/>
           </button>
         </header>
 
-        <div v-if="viewLoading" class="tm-view-loading">正在打开…</div>
-        <iframe v-else class="tm-view-frame" :srcdoc="viewHtml" referrerpolicy="no-referrer"
-                sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
+        <div class="tm-view-info">
+          <div class="tm-view-info-row">
+            <span class="tm-view-info-label">发件人</span>
+            <span class="tm-view-name">{{ viewing.sendName || viewing.sendEmail }}</span>
+            <span v-if="viewing.sendName && viewing.sendEmail" class="tm-view-addr">&lt;{{ viewing.sendEmail }}&gt;</span>
+          </div>
+          <div class="tm-view-info-row">
+            <span class="tm-view-info-label">收件人</span>
+            <span>{{ formatRecipients(viewing) }}</span>
+          </div>
+          <time class="tm-view-date">{{ formatDetailDate(viewing.createTime) }}</time>
+          <el-alert v-if="viewing.status === 3" :closable="false" :title="statusMessage(viewing.message)"
+                    type="error" show-icon/>
+          <el-alert v-if="viewing.status === 4" :closable="false" :title="$t('complained')"
+                    type="warning" show-icon/>
+          <el-alert v-if="viewing.status === 5" :closable="false" :title="$t('delayed')"
+                    type="warning" show-icon/>
+        </div>
+
+        <div v-if="viewing.code" class="tm-view-code">
+          <span class="tm-view-code-label">验证码</span>
+          <button class="tm-code" title="点击复制" @click="copyCode(viewing.code)">
+            {{ viewing.code }}
+          </button>
+          <span class="tm-view-code-hint">{{ copied ? '已复制' : '点击复制' }}</span>
+        </div>
+
+        <div class="tm-view-stage">
+          <div v-if="viewLoading" class="tm-view-loading">正在打开…</div>
+          <iframe v-else class="tm-view-frame" :style="{height: frameHeight}" :srcdoc="viewHtml"
+                  referrerpolicy="no-referrer"
+                  sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
+          <section v-if="!viewLoading && viewing.attList?.length" class="tm-attachments">
+            <div class="tm-attachments-title">
+              <span>附件列表</span>
+              <span>共 {{ viewing.attList.length }} 个</span>
+            </div>
+            <div v-for="att in viewing.attList" :key="att.attId" class="tm-attachment">
+              <div class="tm-attachment-icon" :class="{ 'is-previewable': isImage(att.filename) }" @click="showImage(att)">
+                <Icon v-bind="getIconByName(att.filename)"/>
+              </div>
+              <div class="tm-attachment-name" :class="{ 'is-previewable': isImage(att.filename) }"
+                   :title="att.filename" @click="showImage(att)">{{ att.filename }}</div>
+              <div class="tm-attachment-size">{{ formatBytes(att.size) }}</div>
+              <div class="tm-attachment-actions">
+                <button v-if="isImage(att.filename)" type="button" title="查看" @click="showImage(att)">
+                  <Icon icon="hugeicons:view" width="22" height="22"/>
+                </button>
+                <button type="button" title="下载" @click="downloadAttachment(att)">
+                  <Icon icon="system-uicons:push-down" width="22" height="22"/>
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
     </div>
+    <el-image-viewer v-if="showPreview" :url-list="srcList" show-progress @close="closePreview"/>
   </div>
 </template>
 
 <script setup>
 import {computed, defineOptions, onMounted, onUnmounted, ref} from "vue";
 import {Icon} from "@iconify/vue";
-import {openDomains, openMailContent, openRecentMails} from "@/request/open.js";
+import {openCreateInbox, openDomains, openMailContent, openRecentMails} from "@/request/open.js";
+import {getExtName, formatBytes} from "@/utils/file-utils.js";
+import {getIconByName} from "@/utils/icon-utils.js";
+import {formatDetailDate} from "@/utils/day.js";
 
 defineOptions({
   name: 'find'
@@ -112,27 +161,38 @@ const ADDR_KEY = 'findAddress'
 
 const address = ref('')
 const manual = ref('')
+const creating = ref(false)
 const mails = ref([])
 const loading = ref(false)
 const searched = ref(false)
+const inboxError = ref('')
 const copied = ref(false)
 const countdown = ref(REFRESH_SEC)
 const domains = ref([])
 
 const viewing = ref(null)
 const viewLoading = ref(false)
+const showPreview = ref(false)
+const srcList = ref([])
 
 let timer = null
 let copyTimer = null
+let inboxRequestId = 0
+let viewRequestId = 0
+let previewRequestId = 0
+const previewUrls = new Set()
 
-// 邮件 HTML 放进 iframe 渲染。sandbox 没给 allow-scripts，也没给 allow-same-origin：
-// 脚本、内联事件、javascript: 链接一律不执行，邮件自带的 <style> 也污染不到本页。
-// 所以这里不需要再引一个 sanitize 库。
+// 邮件 HTML 在受限 iframe 内渲染，不允许脚本和同源访问。
 const viewHtml = computed(() => {
   if (!viewing.value) return ''
-  const raw = viewing.value.content
+  const raw = viewing.value.content?.replace(
+      /\{\{domain\}\}(attachments\/[A-Za-z0-9._-]+)/g,
+      (_, key) => viewing.value.inlineMedia?.[key] || ''
+  ).replace(/\{\{domain\}\}/g, '')
       || `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(viewing.value.text || '(空邮件)')}</pre>`
   return `<!doctype html><meta charset="utf-8">`
+      + `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${window.location.origin} data: blob:; style-src 'unsafe-inline'">`
+      + `<meta name="referrer" content="no-referrer">`
       + `<base target="_blank">`
       + `<style>body{margin:0;padding:18px;background:#fff;color:#1a1a1a;`
       + `font:14px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;`
@@ -142,32 +202,131 @@ const viewHtml = computed(() => {
       + raw
 })
 
+// sandbox 里不能跑脚本，iframe 拿不到内容高度，只能按正文长度粗估一下。
+// 好处是验证码邮件（通常很短）不会撑出一大片空白。
+const frameHeight = computed(() => {
+  const len = (viewing.value?.content || viewing.value?.text || '').length
+  if (len < 800) return '260px'
+  if (len < 4000) return '420px'
+  return '62vh'
+})
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c =>
       ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]))
 }
 
+function formatRecipients(mail) {
+  try {
+    const recipient = JSON.parse(mail.recipient || '[]')
+    if (Array.isArray(recipient)) {
+      const addresses = recipient.map(item => item?.address).filter(Boolean)
+      if (addresses.length) return addresses.join(', ')
+    }
+  } catch { /* 旧邮件可能没有标准收件人结构 */ }
+  return mail.toEmail || address.value
+}
+
+function statusMessage(message) {
+  if (!message) return ''
+  try { return JSON.parse(message).message || '' } catch { return String(message) }
+}
+
+function attachmentUrl(att, download = false) {
+  const params = new URLSearchParams({
+    emailId: String(viewing.value.emailId),
+    address: address.value,
+    attId: String(att.attId)
+  })
+  if (download) params.set('download', '1')
+  return `${import.meta.env.VITE_BASE_URL.replace(/\/$/, '')}/open/attachment?${params}`
+}
+
+async function attachmentBlob(att) {
+  const response = await fetch(attachmentUrl(att), {
+    cache: 'no-store'
+  })
+  if (!response.ok) throw new Error('附件不可用或邮件已过期')
+  return response.blob()
+}
+
+async function downloadAttachment(att) {
+  try {
+    const blob = await attachmentBlob(att)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = att.filename || 'attachment'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 30000)
+  } catch {
+    flash('附件不可用或邮件已过期')
+  }
+}
+
+function isImage(filename) {
+  return ['png', 'jpg', 'jpeg', 'bmp', 'gif', 'jfif'].includes(getExtName(filename))
+}
+
+function closePreview() {
+  previewRequestId += 1
+  showPreview.value = false
+  srcList.value = []
+  for (const url of previewUrls) URL.revokeObjectURL(url)
+  previewUrls.clear()
+}
+
+async function showImage(att) {
+  if (!isImage(att.filename)) return
+  closePreview()
+  const requestId = previewRequestId
+  try {
+    const blob = await attachmentBlob(att)
+    if (requestId !== previewRequestId || !viewing.value) return
+    const url = URL.createObjectURL(blob)
+    previewUrls.add(url)
+    srcList.value = [url]
+    showPreview.value = true
+  } catch {
+    flash('图片不可用或邮件已过期')
+  }
+}
+
 async function openMail(m) {
+  const requestId = ++viewRequestId
+  const requestedAddress = address.value
+  closePreview()
   viewing.value = m
   viewLoading.value = true
   try {
-    const full = await openMailContent(m.emailId, address.value)
-    if (viewing.value && viewing.value.emailId === m.emailId) {
+    const full = await openMailContent(m.emailId, requestedAddress)
+    if (requestId === viewRequestId && viewing.value?.emailId === m.emailId && address.value === requestedAddress) {
       viewing.value = full
     }
   } catch {
-    if (viewing.value) viewing.value = {...m, text: '这封邮件打不开了，可能已经过期'}
+    if (requestId === viewRequestId && viewing.value?.emailId === m.emailId) {
+      viewing.value = {...m, text: '这封邮件打不开了，可能已经过期'}
+    }
   } finally {
-    viewLoading.value = false
+    if (requestId === viewRequestId) viewLoading.value = false
   }
 }
 
 function closeMail() {
+  viewRequestId += 1
+  closePreview()
   viewing.value = null
 }
 
 function onEsc(e) {
-  if (e.key === 'Escape' && viewing.value) closeMail()
+  if (e.key !== 'Escape') return
+  if (showPreview.value) {
+    closePreview()
+  } else if (viewing.value) {
+    closeMail()
+  }
 }
 
 onMounted(async () => {
@@ -175,19 +334,27 @@ onMounted(async () => {
     domains.value = await openDomains() || []
   } catch { /* 拿不到域名就只能手动输入地址 */ }
 
-  let saved = ''
+  let saved = null
   try {
-    saved = localStorage.getItem(ADDR_KEY) || ''
+    saved = localStorage.getItem(ADDR_KEY)
+    if (!saved) saved = JSON.parse(localStorage.getItem('findInbox') || 'null')?.address
   } catch { /* 隐私模式读不到 */ }
 
-  // 地址只是个字符串：catch-all 收所有地址，所以不需要向后端注册
-  if (saved && domains.value.some(d => saved.endsWith('@' + d))) {
-    address.value = saved
-  } else {
-    genAddr()
+  const fragment = new URLSearchParams(window.location.hash.slice(1))
+  const sharedAddress = fragment.get('address')
+  if (sharedAddress) {
+    saved = sharedAddress
+    window.history.replaceState({}, '', window.location.pathname + window.location.search)
   }
 
-  load()
+  if (saved && domains.value.some(d => saved.toLowerCase().endsWith('@' + d.toLowerCase()))) {
+    address.value = saved.toLowerCase()
+    saveInbox()
+    load()
+  } else {
+    await genAddr()
+  }
+
   window.addEventListener('keydown', onEsc)
   // 一个定时器同时管倒计时和触发刷新，比两个各跑各的干净
   timer = setInterval(() => {
@@ -203,62 +370,90 @@ onUnmounted(() => {
   if (timer) clearInterval(timer)
   if (copyTimer) clearTimeout(copyTimer)
   window.removeEventListener('keydown', onEsc)
+  closePreview()
 })
 
-// 字符集去掉 0/1/i/l/o，念出来或手抄不会认错
-function genAddr() {
-  const domain = domains.value[0]
-  if (!domain) return
-
-  const chars = 'abcdefghjkmnpqrstuvwxyz23456789'
-  const buf = new Uint32Array(10)
-  crypto.getRandomValues(buf)
-  address.value = Array.from(buf, n => chars[n % chars.length]).join('') + '@' + domain
-
+function saveInbox() {
   try {
     localStorage.setItem(ADDR_KEY, address.value)
+    localStorage.removeItem('findInbox')
   } catch { /* 存不下就算了 */ }
+}
 
-  resetInbox()
+async function genAddr() {
+  if (creating.value) return
+  creating.value = true
+  try {
+    const inbox = await openCreateInbox()
+    address.value = inbox.address
+    saveInbox()
+    resetInbox()
+  } catch {
+    flash('生成邮箱失败，请稍后重试')
+  } finally {
+    creating.value = false
+  }
 }
 
 function resetInbox() {
+  closeMail()
+  inboxRequestId += 1
+  loading.value = false
   mails.value = []
   searched.value = false
+  inboxError.value = ''
   countdown.value = REFRESH_SEC
   load()
 }
 
 async function load() {
   if (!address.value || loading.value) return
+  const requestId = ++inboxRequestId
+  const requestedAddress = address.value
   loading.value = true
   try {
-    mails.value = await openRecentMails(address.value) || []
-    searched.value = true
-  } catch {
-    // 轮询失败不打扰，下一轮再试
+    const result = await openRecentMails(requestedAddress)
+    if (requestId === inboxRequestId && address.value === requestedAddress) {
+      mails.value = result || []
+      searched.value = true
+      inboxError.value = ''
+    }
+  } catch (error) {
+    if (requestId === inboxRequestId && error?.code === 403) {
+      inboxError.value = '正式邮箱不能在公开页面查询'
+    }
   } finally {
-    loading.value = false
+    if (requestId === inboxRequestId) loading.value = false
   }
 }
 
-function useManual() {
+async function useManual() {
   const addr = manual.value.trim().toLowerCase()
   if (!addr) return
   if (!domains.value.some(d => addr.endsWith('@' + d))) {
     flash('只能查询本站域名的地址')
     return
   }
-  address.value = addr
   try {
-    localStorage.setItem(ADDR_KEY, addr)
-  } catch { /* 忽略 */ }
+    await openRecentMails(addr)
+  } catch {
+    flash('地址无效，或属于正式邮箱')
+    return
+  }
+  address.value = addr
+  saveInbox()
   resetInbox()
 }
 
 async function copyAddr() {
   if (!address.value) return
   await copy(address.value)
+}
+
+async function copyAccessLink() {
+  if (!address.value) return
+  const fragment = new URLSearchParams({address: address.value})
+  await copy(`${window.location.origin}/find#${fragment}`)
 }
 
 async function copyCode(code) {
@@ -389,6 +584,13 @@ function fmt(t) {
   flex-wrap: wrap;
 }
 
+.tm-access-note {
+  margin: 13px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
 /* ---------- buttons ---------- */
 
 .tm-btn {
@@ -469,7 +671,8 @@ function fmt(t) {
 /* ---------- manual search ---------- */
 
 .tm-manual {
-  display: flex;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
   margin: 16px 0 22px;
@@ -477,6 +680,21 @@ function fmt(t) {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--card);
+}
+
+.tm-manual input:first-of-type {
+  grid-column: 2;
+}
+
+.tm-manual input:nth-of-type(2) {
+  grid-column: 2;
+  grid-row: 2;
+  border-top: 1px solid var(--line);
+}
+
+.tm-manual button {
+  grid-column: 3;
+  grid-row: 1 / 3;
 }
 
 .tm-manual-icon {
@@ -645,20 +863,20 @@ function fmt(t) {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 660px;
-  max-height: 84vh;
+  max-width: 720px;
+  max-height: 88vh;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--card);
   overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .45);
 }
 
 .tm-view-head {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--line);
+  padding: 18px 20px 16px;
 }
 
 .tm-view-meta {
@@ -667,22 +885,52 @@ function fmt(t) {
 }
 
 .tm-view-subject {
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.tm-view-info {
+  padding: 0 20px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.tm-view-info-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  overflow-wrap: anywhere;
+}
+
+.tm-view-info-label {
+  flex-shrink: 0;
+  min-width: 48px;
   font-weight: 600;
   color: var(--ink);
 }
 
-.tm-view-from {
-  margin-top: 3px;
-  font-size: 12.5px;
-  color: var(--ink-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.tm-view-name {
+  font-weight: 500;
 }
 
-.tm-view-addr {
+.tm-view-addr,
+.tm-view-date {
   color: var(--ink-3);
+}
+
+.tm-view-date {
+  display: block;
+  margin: 4px 0 0 54px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tm-view-info :deep(.el-alert) {
+  margin-top: 12px;
 }
 
 .tm-view-close {
@@ -702,11 +950,43 @@ function fmt(t) {
   border-color: var(--ink-3);
 }
 
+/* 验证码单独一条，不跟标题挤在一起 */
+.tm-view-code {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0 20px 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(59, 130, 246, .25);
+  border-radius: 10px;
+  background: rgba(59, 130, 246, .08);
+}
+
+.tm-view-code-label {
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.tm-view-code-hint {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* 白底正文浮在深色衬底上，像一张信纸，不是硬切一刀 */
+.tm-view-stage {
+  min-height: 0;
+  padding: 16px 20px 20px;
+  overflow: auto;
+}
+
 .tm-view-frame {
-  flex: 1;
-  min-height: 320px;
+  display: block;
   width: 100%;
   border: none;
+  border-radius: 10px;
   background: #fff;
 }
 
@@ -715,6 +995,87 @@ function fmt(t) {
   text-align: center;
   font-size: 13px;
   color: var(--ink-3);
+}
+
+.tm-attachments {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+}
+
+.tm-attachments-title {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.tm-attachments-title span:first-child {
+  font-weight: 600;
+}
+
+.tm-attachments-title span:last-child {
+  color: var(--ink-2);
+}
+
+.tm-attachment {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-top: 10px;
+  padding: 7px;
+  border-radius: 5px;
+  background: var(--card-2);
+  font-size: 13px;
+}
+
+.tm-attachment-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tm-attachment-size {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.tm-attachment-icon {
+  display: grid;
+  place-items: center;
+}
+
+.tm-attachment .is-previewable {
+  cursor: pointer;
+}
+
+.tm-attachment-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 4px;
+}
+
+.tm-attachment-actions button,
+.tm-attachment-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.tm-attachment-actions button:hover,
+.tm-attachment-actions a:hover {
+  color: var(--ink);
 }
 
 /* ---------- mobile ---------- */
@@ -737,6 +1098,35 @@ function fmt(t) {
   .tm-code {
     font-size: 16px;
     padding: 6px 10px;
+  }
+
+  /* 手机上弹窗贴边铺满，别再留一圈边距挤内容 */
+  .tm-modal {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .tm-view {
+    max-width: none;
+    max-height: 92vh;
+    border-radius: 16px 16px 0 0;
+    border-bottom: none;
+  }
+
+  .tm-view-code {
+    margin: 0 14px 4px;
+  }
+
+  .tm-view-stage {
+    padding: 12px 14px 16px;
+  }
+
+  .tm-view-head {
+    padding: 16px 14px 14px;
+  }
+
+  .tm-view-info {
+    padding: 0 14px 12px;
   }
 }
 </style>

@@ -21,7 +21,7 @@ zone 级 catch-all → 这个 Worker。
 cd ~/Documents/cloud-mail/mail-vue \
   && PATH="/opt/homebrew/Cellar/node/26.0.0/bin:$PATH" pnpm --config.verifyDepsBeforeRun=false build \
   && cd ../mail-worker \
-  && CLOUDFLARE_API_TOKEN=$(cat ~/.cf-okkmail-token) PATH="/opt/homebrew/Cellar/node/26.0.0/bin:$PATH" npx wrangler deploy
+  && CLOUDFLARE_API_TOKEN=$(cat ~/.cf-okkmail-token) PATH="/opt/homebrew/Cellar/node/26.0.0/bin:$PATH" npx wrangler deploy --secrets-file ~/.config/cloud-mail/worker-secrets.env
 ```
 
 三处都不能省：
@@ -33,6 +33,8 @@ cd ~/Documents/cloud-mail/mail-vue \
 - **`CLOUDFLARE_API_TOKEN`** — 用 token 而不是 `wrangler login`。OAuth 登录是全局的，
   在别的项目登录另一个 Cloudflare 账号会把它覆盖掉，回来部署就是 `Authentication error [10000]`。
   token 存在 `~/.cf-okkmail-token`（权限 600），限定在本账号 + `okkmail.cc` 这个 zone。
+- **`worker-secrets.env`** — 存放 `jwt_secret`，可选放 `init_secret`，权限 600，不能放进仓库。
+  已公开过的签名密钥必须先轮换；轮换会使现有登录会话失效。
 
 token 权限清单（模板「Edit Cloudflare Workers」+ 手动加 D1）：Workers Scripts / KV / R2 /
 Pages / Observability / Containers = Edit，**D1 = Edit**，Zone `okkmail.cc` 的 Workers Routes = Edit。
@@ -53,13 +55,13 @@ Pages / Observability / Containers = Edit，**D1 = Edit**，Zone `okkmail.cc` �
 ### 改了 setting 表之后必须刷缓存
 
 设置缓存在 KV，直接改数据库不生效，而且 `query()` 没有 DB 回退——删 KV key 会让整站报
-「数据库未初始化」。正确做法是重跑 init（它最后会 `settingService.refresh`）：
+「数据库未初始化」。若配置了独立的 `init_secret`，可通过受控的初始化接口刷新缓存：
 
 ```bash
-curl "https://box.okkmail.cc/api/init/<jwt_secret>"
+curl -X POST -H "X-Init-Key: <init_secret>" "https://box.okkmail.cc/api/init"
 ```
 
-`jwt_secret` 见 `mail-worker/wrangler.toml`。init 是幂等的，重跑安全。
+初始化密钥不能与登录签名密钥共用，也不能放在 URL 中。
 
 ## 定制点（升级上游时要重新打）
 
@@ -69,10 +71,10 @@ curl "https://box.okkmail.cc/api/init/<jwt_secret>"
 |---|---|
 | `../wrangler.toml` | 域名、绑定、两个 custom domain、`PREFIX=""` |
 | `index.js` | `temp.*` 根路径 302 到 `/find` |
-| `security/security.js` | `exclude` 加 `/open`（免鉴权前缀） |
+| `security/security.js` | 明确列出免登录路由 |
 | `hono/webs.js` | 注册 `open-api` |
-| `api/open-api.js` | **新增**。`/open/recentMails`、`/open/mailContent`、`/open/domains` |
-| `service/open-service.js` | **新增**。10 分钟窗口查询 + 域名校验；读正文必须 emailId 和 address 同时匹配，否则能遍历 id 读别人的信 |
+| `api/open-api.js` | **新增**。公开地址生成、列表、正文、附件、域名接口 |
+| `service/open-service.js` | **新增**。10 分钟窗口查询 + 正式邮箱归属校验；正文和附件均按地址、邮件 ID 与归属限定 |
 | `api/email-api.js` | 加 `/email/addresses` |
 | `service/email-service.js` | 加 `addressList()`（地址聚合）、`claimNoOne()`（认领无归属邮件） |
 | `service/account-service.js` | `add()` 末尾调 `claimNoOne`，添加邮箱时把历史信一并收编 |
@@ -94,8 +96,11 @@ curl "https://box.okkmail.cc/api/init/<jwt_secret>"
 
 ## 设计上的两个决定
 
-**公开页的地址不入库。** 纯前端生成字符串，catch-all 本来就收所有地址，所以服务端零负担，
+**公开页的地址不入库。** 服务端随机生成字符串，catch-all 本来就收所有地址，所以不会创建账号，
 也不会堆一堆没人用的废账号。信落在「无收件人」，管理端「地址记录」里能看到。
+
+**公开页按地址查询。** 知道地址的人在邮件抵达后 10 分钟内可以查看正文和附件。正式账号、
+其加号别名以及已归属某位用户的邮件不会进入公开查询。
 
 **收件箱顶部那个地址，点「复制」才建账号。** 只看不复制不留痕——复制这个动作本身就等于
 「我要用它」。
@@ -109,4 +114,4 @@ curl "https://box.okkmail.cc/api/init/<jwt_secret>"
 
 - Cloudflare 账号 `A01123490047@gmail.com`，Account ID `79c3d88c58b0a43008575287de4cafb6`
 - D1 `cloudmail-db`、KV、Workers AI binding 见 `mail-worker/wrangler.toml`
-- 访问密码、管理员密码、`jwt_secret` 也在 `wrangler.toml`（**这个文件别提交到公开仓库**）
+- 登录签名密钥和可选的初始化密钥通过 Worker Secret 配置，不保存在仓库配置中

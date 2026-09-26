@@ -20,6 +20,10 @@ export function emailRead(emailIds) {
     return http.put('/email/read', {emailIds})
 }
 
+export function emailContentMedia(emailId) {
+    return http.get('/email/contentMedia', {params: {emailId}, noMsg: true})
+}
+
 export function emailSend(form,progress) {
     return http.post('/email/send', form,{
         onUploadProgress: (e) => {

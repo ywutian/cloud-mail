@@ -35,7 +35,8 @@
             <el-alert v-if="email.status === 5" :closable="false" :title="$t('delayed')" class="email-msg" type="warning" show-icon />
           </div>
           <el-scrollbar class="htm-scrollbar" :class="!email.attList?.length ? 'bottom-distance' : ''">
-            <ShadowHtml class="shadow-html" :html="formatImage(email.content)" v-if="email.content" />
+            <iframe class="mail-frame" :srcdoc="frameHtml" v-if="email.content"
+                    sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"/>
             <pre v-else class="email-text" >{{email.text}}</pre>
           </el-scrollbar>
           <div class="att" v-if="email.attList?.length > 0">
@@ -46,16 +47,16 @@
             <div class="att-box">
 
               <div class="att-item" v-for="att in email.attList" :key="att.attId">
-                <div class="att-icon" @click="showImage(att.key)">
+                <div class="att-icon" @click="showImage(att)">
                   <Icon v-bind="getIconByName(att.filename)" />
                 </div>
-                <div class="att-name" @click="showImage(att.key)">
+                <div class="att-name" @click="showImage(att)">
                   {{ att.filename }}
                 </div>
                 <div class="att-size">{{ formatBytes(att.size) }}</div>
                 <div class="opt-icon att-icon">
-                  <Icon v-if="isImage(att.filename)" icon="hugeicons:view" width="22" height="22" @click="showImage(att.key)"/>
-                  <a :href="cvtR2Url(att.key)" download>
+                  <Icon v-if="isImage(att.filename)" icon="hugeicons:view" width="22" height="22" @click="showImage(att)"/>
+                  <a href="#" @click.prevent="downloadAttachment(att)">
                     <Icon icon="system-uicons:push-down" width="22" height="22"/>
                   </a>
                 </div>
@@ -69,32 +70,28 @@
         v-if="showPreview"
         :url-list="srcList"
         show-progress
-        @close="showPreview = false"
+        @close="closePreview"
     />
   </div>
 </template>
 <script setup>
-import ShadowHtml from '@/components/shadow-html/index.vue'
 import {computed, reactive, ref, watch, onMounted, onUnmounted} from "vue";
 import {useRouter} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
-import {emailDelete, emailRead} from "@/request/email.js";
+import {emailContentMedia, emailDelete, emailRead} from "@/request/email.js";
 import {Icon} from "@iconify/vue";
 import {useEmailStore} from "@/store/email.js";
 import {useAccountStore} from "@/store/account.js";
 import {formatDetailDate} from "@/utils/day.js";
 import {starAdd, starCancel} from "@/request/star.js";
 import {getExtName, formatBytes} from "@/utils/file-utils.js";
-import {cvtR2Url,toOssDomain} from "@/utils/convert.js";
 import {getIconByName} from "@/utils/icon-utils.js";
-import {useSettingStore} from "@/store/setting.js";
 import {allEmailDelete} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
 
 const uiStore = useUiStore();
-const settingStore = useSettingStore();
 const accountStore = useAccountStore();
 const emailStore = useEmailStore();
 const router = useRouter()
@@ -107,6 +104,34 @@ const email = computed(() => emailStore.contentData.email || {
 })
 const showPreview = ref(false)
 const srcList = reactive([])
+const inlineMedia = ref({})
+const previewUrls = new Set()
+let mediaRequestId = 0
+
+watch(() => [email.value?.emailId, email.value?.content], async () => {
+  const requestId = ++mediaRequestId
+  inlineMedia.value = {}
+  if (!email.value?.emailId || !email.value?.content) return
+  try {
+    const urls = await emailContentMedia(email.value.emailId)
+    if (requestId === mediaRequestId) inlineMedia.value = urls || {}
+  } catch {
+    // 邮件正文仍可阅读，内嵌图片将在下次打开时重试。
+  }
+}, { immediate: true })
+
+const frameHtml = computed(() => {
+  const content = String(email.value?.content || '').replace(
+      /\{\{domain\}\}(attachments\/[A-Za-z0-9._-]+)/g,
+      (_, key) => inlineMedia.value[key] || ''
+  ).replace(/\{\{domain\}\}/g, '')
+  const origin = window.location.origin
+  return `<!doctype html><meta charset="utf-8">`
+      + `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${origin} data: blob:; style-src 'unsafe-inline'">`
+      + `<meta name="referrer" content="no-referrer"><base target="_blank">`
+      + `<style>body{margin:0;padding:16px;background:#fff;color:#13181d;font:14px/1.5 sans-serif;word-break:break-word}`
+      + `img{max-width:100%;height:auto}table{max-width:100%}</style>${content}`
+})
 
 const { t } = useI18n()
 watch(() => accountStore.currentAccountId, () => {
@@ -157,6 +182,7 @@ onUnmounted(() => {
   emailStore.contentData.showUnread = false;
   readRequesting = false
   window.removeEventListener('keydown', handleKeyDown);
+  closePreview()
 })
 
 function handleKeyDown(event) {
@@ -180,18 +206,55 @@ function toMessage(message) {
   return  message ? JSON.parse(message).message : '';
 }
 
-function formatImage(content) {
-  content = content || '';
-  const domain = settingStore.settings.r2Domain;
-  return  content.replace(/{{domain}}/g, toOssDomain(domain) + '/');
+function attachmentUrl(att) {
+  const params = new URLSearchParams({emailId: String(email.value.emailId), attId: String(att.attId)})
+  return `${import.meta.env.VITE_BASE_URL.replace(/\/$/, '')}/email/attachment?${params}`
 }
 
-function showImage(key) {
-  if (!isImage(key)) return;
-  const url = cvtR2Url(key)
+async function attachmentBlob(att) {
+  const response = await fetch(attachmentUrl(att), {
+    headers: {Authorization: localStorage.getItem('token') || ''},
+    cache: 'no-store'
+  })
+  if (!response.ok) throw new Error('附件不可用')
+  return response.blob()
+}
+
+async function downloadAttachment(att) {
+  try {
+    const blob = await attachmentBlob(att)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = att.filename || 'attachment'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 30000)
+  } catch {
+    ElMessage.error('附件不可用，请重新打开邮件')
+  }
+}
+
+function closePreview() {
+  showPreview.value = false
   srcList.length = 0
-  srcList.push(url)
-  showPreview.value = true
+  for (const url of previewUrls) URL.revokeObjectURL(url)
+  previewUrls.clear()
+}
+
+async function showImage(att) {
+  if (!isImage(att.filename)) return
+  closePreview()
+  try {
+    const blob = await attachmentBlob(att)
+    const url = URL.createObjectURL(blob)
+    previewUrls.add(url)
+    srcList.push(url)
+    showPreview.value = true
+  } catch {
+    ElMessage.error('图片不可用，请重新打开邮件')
+  }
 }
 
 function isImage(filename) {
@@ -453,15 +516,11 @@ const handleDelete = () => {
   }
 }
 
-.shadow-html::after  {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--message-block-color); /* 半透明黑色蒙层 */
-  pointer-events: none; /* 不影响点击 */
+.mail-frame {
+  width: 100%;
+  min-height: 52vh;
+  border: 0;
+  background: #fff;
 }
 
 .email-text {

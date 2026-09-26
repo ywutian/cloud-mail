@@ -1,33 +1,16 @@
 import BizError from '../error/biz-error';
+import r2Service from './r2-service';
+import inboxAccessService from './inbox-access-service';
+import mediaService from './media-service';
 
-// 公开查码：不登录，输入地址就能看它最近 10 分钟收到的信。
-// 这是公开临时邮箱站的常规做法，代价是知道地址的人都能读——
-// 10 分钟窗口把危害限制在「注册当下正好被人盯着」这一种情况。
+// 公开临时邮箱允许按地址查询，仅展示没有账户归属的近 10 分钟邮件。
 const OPEN_WINDOW_MINUTES = 10;
 
 const openService = {
 
 	async recentMails(c, params) {
 
-		const address = (params.address || '').trim().toLowerCase();
-
-		if (!address) {
-			throw new BizError('请输入邮箱地址');
-		}
-
-		let domains = c.env.domain;
-		if (typeof domains === 'string') {
-			try {
-				domains = JSON.parse(domains);
-			} catch {
-				domains = [];
-			}
-		}
-		domains = Array.isArray(domains) ? domains : [];
-
-		if (!domains.some(d => address.endsWith('@' + String(d).toLowerCase()))) {
-			throw new BizError('不是本站的邮箱域名');
-		}
+		const address = await inboxAccessService.assertPublicAddress(c, params.address);
 
 		// 只取摘要字段，不返回正文，少暴露一层
 		const { results } = await c.env.db.prepare(
@@ -41,6 +24,7 @@ const openService = {
 			 WHERE to_email COLLATE NOCASE = ?
 			   AND type = 0
 			   AND is_del = 0
+			   AND user_id = 0 AND account_id = 0
 			   AND create_time > datetime('now', '-${OPEN_WINDOW_MINUTES} minutes')
 			 ORDER BY email_id DESC
 			 LIMIT 20`
@@ -49,30 +33,13 @@ const openService = {
 		return results || [];
 	},
 
-	// 读正文。必须同时带 emailId 和 address 且两者匹配——
-	// 只按 emailId 查的话，谁都能从 1 开始遍历读别人的信。
-	// 时间窗口也跟列表一致，过期的信连正文一起消失。
 	async mailContent(c, params) {
 
-		const address = (params.address || '').trim().toLowerCase();
+		const address = await inboxAccessService.assertPublicAddress(c, params.address);
 		const emailId = Number(params.emailId);
 
-		if (!address || !emailId) {
+		if (!Number.isSafeInteger(emailId) || emailId <= 0) {
 			throw new BizError('参数不完整');
-		}
-
-		let domains = c.env.domain;
-		if (typeof domains === 'string') {
-			try {
-				domains = JSON.parse(domains);
-			} catch {
-				domains = [];
-			}
-		}
-		domains = Array.isArray(domains) ? domains : [];
-
-		if (!domains.some(d => address.endsWith('@' + String(d).toLowerCase()))) {
-			throw new BizError('不是本站的邮箱域名');
 		}
 
 		const row = await c.env.db.prepare(
@@ -83,12 +50,17 @@ const openService = {
 			        code,
 			        content,
 			        text,
+			        recipient,
+			        to_email AS toEmail,
+			        status,
+			        message,
 			        create_time AS createTime
 			 FROM email
 			 WHERE email_id = ?
 			   AND to_email COLLATE NOCASE = ?
 			   AND type = 0
 			   AND is_del = 0
+			   AND user_id = 0 AND account_id = 0
 			   AND create_time > datetime('now', '-${OPEN_WINDOW_MINUTES} minutes')`
 		).bind(emailId, address).first();
 
@@ -96,7 +68,58 @@ const openService = {
 			throw new BizError('邮件不存在或已过期');
 		}
 
-		return row;
+		const { results } = await c.env.db.prepare(
+			`SELECT att_id AS attId, filename, mime_type AS mimeType, size
+			 FROM attachments
+			 WHERE email_id = ? AND type = 0 AND content_id IS NULL
+			 ORDER BY att_id`
+		).bind(emailId).all();
+
+		const inlineMedia = await mediaService.inlineMap(c, emailId, { address });
+		return { ...row, attList: results || [], inlineMedia };
+	},
+
+	async attachment(c, params) {
+		const emailId = Number(params.emailId);
+		const attId = Number(params.attId);
+		if (!Number.isSafeInteger(emailId) || emailId <= 0 || !Number.isSafeInteger(attId) || attId <= 0) {
+			throw new BizError('附件不存在或已过期');
+		}
+
+		const address = await inboxAccessService.assertPublicAddress(c, params.address);
+		const email = await c.env.db.prepare(
+			`SELECT 1 FROM email WHERE email_id = ? AND to_email COLLATE NOCASE = ?
+			 AND type = 0 AND is_del = 0 AND user_id = 0 AND account_id = 0
+			 AND create_time > datetime('now', '-${OPEN_WINDOW_MINUTES} minutes') LIMIT 1`
+		).bind(emailId, address).first();
+		if (!email) throw new BizError('附件不存在或已过期');
+		const attachment = await c.env.db.prepare(
+			`SELECT key, filename, mime_type AS mimeType
+			 FROM attachments
+			 WHERE att_id = ? AND email_id = ? AND type = 0 AND content_id IS NULL`
+		).bind(attId, emailId).first();
+		if (!attachment) {
+			throw new BizError('附件不存在或已过期');
+		}
+
+		const object = await r2Service.getObj(c, attachment.key);
+		if (!object) {
+			throw new BizError('附件不存在或已过期');
+		}
+
+		const mimeType = (attachment.mimeType || 'application/octet-stream').split(';')[0].trim().toLowerCase();
+		const previewable = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp', 'application/pdf', 'text/plain'].includes(mimeType);
+		const disposition = params.download === '1' || !previewable ? 'attachment' : 'inline';
+		const filename = String(attachment.filename || 'attachment').split(/[\\/]/).pop().replace(/[\r\n"]/g, '_');
+		const asciiFilename = filename.replace(/[^\x20-\x7E]/g, '_');
+		return new Response(object.body, {
+			headers: {
+				'Content-Type': previewable ? mimeType : 'application/octet-stream',
+				'Content-Disposition': `${disposition}; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+				'Cache-Control': 'no-store',
+				'X-Content-Type-Options': 'nosniff'
+			}
+		});
 	}
 };
 

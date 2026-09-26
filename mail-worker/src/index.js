@@ -22,9 +22,20 @@ export default {
 			return app.fetch(req, env, ctx);
 		}
 
-		 if (['/static/','/attachments/'].some(p => url.pathname.startsWith(p))) {
-			 return await kvObjService.toObjResp( { env }, url.pathname.substring(1));
-		 }
+		if (url.pathname.startsWith('/attachments/')) {
+			return new Response('Not found', { status: 404 });
+		}
+
+		if (url.pathname.startsWith('/static/background/')) {
+			const object = await kvObjService.toObjResp({ env }, url.pathname.substring(1));
+			const type = object?.headers.get('Content-Type');
+			if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(type)) {
+				return new Response('Not found', { status: 404 });
+			}
+			const response = new Response(object.body, object);
+			response.headers.set('X-Content-Type-Options', 'nosniff');
+			return response;
+		}
 
 		return env.assets.fetch(req);
 	},

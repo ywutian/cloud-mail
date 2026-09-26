@@ -157,6 +157,9 @@ const settingService = {
 		if (background && !background.startsWith('http')) {
 
 			const file = fileUtils.base64ToFile(background)
+			if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+				throw new BizError('背景图片类型或大小不受支持', 400);
+			}
 
 			const arrayBuffer = await file.arrayBuffer();
 			background = constant.BACKGROUND_PREFIX + await fileUtils.getBuffHash(arrayBuffer) + fileUtils.getExtFileName(file.name);
