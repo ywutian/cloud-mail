@@ -25,9 +25,9 @@ app.onError((err, c) => {
 		return c.json(result.fail('D1数据库未绑定 D1 database not bound',502));
 	}
 
-	return c.json(result.fail(err.message, err.code));
+	return c.json(result.fail(err.name === 'BizError' ? err.message : '服务器内部错误',
+		err.name === 'BizError' ? err.code : 500));
 });
 
 export default app;
-
 

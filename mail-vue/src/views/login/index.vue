@@ -185,9 +185,9 @@ const oauthKeys = ['linuxdo', 'github', 'google']
 
 const oauthProvider = computed(() => {
   const fromState = route.query.state
-  if (oauthKeys.includes(fromState)) return fromState
+  const expectedState = sessionStorage.getItem('oauthState')
   const fromStore = sessionStorage.getItem('oauthProvider')
-  return oauthKeys.includes(fromStore) ? fromStore : null
+  return expectedState && fromState === expectedState && oauthKeys.includes(fromStore) ? fromStore : null
 })
 
 const oauthProviders = computed(() => {
@@ -288,11 +288,13 @@ const getEmailName = (email) => {
 function oauthLogin(provider) {
   const clientId = settingStore.settings[provider + 'ClientId']
   const redirectUri = encodeURIComponent(window.location.origin + '/login')
+  const state = crypto.randomUUID()
   sessionStorage.setItem('oauthProvider', provider)
+  sessionStorage.setItem('oauthState', state)
   const authorizeUrls = {
-    linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
-    github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email&state=${provider}`,
-    google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
+    linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${state}`,
+    github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email&state=${state}`,
+    google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${state}`,
   }
   window.location.href = authorizeUrls[provider]
 }
@@ -309,11 +311,17 @@ async function oauthGetUser() {
 
   const params = new URLSearchParams(window.location.search)
   const code = params.get('code')
-  if (!code || !oauthProvider.value) return
+  if (!code) return
+  if (!oauthProvider.value) {
+    window.history.replaceState({}, '', window.location.origin + window.location.pathname)
+    ElMessage.error('第三方登录校验失败，请重试')
+    return
+  }
 
   const provider = oauthProvider.value
   oauthLoading.value = true
   sessionStorage.removeItem('oauthProvider')
+  sessionStorage.removeItem('oauthState')
   window.history.replaceState({}, '', window.location.origin + window.location.pathname)
 
   loginFns[provider](code, window.location.origin + '/login').then(data => {
