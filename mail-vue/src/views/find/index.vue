@@ -3,15 +3,21 @@
     <div class="tm-shell">
 
       <header class="tm-head">
+        <nav class="tm-language" :aria-label="t('temporaryInbox.language')">
+          <button type="button" :aria-pressed="settingStore.lang === 'zh'"
+                  :class="{ 'is-active': settingStore.lang === 'zh' }" @click="changeLanguage('zh')">中文</button>
+          <button type="button" :aria-pressed="settingStore.lang === 'en'"
+                  :class="{ 'is-active': settingStore.lang === 'en' }" @click="changeLanguage('en')">English</button>
+        </nav>
         <div class="tm-brand">
           <Icon icon="fluent:mail-24-filled" width="20" height="20"/>
-          <span>临时邮箱</span>
+          <span>{{ t('temporaryInbox.title') }}</span>
         </div>
-        <p class="tm-tagline">不用注册。复制地址拿去用，验证码会自己出现在下面。</p>
+        <p class="tm-tagline">{{ t('temporaryInbox.tagline') }}</p>
       </header>
 
       <section class="tm-card">
-        <div class="tm-card-label">你的临时地址</div>
+        <div class="tm-card-label">{{ t('temporaryInbox.yourAddress') }}</div>
 
         <div class="tm-addr" @click="copyAddr">
           <span v-if="address">{{ address }}</span>
@@ -21,41 +27,41 @@
         <div class="tm-actions">
           <button class="tm-btn tm-btn-primary" :disabled="!address" @click="copyAddr">
             <Icon :icon="copied ? 'fluent:checkmark-24-filled' : 'fluent:copy-24-regular'" width="17" height="17"/>
-            {{ copied ? '已复制' : '复制地址' }}
+            {{ copied ? t('temporaryInbox.copied') : t('temporaryInbox.copyAddress') }}
           </button>
-          <button class="tm-btn" :disabled="!address" @click="copyAccessLink">复制查询链接</button>
+          <button class="tm-btn" :disabled="!address" @click="copyAccessLink">{{ t('temporaryInbox.copyLink') }}</button>
           <button class="tm-btn" :disabled="creating" @click="genAddr">
             <Icon icon="mingcute:refresh-2-line" width="17" height="17"/>
-            换一个
+            {{ t('temporaryInbox.newAddress') }}
           </button>
           <div class="tm-timer">
             <span class="tm-pulse" :class="loading ? 'is-busy' : ''"></span>
-            {{ loading ? '查收中' : `${countdown}s 后刷新` }}
+            {{ loading ? t('temporaryInbox.checking') : t('temporaryInbox.refreshIn', { seconds: countdown }) }}
           </div>
         </div>
-        <p class="tm-access-note">知道地址的人都能查看最近 10 分钟的邮件，请勿用它接收敏感信息。</p>
+        <p class="tm-access-note">{{ t('temporaryInbox.accessNote') }}</p>
       </section>
 
       <div class="tm-manual">
         <Icon class="tm-manual-icon" icon="iconoir:search" width="16" height="16"/>
-        <input v-model="manual" placeholder="查询你已经在用的地址" spellcheck="false"
+        <input v-model="manual" :placeholder="t('temporaryInbox.searchPlaceholder')" spellcheck="false"
                @keyup.enter="useManual"/>
-        <button class="tm-btn tm-btn-slim" @click="useManual">查询</button>
+        <button class="tm-btn tm-btn-slim" @click="useManual">{{ t('temporaryInbox.search') }}</button>
       </div>
 
       <section class="tm-inbox">
         <div class="tm-inbox-head">
-          <span>收件箱</span>
-          <span class="tm-inbox-count">{{ mails.length ? `${mails.length} 封` : '' }}</span>
+          <span>{{ t('temporaryInbox.inbox') }}</span>
+          <span class="tm-inbox-count">{{ mails.length ? (mails.length === 1 ? t('temporaryInbox.oneEmail') : t('temporaryInbox.emailCount', { count: mails.length })) : '' }}</span>
         </div>
 
         <transition-group name="tm-fade" tag="div">
           <article v-for="m in mails" :key="m.emailId" class="tm-mail" @click="openMail(m)">
             <div class="tm-mail-body">
               <div class="tm-mail-from">{{ m.sendName || m.sendEmail }}</div>
-              <div class="tm-mail-subject">{{ m.subject || '(无主题)' }}</div>
+              <div class="tm-mail-subject">{{ m.subject || t('temporaryInbox.noSubject') }}</div>
             </div>
-            <button v-if="m.code" class="tm-code" title="点击复制" @click.stop="copyCode(m.code)">
+            <button v-if="m.code" class="tm-code" :title="t('temporaryInbox.clickToCopy')" @click.stop="copyCode(m.code)">
               {{ m.code }}
             </button>
             <time class="tm-mail-time">{{ fmt(m.createTime) }}</time>
@@ -65,32 +71,32 @@
 
         <div v-if="!mails.length" class="tm-empty">
           <Icon icon="fluent:mail-inbox-24-regular" width="34" height="34"/>
-          <p>{{ inboxError || (searched ? '最近 10 分钟没有收到邮件' : '等待邮件…') }}</p>
+          <p>{{ inboxError ? t(inboxError) : (searched ? t('temporaryInbox.noRecentMail') : t('temporaryInbox.waitingForMail')) }}</p>
         </div>
       </section>
 
-      <p class="tm-foot">邮件只保留最近 10 分钟</p>
+      <p class="tm-foot">{{ t('temporaryInbox.retention') }}</p>
     </div>
 
     <div v-if="viewing" class="tm-modal" @click.self="closeMail">
       <div class="tm-view">
         <header class="tm-view-head">
           <div class="tm-view-meta">
-            <div class="tm-view-subject">{{ viewing.subject || '(无主题)' }}</div>
+            <div class="tm-view-subject">{{ viewing.subject || t('temporaryInbox.noSubject') }}</div>
           </div>
-          <button class="tm-view-close" title="关闭 (Esc)" @click="closeMail">
+          <button class="tm-view-close" :title="t('temporaryInbox.close')" @click="closeMail">
             <Icon icon="mingcute:close-line" width="18" height="18"/>
           </button>
         </header>
 
         <div class="tm-view-info">
           <div class="tm-view-info-row">
-            <span class="tm-view-info-label">发件人</span>
+            <span class="tm-view-info-label">{{ t('temporaryInbox.sender') }}</span>
             <span class="tm-view-name">{{ viewing.sendName || viewing.sendEmail }}</span>
             <span v-if="viewing.sendName && viewing.sendEmail" class="tm-view-addr">&lt;{{ viewing.sendEmail }}&gt;</span>
           </div>
           <div class="tm-view-info-row">
-            <span class="tm-view-info-label">收件人</span>
+            <span class="tm-view-info-label">{{ t('temporaryInbox.recipient') }}</span>
             <span>{{ formatRecipients(viewing) }}</span>
           </div>
           <time class="tm-view-date">{{ formatDetailDate(viewing.createTime) }}</time>
@@ -103,22 +109,23 @@
         </div>
 
         <div v-if="viewing.code" class="tm-view-code">
-          <span class="tm-view-code-label">验证码</span>
-          <button class="tm-code" title="点击复制" @click="copyCode(viewing.code)">
+          <span class="tm-view-code-label">{{ t('temporaryInbox.verificationCode') }}</span>
+          <button class="tm-code" :title="t('temporaryInbox.clickToCopy')" @click="copyCode(viewing.code)">
             {{ viewing.code }}
           </button>
-          <span class="tm-view-code-hint">{{ copied ? '已复制' : '点击复制' }}</span>
+          <span class="tm-view-code-hint">{{ copied ? t('temporaryInbox.copied') : t('temporaryInbox.clickToCopy') }}</span>
         </div>
 
         <div class="tm-view-stage">
-          <div v-if="viewLoading" class="tm-view-loading">正在打开…</div>
-          <iframe v-else class="tm-view-frame" :style="{height: frameHeight}" :srcdoc="viewHtml"
+          <div v-if="viewLoading" class="tm-view-loading">{{ t('temporaryInbox.opening') }}</div>
+          <iframe v-else class="tm-view-frame" :title="t('temporaryInbox.emailContent')"
+                  :style="{height: frameHeight}" :srcdoc="viewHtml"
                   referrerpolicy="no-referrer"
                   sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
           <section v-if="!viewLoading && viewing.attList?.length" class="tm-attachments">
             <div class="tm-attachments-title">
-              <span>附件列表</span>
-              <span>共 {{ viewing.attList.length }} 个</span>
+              <span>{{ t('temporaryInbox.attachments') }}</span>
+              <span>{{ viewing.attList.length === 1 ? t('temporaryInbox.oneAttachment') : t('temporaryInbox.attachmentCount', { count: viewing.attList.length }) }}</span>
             </div>
             <div v-for="att in viewing.attList" :key="att.attId" class="tm-attachment">
               <div class="tm-attachment-icon" :class="{ 'is-previewable': isImage(att.filename) }" @click="showImage(att)">
@@ -128,10 +135,10 @@
                    :title="att.filename" @click="showImage(att)">{{ att.filename }}</div>
               <div class="tm-attachment-size">{{ formatBytes(att.size) }}</div>
               <div class="tm-attachment-actions">
-                <button v-if="isImage(att.filename)" type="button" title="查看" @click="showImage(att)">
+                <button v-if="isImage(att.filename)" type="button" :title="t('temporaryInbox.preview')" @click="showImage(att)">
                   <Icon icon="hugeicons:view" width="22" height="22"/>
                 </button>
-                <button type="button" title="下载" @click="downloadAttachment(att)">
+                <button type="button" :title="t('temporaryInbox.download')" @click="downloadAttachment(att)">
                   <Icon icon="system-uicons:push-down" width="22" height="22"/>
                 </button>
               </div>
@@ -147,10 +154,12 @@
 <script setup>
 import {computed, defineOptions, onMounted, onUnmounted, ref} from "vue";
 import {Icon} from "@iconify/vue";
+import {useI18n} from "vue-i18n";
+import {useSettingStore} from "@/store/setting.js";
 import {openCreateInbox, openDomains, openMailContent, openRecentMails} from "@/request/open.js";
 import {getExtName, formatBytes} from "@/utils/file-utils.js";
 import {getIconByName} from "@/utils/icon-utils.js";
-import {formatDetailDate} from "@/utils/day.js";
+import {formatDetailDate, setExtend} from "@/utils/day.js";
 
 defineOptions({
   name: 'find'
@@ -158,6 +167,8 @@ defineOptions({
 
 const REFRESH_SEC = 8
 const ADDR_KEY = 'findAddress'
+const {t} = useI18n()
+const settingStore = useSettingStore()
 
 const address = ref('')
 const manual = ref('')
@@ -172,6 +183,7 @@ const domains = ref([])
 
 const viewing = ref(null)
 const viewLoading = ref(false)
+const viewError = ref(false)
 const showPreview = ref(false)
 const srcList = ref([])
 
@@ -185,11 +197,11 @@ const previewUrls = new Set()
 // 邮件 HTML 在受限 iframe 内渲染，不允许脚本和同源访问。
 const viewHtml = computed(() => {
   if (!viewing.value) return ''
-  const raw = viewing.value.content?.replace(
+  const raw = (!viewError.value && viewing.value.content?.replace(
       /\{\{domain\}\}(attachments\/[A-Za-z0-9._-]+)/g,
       (_, key) => viewing.value.inlineMedia?.[key] || ''
-  ).replace(/\{\{domain\}\}/g, '')
-      || `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(viewing.value.text || '(空邮件)')}</pre>`
+  ).replace(/\{\{domain\}\}/g, ''))
+      || `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(viewError.value ? t('temporaryInbox.mailExpired') : viewing.value.text || t('temporaryInbox.emptyMail'))}</pre>`
   return `<!doctype html><meta charset="utf-8">`
       + `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${window.location.origin} data: blob:; style-src 'unsafe-inline'">`
       + `<meta name="referrer" content="no-referrer">`
@@ -246,7 +258,7 @@ async function attachmentBlob(att) {
   const response = await fetch(attachmentUrl(att), {
     cache: 'no-store'
   })
-  if (!response.ok) throw new Error('附件不可用或邮件已过期')
+  if (!response.ok) throw new Error(t('temporaryInbox.attachmentUnavailable'))
   return response.blob()
 }
 
@@ -262,7 +274,7 @@ async function downloadAttachment(att) {
     link.remove()
     setTimeout(() => URL.revokeObjectURL(url), 30000)
   } catch {
-    flash('附件不可用或邮件已过期')
+    flash(t('temporaryInbox.attachmentUnavailable'))
   }
 }
 
@@ -290,7 +302,7 @@ async function showImage(att) {
     srcList.value = [url]
     showPreview.value = true
   } catch {
-    flash('图片不可用或邮件已过期')
+    flash(t('temporaryInbox.imageUnavailable'))
   }
 }
 
@@ -300,6 +312,7 @@ async function openMail(m) {
   closePreview()
   viewing.value = m
   viewLoading.value = true
+  viewError.value = false
   try {
     const full = await openMailContent(m.emailId, requestedAddress)
     if (requestId === viewRequestId && viewing.value?.emailId === m.emailId && address.value === requestedAddress) {
@@ -307,7 +320,7 @@ async function openMail(m) {
     }
   } catch {
     if (requestId === viewRequestId && viewing.value?.emailId === m.emailId) {
-      viewing.value = {...m, text: '这封邮件打不开了，可能已经过期'}
+      viewError.value = true
     }
   } finally {
     if (requestId === viewRequestId) viewLoading.value = false
@@ -318,6 +331,7 @@ function closeMail() {
   viewRequestId += 1
   closePreview()
   viewing.value = null
+  viewError.value = false
 }
 
 function onEsc(e) {
@@ -330,6 +344,7 @@ function onEsc(e) {
 }
 
 onMounted(async () => {
+  setExtend(settingStore.lang === 'en' ? 'en' : 'zh-cn')
   try {
     domains.value = await openDomains() || []
   } catch { /* 拿不到域名就只能手动输入地址 */ }
@@ -389,7 +404,7 @@ async function genAddr() {
     saveInbox()
     resetInbox()
   } catch {
-    flash('生成邮箱失败，请稍后重试')
+    flash(t('temporaryInbox.createFailed'))
   } finally {
     creating.value = false
   }
@@ -420,7 +435,7 @@ async function load() {
     }
   } catch (error) {
     if (requestId === inboxRequestId && error?.code === 403) {
-      inboxError.value = '正式邮箱不能在公开页面查询'
+      inboxError.value = 'temporaryInbox.registeredAddress'
     }
   } finally {
     if (requestId === inboxRequestId) loading.value = false
@@ -431,13 +446,13 @@ async function useManual() {
   const addr = manual.value.trim().toLowerCase()
   if (!addr) return
   if (!domains.value.some(d => addr.endsWith('@' + d))) {
-    flash('只能查询本站域名的地址')
+    flash(t('temporaryInbox.ownDomainOnly'))
     return
   }
   try {
     await openRecentMails(addr)
   } catch {
-    flash('地址无效，或属于正式邮箱')
+    flash(t('temporaryInbox.invalidAddress'))
     return
   }
   address.value = addr
@@ -467,13 +482,18 @@ async function copy(text) {
     if (copyTimer) clearTimeout(copyTimer)
     copyTimer = setTimeout(() => { copied.value = false }, 1600)
   } catch {
-    flash('浏览器不允许复制，请手动选中')
+    flash(t('temporaryInbox.copyFailed'))
   }
 }
 
 function flash(msg) {
   // 这页面是给陌生人用的，不引 Element 的全局弹窗，原生提示够了
   alert(msg)
+}
+
+function changeLanguage(lang) {
+  settingStore.lang = lang
+  setExtend(lang === 'en' ? 'en' : 'zh-cn')
 }
 
 function fmt(t) {
@@ -514,6 +534,35 @@ function fmt(t) {
 .tm-head {
   text-align: center;
   margin-bottom: 30px;
+}
+
+.tm-language {
+  display: flex;
+  justify-content: flex-end;
+  gap: 3px;
+  margin-bottom: 16px;
+}
+
+.tm-language button {
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tm-language button:hover,
+.tm-language button.is-active {
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.tm-language button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .tm-brand {
