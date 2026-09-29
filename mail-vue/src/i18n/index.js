@@ -14,4 +14,8 @@ export function getBrowserLanguage() {
     return preferred.toLowerCase().split('-')[0] === 'zh' ? 'zh' : 'en'
 }
 
+export function resolvePublicMailboxLanguage(selection, browserLanguage) {
+    return selection === 'zh' || selection === 'en' ? selection : browserLanguage
+}
+
 export default i18n;

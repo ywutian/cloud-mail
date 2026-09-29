@@ -3,6 +3,21 @@
     <div class="tm-shell">
 
       <header class="tm-head">
+        <div class="tm-language">
+          <span class="tm-language-label">{{ t('temporaryInbox.language') }}</span>
+          <div class="tm-language-options" role="group" :aria-label="t('temporaryInbox.language')">
+            <button type="button" :class="{ 'is-active': settingStore.publicMailboxLanguage === 'auto' }"
+                    :aria-pressed="settingStore.publicMailboxLanguage === 'auto'"
+                    :title="t('temporaryInbox.followBrowser')"
+                    @click="setPublicLanguage('auto')">{{ t('temporaryInbox.autoLanguage') }}</button>
+            <button type="button" :class="{ 'is-active': settingStore.publicMailboxLanguage === 'zh' }"
+                    :aria-pressed="settingStore.publicMailboxLanguage === 'zh'"
+                    @click="setPublicLanguage('zh')">中文</button>
+            <button type="button" :class="{ 'is-active': settingStore.publicMailboxLanguage === 'en' }"
+                    :aria-pressed="settingStore.publicMailboxLanguage === 'en'"
+                    @click="setPublicLanguage('en')">English</button>
+          </div>
+        </div>
         <div class="tm-brand">
           <Icon icon="fluent:mail-24-filled" width="20" height="20"/>
           <span>{{ t('temporaryInbox.title') }}</span>
@@ -93,7 +108,7 @@
             <span class="tm-view-info-label">{{ t('temporaryInbox.recipient') }}</span>
             <span>{{ formatRecipients(viewing) }}</span>
           </div>
-          <time class="tm-view-date">{{ formatDetailDate(viewing.createTime, browserLang) }}</time>
+          <time class="tm-view-date">{{ formatDetailDate(viewing.createTime, publicLang) }}</time>
           <el-alert v-if="viewing.status === 3" :closable="false" :title="statusMessage(viewing.message)"
                     type="error" show-icon/>
           <el-alert v-if="viewing.status === 4" :closable="false" :title="$t('complained')"
@@ -146,11 +161,11 @@
 </template>
 
 <script setup>
-import {computed, defineOptions, onMounted, onUnmounted, ref} from "vue";
+import {computed, defineOptions, onMounted, onUnmounted, ref, watch} from "vue";
 import {Icon} from "@iconify/vue";
 import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
-import {getBrowserLanguage} from "@/i18n/index.js";
+import {getBrowserLanguage, resolvePublicMailboxLanguage} from "@/i18n/index.js";
 import {openCreateInbox, openDomains, openMailContent, openRecentMails} from "@/request/open.js";
 import {getExtName, formatBytes} from "@/utils/file-utils.js";
 import {getIconByName} from "@/utils/icon-utils.js";
@@ -165,6 +180,9 @@ const ADDR_KEY = 'findAddress'
 const {t} = useI18n()
 const settingStore = useSettingStore()
 const browserLang = getBrowserLanguage()
+const publicLang = computed(() => resolvePublicMailboxLanguage(settingStore.publicMailboxLanguage, browserLang))
+
+watch(publicLang, lang => setExtend(lang === 'en' ? 'en' : 'zh-cn'), {immediate: true})
 
 const address = ref('')
 const manual = ref('')
@@ -340,7 +358,6 @@ function onEsc(e) {
 }
 
 onMounted(async () => {
-  setExtend(browserLang === 'en' ? 'en' : 'zh-cn')
   try {
     domains.value = await openDomains() || []
   } catch { /* 拿不到域名就只能手动输入地址 */ }
@@ -488,6 +505,10 @@ function flash(msg) {
   alert(msg)
 }
 
+function setPublicLanguage(lang) {
+  settingStore.publicMailboxLanguage = lang
+}
+
 function fmt(t) {
   return t ? String(t).slice(11, 16) : ''
 }
@@ -526,6 +547,51 @@ function fmt(t) {
 .tm-head {
   text-align: center;
   margin-bottom: 30px;
+}
+
+.tm-language {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tm-language-label {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.tm-language-options {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.tm-language-options button {
+  min-height: 36px;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tm-language-options button:hover,
+.tm-language-options button.is-active {
+  background: var(--card-2);
+  color: var(--ink);
+}
+
+.tm-language-options button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .tm-brand {

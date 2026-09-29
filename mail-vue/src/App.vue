@@ -8,11 +8,13 @@ import { useI18n } from "vue-i18n";
 import { computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import {useSettingStore} from "@/store/setting.js";
-import {getBrowserLanguage} from "@/i18n/index.js";
+import {getBrowserLanguage, resolvePublicMailboxLanguage} from "@/i18n/index.js";
 const settingStore = useSettingStore()
 const route = useRoute()
 const browserLang = getBrowserLanguage()
-const effectiveLang = computed(() => route.name === 'find' ? browserLang : settingStore.lang)
+const effectiveLang = computed(() => route.name === 'find'
+  ? resolvePublicMailboxLanguage(settingStore.publicMailboxLanguage, browserLang)
+  : settingStore.lang)
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import('@/icons/index.js')
 const { locale } = useI18n()

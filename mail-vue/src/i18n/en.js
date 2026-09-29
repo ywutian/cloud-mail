@@ -354,6 +354,9 @@ const en = {
     clientSecret: 'Client Secret',
     notOwner: 'Base email does not belong to you',
     temporaryInbox: {
+        language: 'Language',
+        autoLanguage: 'Auto',
+        followBrowser: 'Use your browser’s preferred language',
         title: 'Temporary Mailbox',
         tagline: 'No sign-up needed. Copy the address and use it. Verification codes will appear below.',
         yourAddress: 'Your temporary address',
