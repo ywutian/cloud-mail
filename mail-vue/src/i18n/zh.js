@@ -354,7 +354,6 @@ const zh = {
     clientSecret: '客户端密钥',
     notOwner: '基础邮箱不属于您',
     temporaryInbox: {
-        language: '语言',
         title: '临时邮箱',
         tagline: '不用注册。复制地址拿去用，验证码会自己出现在下面。',
         yourAddress: '你的临时地址',

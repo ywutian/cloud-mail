@@ -3,12 +3,6 @@
     <div class="tm-shell">
 
       <header class="tm-head">
-        <nav class="tm-language" :aria-label="t('temporaryInbox.language')">
-          <button type="button" :aria-pressed="settingStore.lang === 'zh'"
-                  :class="{ 'is-active': settingStore.lang === 'zh' }" @click="changeLanguage('zh')">中文</button>
-          <button type="button" :aria-pressed="settingStore.lang === 'en'"
-                  :class="{ 'is-active': settingStore.lang === 'en' }" @click="changeLanguage('en')">English</button>
-        </nav>
         <div class="tm-brand">
           <Icon icon="fluent:mail-24-filled" width="20" height="20"/>
           <span>{{ t('temporaryInbox.title') }}</span>
@@ -99,7 +93,7 @@
             <span class="tm-view-info-label">{{ t('temporaryInbox.recipient') }}</span>
             <span>{{ formatRecipients(viewing) }}</span>
           </div>
-          <time class="tm-view-date">{{ formatDetailDate(viewing.createTime) }}</time>
+          <time class="tm-view-date">{{ formatDetailDate(viewing.createTime, browserLang) }}</time>
           <el-alert v-if="viewing.status === 3" :closable="false" :title="statusMessage(viewing.message)"
                     type="error" show-icon/>
           <el-alert v-if="viewing.status === 4" :closable="false" :title="$t('complained')"
@@ -156,6 +150,7 @@ import {computed, defineOptions, onMounted, onUnmounted, ref} from "vue";
 import {Icon} from "@iconify/vue";
 import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
+import {getBrowserLanguage} from "@/i18n/index.js";
 import {openCreateInbox, openDomains, openMailContent, openRecentMails} from "@/request/open.js";
 import {getExtName, formatBytes} from "@/utils/file-utils.js";
 import {getIconByName} from "@/utils/icon-utils.js";
@@ -169,6 +164,7 @@ const REFRESH_SEC = 8
 const ADDR_KEY = 'findAddress'
 const {t} = useI18n()
 const settingStore = useSettingStore()
+const browserLang = getBrowserLanguage()
 
 const address = ref('')
 const manual = ref('')
@@ -344,7 +340,7 @@ function onEsc(e) {
 }
 
 onMounted(async () => {
-  setExtend(settingStore.lang === 'en' ? 'en' : 'zh-cn')
+  setExtend(browserLang === 'en' ? 'en' : 'zh-cn')
   try {
     domains.value = await openDomains() || []
   } catch { /* 拿不到域名就只能手动输入地址 */ }
@@ -386,6 +382,7 @@ onUnmounted(() => {
   if (copyTimer) clearTimeout(copyTimer)
   window.removeEventListener('keydown', onEsc)
   closePreview()
+  setExtend(settingStore.lang === 'en' ? 'en' : 'zh-cn')
 })
 
 function saveInbox() {
@@ -491,11 +488,6 @@ function flash(msg) {
   alert(msg)
 }
 
-function changeLanguage(lang) {
-  settingStore.lang = lang
-  setExtend(lang === 'en' ? 'en' : 'zh-cn')
-}
-
 function fmt(t) {
   return t ? String(t).slice(11, 16) : ''
 }
@@ -534,35 +526,6 @@ function fmt(t) {
 .tm-head {
   text-align: center;
   margin-bottom: 30px;
-}
-
-.tm-language {
-  display: flex;
-  justify-content: flex-end;
-  gap: 3px;
-  margin-bottom: 16px;
-}
-
-.tm-language button {
-  padding: 5px 9px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--ink-3);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.tm-language button:hover,
-.tm-language button.is-active {
-  border-color: var(--line);
-  color: var(--ink);
-}
-
-.tm-language button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 .tm-brand {

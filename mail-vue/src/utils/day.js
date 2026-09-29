@@ -65,13 +65,13 @@ export function updateNow(date) {
     }
 }
 
-export function formatDetailDate(time) {
+export function formatDetailDate(time, lang = settingStore.lang) {
     const d = dayjs.utc(time).tz(timeZone);
     const now = dayjs();
 
     const isSameYear = now.year() === d.year();
 
-    if (settingStore.lang === 'en') {
+    if (lang === 'en') {
         return isSameYear
             ? d.format('ddd, MMM D, h:mm A')
             : d.format('ddd, MMM D, YYYY, h:mm A');
