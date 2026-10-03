@@ -108,7 +108,7 @@ app.use('*', async (c, next) => {
 		const userPublicToken = await c.env.kv.get(KvConst.PUBLIC_KEY);
 		const publicToken = c.req.header(constant.TOKEN_HEADER);
 		if (publicToken !== userPublicToken) {
-			throw new BizError(t('publicTokenFail'), 401);
+			throw new BizError(t(c, 'publicTokenFail'), 401);
 		}
 		return await next();
 	}
@@ -119,21 +119,21 @@ app.use('*', async (c, next) => {
 	const result = await jwtUtils.verifyToken(c, jwt);
 
 	if (!result) {
-		throw new BizError(t('authExpired'), 401);
+		throw new BizError(t(c, 'authExpired'), 401);
 	}
 
 	const { userId, token } = result;
 	if (!Number.isSafeInteger(userId) || userId <= 0 || typeof token !== 'string') {
-		throw new BizError(t('authExpired'), 401);
+		throw new BizError(t(c, 'authExpired'), 401);
 	}
 	const authInfo = await c.env.kv.get(KvConst.AUTH_INFO + userId, { type: 'json' });
 
 	if (!authInfo || authInfo.user?.userId !== userId || !Array.isArray(authInfo.tokens)) {
-		throw new BizError(t('authExpired'), 401);
+		throw new BizError(t(c, 'authExpired'), 401);
 	}
 
 	if (!authInfo.tokens.includes(token)) {
-		throw new BizError(t('authExpired'), 401);
+		throw new BizError(t(c, 'authExpired'), 401);
 	}
 
 	const permIndex = requirePerms.findIndex(item => {
@@ -151,7 +151,7 @@ app.use('*', async (c, next) => {
 		});
 
 		if (userPermIndex === -1 && authInfo.user.email !== c.env.admin) {
-			throw new BizError(t('unauthorized'), 403);
+			throw new BizError(t(c, 'unauthorized'), 403);
 		}
 
 	}

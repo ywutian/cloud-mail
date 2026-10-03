@@ -247,7 +247,7 @@ const emailService = {
 
 		//判断是否关闭发件功能
 		if (send === settingConst.send.CLOSE) {
-			throw new BizError(t('disabledSend'), 403);
+			throw new BizError(t(c, 'disabledSend'), 403);
 		}
 
 		const userRow = await userService.selectById(c, userId);
@@ -263,12 +263,12 @@ const emailService = {
 
 			//发件被禁用
 			if (roleRow.sendType === 'ban') {
-				throw new BizError(t('bannedSend'), 403);
+				throw new BizError(t(c, 'bannedSend'), 403);
 			}
 
 			//发件被禁用
 			if (roleRow.sendType === 'internal' && !allInternal) {
-				throw new BizError(t('onlyInternalSend'), 403);
+				throw new BizError(t(c, 'onlyInternalSend'), 403);
 			}
 
 		}
@@ -277,13 +277,13 @@ const emailService = {
 		if (c.env.admin !== userRow.email && roleRow.sendCount) {
 
 			if (userRow.sendCount >= roleRow.sendCount) {
-				if (roleRow.sendType === 'day') throw new BizError(t('daySendLimit'), 403);
-				if (roleRow.sendType === 'count') throw new BizError(t('totalSendLimit'), 403);
+				if (roleRow.sendType === 'day') throw new BizError(t(c, 'daySendLimit'), 403);
+				if (roleRow.sendType === 'count') throw new BizError(t(c, 'totalSendLimit'), 403);
 			}
 
 			if (userRow.sendCount + receiveEmail.length > roleRow.sendCount) {
-				if (roleRow.sendType === 'day') throw new BizError(t('daySendLack'), 403);
-				if (roleRow.sendType === 'count') throw new BizError(t('totalSendLack'), 403);
+				if (roleRow.sendType === 'day') throw new BizError(t(c, 'daySendLack'), 403);
+				if (roleRow.sendType === 'count') throw new BizError(t(c, 'totalSendLack'), 403);
 			}
 
 		}
@@ -291,17 +291,17 @@ const emailService = {
 		const accountRow = await accountService.selectById(c, accountId);
 
 		if (!accountRow) {
-			throw new BizError(t('senderAccountNotExist'));
+			throw new BizError(t(c, 'senderAccountNotExist'));
 		}
 
 		if (accountRow.userId !== userId) {
-			throw new BizError(t('sendEmailNotCurUser'));
+			throw new BizError(t(c, 'sendEmailNotCurUser'));
 		}
 
 		if (c.env.admin !== userRow.email) {
 			//用户没有这个域名的使用权限
 			if(!roleService.hasAvailDomainPerm(roleRow.availDomain, accountRow.email)) {
-				throw new BizError(t('noDomainPermSend'),403)
+				throw new BizError(t(c, 'noDomainPermSend'),403)
 			}
 
 		}
@@ -312,7 +312,7 @@ const emailService = {
 
 		//如果接收方存在站外邮箱，又没有发信服务
 		if (!useCloudflareEmail && !resendToken && !allInternal) {
-			throw new BizError(t('noSendProvider'));
+			throw new BizError(t(c, 'noSendProvider'));
 		}
 
 		//没有发件人名字自动截取
@@ -330,7 +330,7 @@ const emailService = {
 			emailRow = await this.selectById(c, emailId);
 
 			if (!emailRow) {
-				throw new BizError(t('notExistEmailReply'));
+				throw new BizError(t(c, 'notExistEmailReply'));
 			}
 
 		}
@@ -417,7 +417,7 @@ const emailService = {
 		//保存内嵌附件
 		if (imageDataList.length > 0) {
 			if (imageDataList.length > 10) {
-				throw new BizError(t('imageAttLimit'));
+				throw new BizError(t(c, 'imageAttLimit'));
 			}
 			await attService.saveArticleAtt(c, imageDataList, userId, accountId, emailResult.emailId);
 		}
@@ -425,7 +425,7 @@ const emailService = {
 		//保存普通附件
 		if (attachments?.length > 0) {
 			if (attachments.length > 10) {
-				throw new BizError(t('attLimit'));
+				throw new BizError(t(c, 'attLimit'));
 			}
 			await attService.saveSendAtt(c, attachments, userId, accountId, emailResult.emailId);
 		}

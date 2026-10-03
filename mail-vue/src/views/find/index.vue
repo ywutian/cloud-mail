@@ -4,19 +4,7 @@
 
       <header class="tm-head">
         <div class="tm-language">
-          <span class="tm-language-label">{{ t('temporaryInbox.language') }}</span>
-          <div class="tm-language-options" role="group" :aria-label="t('temporaryInbox.language')">
-            <button type="button" :class="{ 'is-active': settingStore.publicMailboxLanguage === 'auto' }"
-                    :aria-pressed="settingStore.publicMailboxLanguage === 'auto'"
-                    :title="t('temporaryInbox.followBrowser')"
-                    @click="setPublicLanguage('auto')">{{ t('temporaryInbox.autoLanguage') }}</button>
-            <button type="button" :class="{ 'is-active': settingStore.publicMailboxLanguage === 'zh' }"
-                    :aria-pressed="settingStore.publicMailboxLanguage === 'zh'"
-                    @click="setPublicLanguage('zh')">中文</button>
-            <button type="button" :class="{ 'is-active': settingStore.publicMailboxLanguage === 'en' }"
-                    :aria-pressed="settingStore.publicMailboxLanguage === 'en'"
-                    @click="setPublicLanguage('en')">English</button>
-          </div>
+          <LanguageSelect v-model="settingStore.publicMailboxLanguage" />
         </div>
         <div class="tm-brand">
           <Icon icon="fluent:mail-24-filled" width="20" height="20"/>
@@ -161,15 +149,16 @@
 </template>
 
 <script setup>
-import {computed, defineOptions, onMounted, onUnmounted, ref, watch} from "vue";
+import {computed, defineOptions, onMounted, onUnmounted, ref} from "vue";
 import {Icon} from "@iconify/vue";
+import LanguageSelect from '@/components/language-select/index.vue'
 import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
-import {getBrowserLanguage, resolvePublicMailboxLanguage} from "@/i18n/index.js";
+import {getBrowserLanguage, resolveLanguage} from "@/i18n/index.js";
 import {openCreateInbox, openDomains, openMailContent, openRecentMails} from "@/request/open.js";
 import {getExtName, formatBytes} from "@/utils/file-utils.js";
 import {getIconByName} from "@/utils/icon-utils.js";
-import {formatDetailDate, setExtend} from "@/utils/day.js";
+import {formatDetailDate} from "@/utils/day.js";
 
 defineOptions({
   name: 'find'
@@ -180,9 +169,7 @@ const ADDR_KEY = 'findAddress'
 const {t} = useI18n()
 const settingStore = useSettingStore()
 const browserLang = getBrowserLanguage()
-const publicLang = computed(() => resolvePublicMailboxLanguage(settingStore.publicMailboxLanguage, browserLang))
-
-watch(publicLang, lang => setExtend(lang === 'en' ? 'en' : 'zh-cn'), {immediate: true})
+const publicLang = computed(() => resolveLanguage(settingStore.publicMailboxLanguage, browserLang))
 
 const address = ref('')
 const manual = ref('')
@@ -399,7 +386,6 @@ onUnmounted(() => {
   if (copyTimer) clearTimeout(copyTimer)
   window.removeEventListener('keydown', onEsc)
   closePreview()
-  setExtend(settingStore.lang === 'en' ? 'en' : 'zh-cn')
 })
 
 function saveInbox() {
@@ -505,10 +491,6 @@ function flash(msg) {
   alert(msg)
 }
 
-function setPublicLanguage(lang) {
-  settingStore.publicMailboxLanguage = lang
-}
-
 function fmt(t) {
   return t ? String(t).slice(11, 16) : ''
 }
@@ -551,47 +533,11 @@ function fmt(t) {
 
 .tm-language {
   display: flex;
-  align-items: center;
   justify-content: flex-end;
-  gap: 10px;
   margin-bottom: 20px;
-}
-
-.tm-language-label {
-  color: var(--ink-3);
-  font-size: 12px;
-}
-
-.tm-language-options {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--card);
-}
-
-.tm-language-options button {
-  min-height: 36px;
-  padding: 6px 9px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--ink-2);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.tm-language-options button:hover,
-.tm-language-options button.is-active {
-  background: var(--card-2);
-  color: var(--ink);
-}
-
-.tm-language-options button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  --language-control-border: var(--line);
+  --language-control-bg: var(--card);
+  --language-control-text: var(--ink);
 }
 
 .tm-brand {

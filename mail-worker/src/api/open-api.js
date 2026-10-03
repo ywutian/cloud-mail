@@ -1,3 +1,4 @@
+import {t} from '../i18n/i18n.js';
 import app from '../hono/hono';
 import result from '../model/result';
 import openService from '../service/open-service';
@@ -26,7 +27,7 @@ app.get('/open/attachment', async (c) => {
 	try {
 		return await openService.attachment(c, c.req.query());
 	} catch (error) {
-		if (error instanceof BizError) return c.text('附件不存在或已过期', 404);
+		if (error instanceof BizError) return c.text(t(c, 'attachmentGone'), 404);
 		throw error;
 	}
 });

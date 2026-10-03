@@ -14,17 +14,17 @@
   >
     <template #header>
       <div class="temp-addr">
-        <div class="temp-addr-label">随机地址 · 直接拿去注册</div>
+        <div class="temp-addr-label">{{ t('temporaryAddressHint') }}</div>
         <div class="temp-addr-row">
           <Icon class="temp-addr-icon" icon="eva:email-outline" width="22" height="22"/>
           <span class="temp-addr-text" :class="tempAddr ? '' : 'is-empty'" @click="copyTemp">
-            {{ tempAddr || '生成中…' }}
+            {{ tempAddr || t('generatingAddress') }}
           </span>
           <el-button type="primary" :disabled="!tempAddr" @click="copyTemp">
             <Icon icon="fluent:copy-24-regular" width="16" height="16" style="margin-right: 5px"/>
-            复制
+            {{ t('copy') }}
           </el-button>
-          <el-button v-perm="'account:add'" :loading="randomLoading" title="换一个新地址" @click="newTempAddr">
+          <el-button v-perm="'account:add'" :loading="randomLoading" :title="t('newAddress')" :aria-label="t('newAddress')" @click="newTempAddr">
             <Icon v-if="!randomLoading" icon="mingcute:refresh-2-line" width="16" height="16"/>
           </el-button>
         </div>
@@ -55,12 +55,14 @@ import {Icon} from "@iconify/vue";
 import { useRoute } from 'vue-router'
 import {accountAdd} from "@/request/account.js";
 import {ElMessage} from "element-plus";
+import {useI18n} from 'vue-i18n';
 
 defineOptions({
   name: 'email'
 })
 
 const route = useRoute();
+const {t} = useI18n();
 const emailStore = useEmailStore();
 const accountStore = useAccountStore();
 const settingStore = useSettingStore();
@@ -123,7 +125,7 @@ function initTempAddr() {
 
 function newTempAddr() {
   if (!genTempAddr()) {
-    ElMessage({message: '没有可用域名', type: 'error', plain: true})
+    ElMessage({message: t('noAvailableDomain'), type: 'error', plain: true})
   }
 }
 
@@ -139,7 +141,7 @@ async function copyTemp() {
       try { localStorage.setItem(TEMP_SAVED_KEY, '1') } catch { /* 忽略 */ }
       accountStore.newAccountSignal++
     } catch (e) {
-      ElMessage({message: e?.message || '创建邮箱失败', type: 'error', plain: true})
+      ElMessage({message: e?.message || t('mailboxCreateFailed'), type: 'error', plain: true})
       return
     } finally {
       randomLoading.value = false
@@ -148,9 +150,9 @@ async function copyTemp() {
 
   try {
     await navigator.clipboard.writeText(tempAddr.value)
-    ElMessage({message: '已复制 ' + tempAddr.value, type: 'success', plain: true})
+    ElMessage({message: t('copiedValue', {value: tempAddr.value}), type: 'success', plain: true})
   } catch {
-    ElMessage({message: '邮箱已创建，但浏览器不允许复制，请手动选中', type: 'error', plain: true})
+    ElMessage({message: t('mailboxCreatedCopyBlocked'), type: 'error', plain: true})
   }
 }
 

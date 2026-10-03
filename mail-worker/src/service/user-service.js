@@ -28,7 +28,7 @@ const userService = {
 		const userRow = await userService.selectById(c, userId);
 
 		if (!userRow) {
-			throw new BizError(t('authExpired'), 401);
+			throw new BizError(t(c, 'authExpired'), 401);
 		}
 
 		const [account, roleRow, permKeys] = await Promise.all([
@@ -61,7 +61,7 @@ const userService = {
 		const { password } = params;
 
 		if (password.length < 6) {
-			throw new BizError(t('pwdMinLength'));
+			throw new BizError(t(c, 'pwdMinLength'));
 		}
 		const { salt, hash } = await cryptoUtils.hashPassword(password);
 		await orm(c).update(user).set({ password: hash, salt: salt }).where(eq(user.userId, userId)).run();
@@ -285,7 +285,7 @@ const userService = {
 		const roleRow = await roleService.selectById(c, type);
 
 		if (!roleRow) {
-			throw new BizError(t('roleNotExist'));
+			throw new BizError(t(c, 'roleNotExist'));
 		}
 
 		await orm(c)
@@ -317,27 +317,27 @@ const userService = {
 		const { email, type, password } = params;
 
 		if (!c.env.domain.includes(emailUtils.getDomain(email))) {
-			throw new BizError(t('notEmailDomain'));
+			throw new BizError(t(c, 'notEmailDomain'));
 		}
 
 		if (password.length < 6) {
-			throw new BizError(t('pwdMinLength'));
+			throw new BizError(t(c, 'pwdMinLength'));
 		}
 
 		const accountRow = await accountService.selectByEmailIncludeDel(c, email);
 
 		if (accountRow && accountRow.isDel === isDel.DELETE) {
-			throw new BizError(t('isDelUser'));
+			throw new BizError(t(c, 'isDelUser'));
 		}
 
 		if (accountRow) {
-			throw new BizError(t('isRegAccount'));
+			throw new BizError(t(c, 'isRegAccount'));
 		}
 
 		const role = roleService.selectById(c, type);
 
 		if (!role) {
-			throw new BizError(t('roleNotExist'));
+			throw new BizError(t(c, 'roleNotExist'));
 		}
 
 		const { salt, hash } = await saltHashUtils.hashPassword(password);

@@ -1,3 +1,4 @@
+import {t} from '../i18n/i18n.js';
 import BizError from '../error/biz-error';
 import r2Service from './r2-service';
 import inboxAccessService from './inbox-access-service';
@@ -39,7 +40,7 @@ const openService = {
 		const emailId = Number(params.emailId);
 
 		if (!Number.isSafeInteger(emailId) || emailId <= 0) {
-			throw new BizError('参数不完整');
+			throw new BizError(t(c, 'incompleteParameters'));
 		}
 
 		const row = await c.env.db.prepare(
@@ -65,7 +66,7 @@ const openService = {
 		).bind(emailId, address).first();
 
 		if (!row) {
-			throw new BizError('邮件不存在或已过期');
+			throw new BizError(t(c, 'mailGone'));
 		}
 
 		const { results } = await c.env.db.prepare(
@@ -83,7 +84,7 @@ const openService = {
 		const emailId = Number(params.emailId);
 		const attId = Number(params.attId);
 		if (!Number.isSafeInteger(emailId) || emailId <= 0 || !Number.isSafeInteger(attId) || attId <= 0) {
-			throw new BizError('附件不存在或已过期');
+			throw new BizError(t(c, 'attachmentGone'));
 		}
 
 		const address = await inboxAccessService.assertPublicAddress(c, params.address);
@@ -92,19 +93,19 @@ const openService = {
 			 AND type = 0 AND is_del = 0 AND user_id = 0 AND account_id = 0
 			 AND create_time > datetime('now', '-${OPEN_WINDOW_MINUTES} minutes') LIMIT 1`
 		).bind(emailId, address).first();
-		if (!email) throw new BizError('附件不存在或已过期');
+		if (!email) throw new BizError(t(c, 'attachmentGone'));
 		const attachment = await c.env.db.prepare(
 			`SELECT key, filename, mime_type AS mimeType
 			 FROM attachments
 			 WHERE att_id = ? AND email_id = ? AND type = 0 AND content_id IS NULL`
 		).bind(attId, emailId).first();
 		if (!attachment) {
-			throw new BizError('附件不存在或已过期');
+			throw new BizError(t(c, 'attachmentGone'));
 		}
 
 		const object = await r2Service.getObj(c, attachment.key);
 		if (!object) {
-			throw new BizError('附件不存在或已过期');
+			throw new BizError(t(c, 'attachmentGone'));
 		}
 
 		const mimeType = (attachment.mimeType || 'application/octet-stream').split(';')[0].trim().toLowerCase();

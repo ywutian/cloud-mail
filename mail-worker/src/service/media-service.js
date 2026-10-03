@@ -1,3 +1,4 @@
+import {t} from '../i18n/i18n.js';
 import BizError from '../error/biz-error';
 import r2Service from './r2-service';
 
@@ -18,7 +19,7 @@ async function tokenKey(token) {
 const mediaService = {
 	async inlineMap(c, emailId, owner) {
 		emailId = Number(emailId);
-		if (!Number.isSafeInteger(emailId) || emailId <= 0) throw new BizError('邮件不存在', 404);
+		if (!Number.isSafeInteger(emailId) || emailId <= 0) throw new BizError(t(c, 'mailNotFound'), 404);
 		const { results } = await c.env.db.prepare(
 			'SELECT att_id AS attId, key FROM attachments WHERE email_id = ? AND type = 1'
 		).bind(emailId).all();
@@ -36,11 +37,11 @@ const mediaService = {
 
 	async privateInlineMap(c, emailId, userId) {
 		emailId = Number(emailId);
-		if (!Number.isSafeInteger(emailId) || emailId <= 0) throw new BizError('邮件不存在', 404);
+		if (!Number.isSafeInteger(emailId) || emailId <= 0) throw new BizError(t(c, 'mailNotFound'), 404);
 		const email = await c.env.db.prepare(
 			'SELECT 1 FROM email WHERE email_id = ? AND user_id = ? AND is_del = 0 LIMIT 1'
 		).bind(emailId, userId).first();
-		if (!email) throw new BizError('邮件不存在', 404);
+		if (!email) throw new BizError(t(c, 'mailNotFound'), 404);
 		return this.inlineMap(c, emailId, { userId });
 	},
 
@@ -48,7 +49,7 @@ const mediaService = {
 		const emailId = Number(params.emailId);
 		const attId = Number(params.attId);
 		if (!Number.isSafeInteger(emailId) || emailId <= 0 || !Number.isSafeInteger(attId) || attId <= 0) {
-			throw new BizError('附件不存在', 404);
+			throw new BizError(t(c, 'attachmentNotFound'), 404);
 		}
 		const row = await c.env.db.prepare(
 			`SELECT a.key, a.filename, a.mime_type AS mimeType
@@ -56,9 +57,9 @@ const mediaService = {
 			 WHERE a.att_id = ? AND a.email_id = ? AND a.type = 0
 			 AND e.user_id = ? AND e.is_del = 0`
 		).bind(attId, emailId, userId).first();
-		if (!row) throw new BizError('附件不存在', 404);
+		if (!row) throw new BizError(t(c, 'attachmentNotFound'), 404);
 		const object = await r2Service.getObj(c, row.key);
-		if (!object) throw new BizError('附件不存在', 404);
+		if (!object) throw new BizError(t(c, 'attachmentNotFound'), 404);
 
 		const mimeType = String(row.mimeType || 'application/octet-stream').split(';')[0].toLowerCase();
 		const previewable = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp', 'application/pdf', 'text/plain'].includes(mimeType);
@@ -76,20 +77,20 @@ const mediaService = {
 	},
 
 	async get(c, token) {
-		if (!/^[A-Za-z0-9_-]{43}$/.test(String(token || ''))) throw new BizError('资源已过期', 404);
+		if (!/^[A-Za-z0-9_-]{43}$/.test(String(token || ''))) throw new BizError(t(c, 'resourceExpired'), 404);
 		const grant = await c.env.kv.get(await tokenKey(token), { type: 'json' });
 		if (!grant || !Number.isSafeInteger(grant.attId) || !Number.isSafeInteger(grant.emailId)) {
-			throw new BizError('资源已过期', 404);
+			throw new BizError(t(c, 'resourceExpired'), 404);
 		}
 		const row = await c.env.db.prepare(
 			`SELECT a.key, a.mime_type AS mimeType, e.to_email AS toEmail, e.user_id AS userId
 			 FROM attachments a JOIN email e ON e.email_id = a.email_id
 			 WHERE a.att_id = ? AND a.email_id = ? AND a.type = 1 AND e.is_del = 0`
 		).bind(grant.attId, grant.emailId).first();
-		if (!row) throw new BizError('资源已过期', 404);
+		if (!row) throw new BizError(t(c, 'resourceExpired'), 404);
 
 		if (grant.address) {
-			if (row.toEmail.toLowerCase() !== grant.address || row.userId !== 0 || grant.emailId <= 0) throw new BizError('资源已过期', 404);
+			if (row.toEmail.toLowerCase() !== grant.address || row.userId !== 0 || grant.emailId <= 0) throw new BizError(t(c, 'resourceExpired'), 404);
 			const visible = await c.env.db.prepare(
 				`SELECT 1 FROM email WHERE email_id = ? AND type = 0
 				 AND user_id = 0 AND account_id = 0
@@ -99,13 +100,13 @@ const mediaService = {
 			const baseAddress = `${local[0].split('+')[0]}@${local[1]}`;
 			const account = await c.env.db.prepare('SELECT 1 FROM account WHERE email COLLATE NOCASE IN (?, ?) LIMIT 1')
 				.bind(grant.address, baseAddress).first();
-			if (!visible || account) throw new BizError('资源已过期', 404);
+			if (!visible || account) throw new BizError(t(c, 'resourceExpired'), 404);
 		} else if (!Number.isSafeInteger(grant.userId) || row.userId !== grant.userId) {
-			throw new BizError('资源已过期', 404);
+			throw new BizError(t(c, 'resourceExpired'), 404);
 		}
 
 		const object = await r2Service.getObj(c, row.key);
-		if (!object) throw new BizError('资源已过期', 404);
+		if (!object) throw new BizError(t(c, 'resourceExpired'), 404);
 		const mimeType = String(row.mimeType || '').split(';')[0].toLowerCase();
 		const inline = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'].includes(mimeType);
 		return new Response(object.body, {

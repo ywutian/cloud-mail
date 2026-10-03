@@ -1,3 +1,4 @@
+import {t} from '../i18n/i18n.js';
 import app from '../hono/hono';
 import emailService from '../service/email-service';
 import result from '../model/result';
@@ -41,7 +42,7 @@ app.get('/email/attachment', async (c) => {
 	try {
 		return await mediaService.privateAttachment(c, c.req.query(), userContext.getUserId(c));
 	} catch (error) {
-		if (error instanceof BizError) return c.text('附件不存在', 404);
+		if (error instanceof BizError) return c.text(t(c, 'attachmentNotFound'), 404);
 		throw error;
 	}
 });

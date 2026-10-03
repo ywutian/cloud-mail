@@ -1,7 +1,7 @@
 <template>
   <div class="addr-page">
     <div class="addr-toolbar">
-      <el-input v-model="keyword" placeholder="搜索地址、发件人或主题" clearable
+      <el-input v-model="keyword" :placeholder="t('searchAddressesPlaceholder')" clearable
                 @keyup.enter="load(1)" @clear="load(1)">
         <template #append>
           <el-button @click="load(1)">
@@ -9,47 +9,47 @@
           </el-button>
         </template>
       </el-input>
-      <span class="addr-hint">收过信的地址自动出现在这里，生成了没用过的不会记一笔</span>
+      <span class="addr-hint">{{ t('addressHistoryHint') }}</span>
     </div>
 
     <el-table :data="rows" v-loading="loading" class="addr-table"
-              empty-text="还没有地址收到过邮件">
-      <el-table-column label="地址" min-width="230">
+              :empty-text="t('addressHistoryEmpty')">
+      <el-table-column :label="t('account')" min-width="230">
         <template #default="{ row }">
           <span class="addr-email" @click="copy(row.toEmail)">{{ row.toEmail }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="平台" min-width="140">
+      <el-table-column :label="t('platform')" min-width="140">
         <template #default="{ row }">{{ platformOf(row.lastSender) }}</template>
       </el-table-column>
-      <el-table-column label="最近验证码" min-width="120">
+      <el-table-column :label="t('latestCode')" min-width="120">
         <template #default="{ row }">
           <span v-if="row.lastCode" class="addr-code" @click="copy(row.lastCode)">{{ row.lastCode }}</span>
           <span v-else class="addr-dim">—</span>
         </template>
       </el-table-column>
-      <el-table-column label="收信" width="70" align="right">
+      <el-table-column :label="t('received')" width="100" align="right">
         <template #default="{ row }">{{ row.mailCount }}</template>
       </el-table-column>
-      <el-table-column label="首次" min-width="130">
+      <el-table-column :label="t('firstSeen')" min-width="130">
         <template #default="{ row }"><span class="addr-dim">{{ fmt(row.firstTime) }}</span></template>
       </el-table-column>
-      <el-table-column label="最近" min-width="130">
+      <el-table-column :label="t('lastSeen')" min-width="130">
         <template #default="{ row }"><span class="addr-dim">{{ fmt(row.lastTime) }}</span></template>
       </el-table-column>
       <el-table-column label="" width="140" align="right">
         <template #default="{ row }">
-          <el-button size="small" text @click="copy(row.toEmail)">复制</el-button>
+          <el-button size="small" text @click="copy(row.toEmail)">{{ t('copy') }}</el-button>
           <el-button v-if="!row.accountId" v-perm="'account:add'" size="small" type="primary" text
-                     :loading="claiming === row.toEmail" @click="claim(row)">收编
+                     :loading="claiming === row.toEmail" @click="claim(row)">{{ t('claimAddress') }}
           </el-button>
-          <span v-else class="addr-owned">已收编</span>
+          <span v-else class="addr-owned">{{ t('claimedAddress') }}</span>
         </template>
       </el-table-column>
     </el-table>
 
     <div class="addr-more" v-if="hasMore">
-      <el-button :loading="loading" @click="load(page + 1)">加载更多</el-button>
+      <el-button :loading="loading" @click="load(page + 1)">{{ t('loadMore') }}</el-button>
     </div>
   </div>
 </template>
@@ -61,6 +61,10 @@ import {ElMessage} from "element-plus";
 import {emailAddresses} from "@/request/email.js";
 import {accountAdd} from "@/request/account.js";
 import {useAccountStore} from "@/store/account.js";
+import {useSettingStore} from '@/store/setting.js';
+import {useI18n} from 'vue-i18n';
+import {intlLanguage, resolveLanguage} from '@/i18n/languages.js';
+import {tzDayjs} from '@/utils/day.js';
 
 defineOptions({
   name: 'address'
@@ -69,6 +73,8 @@ defineOptions({
 const SIZE = 30
 
 const accountStore = useAccountStore()
+const settingStore = useSettingStore()
+const {t} = useI18n()
 const rows = ref([])
 const keyword = ref('')
 const loading = ref(false)
@@ -86,7 +92,7 @@ async function load(p) {
     page.value = p
     hasMore.value = list.length === SIZE
   } catch (e) {
-    ElMessage({message: e?.message || '加载失败', type: 'error', plain: true})
+    ElMessage({message: e?.message || t('loadFailed'), type: 'error', plain: true})
   } finally {
     loading.value = false
   }
@@ -100,17 +106,19 @@ function platformOf(sender) {
   return domain.replace(/^(mail|email|mailer|noreply|no-reply|smtp|mg|em|notifications?)\./i, '') || '—'
 }
 
-function fmt(t) {
-  return t ? String(t).slice(0, 16) : '—'
+function fmt(value) {
+  return value ? new Intl.DateTimeFormat(intlLanguage(resolveLanguage(settingStore.lang)), {
+    dateStyle: 'short', timeStyle: 'short',
+  }).format(tzDayjs(value).toDate()) : '—'
 }
 
 async function copy(text) {
   if (!text) return
   try {
     await navigator.clipboard.writeText(text)
-    ElMessage({message: '已复制 ' + text, type: 'success', plain: true})
+    ElMessage({message: t('copiedValue', {value: text}), type: 'success', plain: true})
   } catch {
-    ElMessage({message: '浏览器不允许复制，请手动选中', type: 'error', plain: true})
+    ElMessage({message: t('copyBlocked'), type: 'error', plain: true})
   }
 }
 
@@ -122,9 +130,9 @@ async function claim(row) {
     const account = await accountAdd(row.toEmail, '')
     row.accountId = account.accountId
     accountStore.newAccountSignal++
-    ElMessage({message: row.toEmail + ' 已收编，之前的信一并归入收件箱', type: 'success', plain: true})
+    ElMessage({message: t('claimedWithHistory', {value: row.toEmail}), type: 'success', plain: true})
   } catch (e) {
-    ElMessage({message: e?.message || '收编失败', type: 'error', plain: true})
+    ElMessage({message: e?.message || t('claimFailed'), type: 'error', plain: true})
   } finally {
     claiming.value = ''
   }

@@ -16,15 +16,15 @@ const oauthService = {
 		const { email, bindToken, code } = params;
 		const grant = await jwtUtils.verifyToken(c, bindToken);
 		if (grant?.purpose !== 'oauth-bind' || !Number.isSafeInteger(grant.oauthId)) {
-			throw new BizError('第三方登录绑定凭证无效或已过期', 403);
+			throw new BizError(t(c, 'oauthBindInvalid'), 403);
 		}
 		const oauthRow = await orm(c).select().from(oauth).where(eq(oauth.oauthId, grant.oauthId)).get();
-		if (!oauthRow || oauthRow.userId !== 0) throw new BizError('第三方登录绑定凭证无效或已过期', 403);
+		if (!oauthRow || oauthRow.userId !== 0) throw new BizError(t(c, 'oauthBindInvalid'), 403);
 
 		let userRow = await userService.selectByIdIncludeDel(c, oauthRow.userId);
 
 		if (userRow) {
-			throw new BizError('用户已绑定有邮箱')
+			throw new BizError(t(c, 'oauthAlreadyBound'))
 		}
 
 		await loginService.register(c, { email, password: cryptoUtils.genRandomPwd(), code }, true);
@@ -33,7 +33,7 @@ const oauthService = {
 
 		const bound = await orm(c).update(oauth).set({ userId: userRow.userId })
 			.where(and(eq(oauth.oauthId, oauthRow.oauthId), eq(oauth.userId, 0))).returning().get();
-		if (!bound) throw new BizError('第三方登录绑定凭证已使用', 403);
+		if (!bound) throw new BizError(t(c, 'oauthBindUsed'), 403);
 		const jwtToken = await loginService.login(c, { email, password: null }, true);
 
 		return { userInfo: oauthRow, token: jwtToken}
@@ -214,7 +214,7 @@ const oauthService = {
 
 	assertEnabled(setting, switchKey) {
 		if (setting[switchKey] !== 0) {
-			throw new BizError(t('oauthDisabled'));
+			throw new BizError(t(c, 'oauthDisabled'));
 		}
 	},
 

@@ -103,7 +103,7 @@
         <div class="add-actions">
           <el-button @click="randomPrefix">
             <Icon icon="mingcute:refresh-2-line" width="16" height="16" style="margin-right: 4px"/>
-            随机生成
+            {{ t('generateRandom') }}
           </el-button>
           <el-button type="primary" @click="submit" :loading="addLoading">{{ $t('add') }}</el-button>
         </div>

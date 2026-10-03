@@ -28,7 +28,7 @@ const settingService = {
 		const setting = await c.env.kv.get(KvConst.SETTING, { type: 'json' });
 
 		if (!setting) {
-			throw new BizError('数据库未初始化 Database not initialized.');
+			throw new BizError(t(c, 'dbUninitialized'));
 		}
 
 		let domainList = c.env.domain;
@@ -37,12 +37,12 @@ const settingService = {
 			try {
 				domainList = JSON.parse(domainList)
 			} catch (error) {
-				throw new BizError(t('notJsonDomain'));
+				throw new BizError(t(c, 'notJsonDomain'));
 			}
 		}
 
 		if (!c.env.domain) {
-			throw new BizError(t('noDomainVariable'));
+			throw new BizError(t(c, 'noDomainVariable'));
 		}
 
 		domainList = domainList.map(item => '@' + item);
@@ -158,7 +158,7 @@ const settingService = {
 
 			const file = fileUtils.base64ToFile(background)
 			if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type) || file.size > 5 * 1024 * 1024) {
-				throw new BizError('背景图片类型或大小不受支持', 400);
+				throw new BizError(t(c, 'invalidBackgroundImage'), 400);
 			}
 
 			const arrayBuffer = await file.arrayBuffer();

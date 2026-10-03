@@ -216,7 +216,7 @@ async function attachmentBlob(att) {
     headers: {Authorization: localStorage.getItem('token') || ''},
     cache: 'no-store'
   })
-  if (!response.ok) throw new Error('附件不可用')
+  if (!response.ok) throw new Error(t('attachmentReopen'))
   return response.blob()
 }
 
@@ -232,7 +232,7 @@ async function downloadAttachment(att) {
     link.remove()
     setTimeout(() => URL.revokeObjectURL(url), 30000)
   } catch {
-    ElMessage.error('附件不可用，请重新打开邮件')
+    ElMessage.error(t('attachmentReopen'))
   }
 }
 
@@ -253,7 +253,7 @@ async function showImage(att) {
     srcList.push(url)
     showPreview.value = true
   } catch {
-    ElMessage.error('图片不可用，请重新打开邮件')
+    ElMessage.error(t('imageReopen'))
   }
 }
 
