@@ -3,7 +3,8 @@
     <button ref="trigger" type="button" class="language-picker-trigger" :aria-label="`${t('language')}: ${selectedName}`"
             aria-haspopup="dialog" :aria-expanded="open" @click="open = true">
       <Icon icon="mdi:translate" width="18" height="18" aria-hidden="true" />
-      <span class="language-picker-name" :dir="selectedDirection">{{ selectedName }}</span>
+      <span class="language-picker-name" :lang="selectedLanguage?.intl || null"
+            :dir="selectedDirection">{{ selectedName }}</span>
       <Icon icon="mingcute:down-small-fill" width="16" height="16" aria-hidden="true" />
     </button>
 
@@ -16,25 +17,35 @@
                :placeholder="t('languageSearch')" autocomplete="off" />
       </div>
 
-      <p v-if="pickerError" class="language-picker-error" role="alert">{{ t('reqFailErrorMsg') }}</p>
+      <p v-if="pickerError" class="language-picker-error" role="alert">
+        <span>{{ t('reqFailErrorMsg') }}</span>
+        <button type="button" @click="retryFailedChoice">{{ t('pwa.retry') }}</button>
+      </p>
       <div class="language-picker-list" :aria-busy="loading" @keydown="onListKeydown">
         <button v-if="matchesAuto" type="button" class="language-picker-option" :disabled="loading"
                 :class="{'is-selected': modelValue === 'auto' || !modelValue}"
                 :aria-pressed="modelValue === 'auto' || !modelValue" @click="choose('auto')">
           <span class="language-picker-option-text">
             <strong>{{ t('languageAuto') }}</strong>
-            <small>{{ t('temporaryInbox.followBrowser') }} · {{ browserLanguageName }}</small>
+            <small>
+              <span>{{ t('temporaryInbox.followBrowser') }}</span>
+              <span :lang="intlLanguage(browserLanguage)" :dir="languageDirection(browserLanguage)">{{ browserLanguageName }}</span>
+            </small>
           </span>
           <Icon v-if="modelValue === 'auto' || !modelValue" icon="lucide:check" width="18" height="18" aria-hidden="true" />
         </button>
         <button v-for="language in filteredLanguages" :key="language.code" type="button" :disabled="loading"
-                class="language-picker-option" :class="{'is-selected': modelValue === language.code}"
-                :aria-pressed="modelValue === language.code" @click="choose(language.code)">
-          <span class="language-picker-option-text" :lang="language.intl" :dir="language.dir">
-            <strong>{{ language.name }}</strong>
-            <small>{{ englishName(language) }}<template v-if="language.coverage === 'preview'"> · {{ t('languagePreview') }}</template></small>
+                class="language-picker-option" :class="{'is-selected': manuallySelected(language.code)}"
+                :aria-pressed="manuallySelected(language.code)" @click="choose(language.code)">
+          <span class="language-picker-option-text">
+            <strong :lang="language.intl" :dir="language.dir">{{ language.name }}</strong>
+            <small>
+              <span lang="en" dir="ltr">{{ englishName(language) }}</span>
+              <span v-if="language.coverage === 'preview'" :lang="intlLanguage(locale)"
+                    :dir="languageDirection(locale)" class="language-picker-preview">{{ t('languagePreview') }}</span>
+            </small>
           </span>
-          <Icon v-if="modelValue === language.code" icon="lucide:check" width="18" height="18" aria-hidden="true" />
+          <Icon v-if="manuallySelected(language.code)" icon="lucide:check" width="18" height="18" aria-hidden="true" />
         </button>
         <p v-if="!matchesAuto && !filteredLanguages.length" class="language-picker-empty" role="status">
           {{ t('languageNoResults') }}
@@ -48,27 +59,36 @@
 import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {Icon} from '@iconify/vue'
 import {useI18n} from 'vue-i18n'
-import {getBrowserLanguage, languages, languageDirection, normalizeLanguage} from '@/i18n/languages.js'
-import {loadLanguage} from '@/i18n/index.js'
+import {getBrowserLanguage, intlLanguage, languages, languageDirection, normalizeLanguage} from '@/i18n/languages.js'
+import {prepareLanguage} from '@/i18n/ready.js'
+import {useSettingStore} from '@/store/setting.js'
 
 const props = defineProps({modelValue: {type: String, default: 'auto'}})
 const emit = defineEmits(['update:modelValue'])
-const {t} = useI18n()
+const {t, locale} = useI18n()
+const settingStore = useSettingStore()
 const open = ref(false)
 const query = ref('')
 const trigger = ref(null)
 const searchInput = ref(null)
 const loading = ref(false)
 const pickerError = ref(false)
+const failedChoice = ref(null)
 const browserLanguage = ref(getBrowserLanguage())
 const englishDisplayNames = typeof Intl.DisplayNames === 'function'
   ? new Intl.DisplayNames(['en'], {type: 'language'})
   : null
 
-const selectedLanguage = computed(() => languages.find(language => language.code === normalizeLanguage(props.modelValue)))
+const selectedLanguage = computed(() => languages.find(language => language.code === normalizeLanguage(locale.value)))
 const browserLanguageName = computed(() => languages.find(language => language.code === browserLanguage.value)?.name || 'English')
-const selectedName = computed(() => selectedLanguage.value?.name || `${t('languageAuto')} · ${browserLanguageName.value}`)
-const selectedDirection = computed(() => selectedLanguage.value?.dir || languageDirection(browserLanguage.value))
+const selectedName = computed(() => props.modelValue === 'auto' || !props.modelValue
+  ? `${t('languageAuto')} · ${selectedLanguage.value?.name || 'English'}`
+  : selectedLanguage.value?.name || 'English')
+const selectedDirection = computed(() => selectedLanguage.value?.dir || 'ltr')
+
+function manuallySelected(code) {
+  return props.modelValue !== 'auto' && Boolean(props.modelValue) && selectedLanguage.value?.code === code
+}
 
 function englishName(language) {
   try { return englishDisplayNames?.of(language.intl) || language.code }
@@ -90,15 +110,25 @@ async function choose(value) {
   if (loading.value) return
   loading.value = true
   pickerError.value = false
+  failedChoice.value = null
   try {
-    await loadLanguage(value === 'auto' ? browserLanguage.value : value)
+    await prepareLanguage(value === 'auto' ? browserLanguage.value : value)
     emit('update:modelValue', value)
+    settingStore.languageLoadRevision += 1
     open.value = false
   } catch {
+    failedChoice.value = value
     pickerError.value = true
   } finally {
     loading.value = false
   }
+}
+
+async function retryFailedChoice() {
+  if (failedChoice.value === null) return
+  emit('update:modelValue', failedChoice.value)
+  await nextTick()
+  window.location.reload()
 }
 
 function focusSearch() {
@@ -108,6 +138,7 @@ function focusSearch() {
 function restoreFocus() {
   query.value = ''
   pickerError.value = false
+  failedChoice.value = null
   nextTick(() => trigger.value?.focus())
 }
 
@@ -177,9 +208,12 @@ onBeforeUnmount(() => {
 .language-picker-option.is-selected { color: var(--el-color-primary); background: var(--el-color-primary-light-9); }
 .language-picker-option-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .language-picker-option-text strong { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
-.language-picker-option-text small { font-size: 12px; color: var(--el-text-color-secondary); overflow-wrap: anywhere; }
+.language-picker-option-text small { display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; color: var(--el-text-color-secondary); overflow-wrap: anywhere; }
+.language-picker-preview::before { content: '· '; }
 .language-picker-empty { padding: 18px 10px; color: var(--el-text-color-secondary); text-align: center; }
-.language-picker-error { margin: 8px 0 0; color: var(--el-color-danger); font-size: 13px; }
+.language-picker-error { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; color: var(--el-color-danger); font-size: 13px; }
+.language-picker-error button { border: 0; background: transparent; color: var(--el-color-primary); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
+.language-picker-error button:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
 @media (max-width: 480px) {
   .language-picker { flex: 1 1 auto; }
   .language-picker-trigger { width: 100%; }

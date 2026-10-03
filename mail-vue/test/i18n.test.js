@@ -35,7 +35,7 @@ import workerTr from '../../mail-worker/src/i18n/tr.js'
 import workerAr from '../../mail-worker/src/i18n/ar.js'
 import workerHi from '../../mail-worker/src/i18n/hi.js'
 import expandedBackend from '../../mail-worker/src/i18n/expanded.js'
-import {getBrowserLanguage, intlLanguage, languageDirection, languages, manifestPath, normalizeLanguage, resolveLanguage} from '../src/i18n/languages.js'
+import {dateLocale, getBrowserLanguage, intlLanguage, languageDirection, languageInfo, languages, manifestPath, matchLanguageTag, normalizeLanguage, resolveLanguage} from '../src/i18n/languages.js'
 import {requestLanguage, t} from '../../mail-worker/src/i18n/i18n.js'
 
 const expandedFrontend = Object.fromEntries(
@@ -64,6 +64,11 @@ function files(path) {
 }
 
 test('all selectable languages have complete keys and matching placeholders', () => {
+  const bundledExtraLocales = readdirSync(resolve(root, 'i18n/locales'))
+    .filter(filename => filename.endsWith('.json'))
+    .map(filename => filename.slice(0, -5)).sort()
+  assert.deepEqual(bundledExtraLocales,
+    languages.filter(language => language.coverage === 'preview').map(language => language.code).sort())
   assert.deepEqual(Object.keys(frontend).sort(), languages.map(language => language.code).sort())
   assert.deepEqual(Object.keys(backend).sort(), languages.map(language => language.code).sort())
   for (const [surface, locales] of Object.entries({frontend, backend})) {
@@ -76,6 +81,26 @@ test('all selectable languages have complete keys and matching placeholders', ()
         const slots = text => [...text.matchAll(/\{\{?\w+\}?\}/g)].map(match => match[0]).sort()
         assert.deepEqual(slots(value), slots(reference[key]), surface + ':' + language + ':' + key)
       }
+    }
+  }
+})
+
+test('selectable dictionaries reject mass repetition and English carryover', () => {
+  const reference = {frontend: flatten(frontEn), backend: flatten(workerEn)}
+  for (const [surface, locales] of Object.entries({frontend, backend})) {
+    for (const [language, tree] of Object.entries(locales)) {
+      if (language === 'en') continue
+      const entries = Object.entries(flatten(tree))
+      const frequency = new Map()
+      let unchanged = 0
+      for (const [key, value] of entries) {
+        frequency.set(value, (frequency.get(value) || 0) + 1)
+        if (value === reference[surface][key]) unchanged += 1
+      }
+      // These bounds catch repeated filler and mostly untranslated imports.
+      // Human review still determines whether individual translations are right.
+      assert.ok(Math.max(...frequency.values()) <= 10, `${surface}:${language}: repeated text`)
+      assert.ok(unchanged <= (surface === 'frontend' ? 40 : 15), `${surface}:${language}: English carryover`)
     }
   }
 })
@@ -114,13 +139,60 @@ test('browser preference and manual selection resolve all supported languages', 
     assert.equal(resolveLanguage('ja'), 'ja')
     assert.equal(normalizeLanguage('pt-BR'), 'pt')
     assert.equal(normalizeLanguage('zh-Hant'), 'zh-Hant')
+    assert.equal(normalizeLanguage('zh-HK'), 'zh-Hant')
+    assert.equal(normalizeLanguage('zh-MO'), 'zh-Hant')
+    assert.equal(normalizeLanguage('zh-Hant-CN'), 'zh-Hant')
+    assert.equal(normalizeLanguage('zh-Hans-TW'), 'zh')
+    assert.equal(normalizeLanguage('zh-SG'), 'zh')
     assert.equal(normalizeLanguage('pt-PT'), 'pt')
+    assert.equal(normalizeLanguage('en-US-u-nu-arab'), 'en')
+    assert.equal(normalizeLanguage('ar-Latn'), null)
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: {languages: ['ar-Latn', 'ja-JP'], language: 'ar-Latn'},
+    })
+    assert.equal(getBrowserLanguage(), 'ja')
     assert.equal(normalizeLanguage('he-IL'), null)
     assert.equal(normalizeLanguage('nl-NL'), null)
     assert.equal(normalizeLanguage('xx-XX'), null)
   } finally {
     if (previous) Object.defineProperty(globalThis, 'navigator', previous)
     else delete globalThis.navigator
+  }
+})
+
+test('script and regional matching never substitutes a different writing system', () => {
+  const catalog = [
+    {code: 'az', intl: 'az-AZ', dir: 'ltr'},
+    {code: 'az-Arab', intl: 'az-Arab-IR', dir: 'rtl'},
+    {code: 'sr', intl: 'sr-RS', dir: 'ltr'},
+    {code: 'sr-Latn', intl: 'sr-Latn-RS', dir: 'ltr'},
+    {code: 'pa', intl: 'pa-IN', dir: 'ltr'},
+    {code: 'pa-Arab', intl: 'pa-Arab-PK', dir: 'rtl'},
+    {code: 'he', intl: 'he-IL', dir: 'rtl'},
+  ]
+  assert.equal(matchLanguageTag('az-Arab', catalog), 'az-Arab')
+  assert.equal(matchLanguageTag('az-IR', catalog), 'az-Arab')
+  assert.equal(matchLanguageTag('az-AZ', catalog), 'az')
+  assert.equal(matchLanguageTag('sr-Latn', catalog), 'sr-Latn')
+  assert.equal(matchLanguageTag('sr-RS', catalog), 'sr')
+  assert.equal(matchLanguageTag('pa-PK', catalog), 'pa-Arab')
+  assert.equal(matchLanguageTag('pa-IN', catalog), 'pa')
+  assert.equal(matchLanguageTag('iw-IL', catalog), 'he')
+  assert.equal(matchLanguageTag('az-Arab', [catalog[0]]), null)
+  assert.equal(matchLanguageTag('sr-Latn', [catalog[2]]), null)
+  assert.equal(matchLanguageTag('pa-Arab', [catalog[4]]), null)
+  assert.equal(matchLanguageTag('invalid tag', catalog), null)
+})
+
+test('published languages declare the date locale and page direction', () => {
+  assert.equal(dateLocale('zh-HK'), 'zh-tw')
+  assert.equal(dateLocale('pt-PT'), 'pt-br')
+  assert.equal(languageDirection('ar-SA'), 'rtl')
+  for (const language of languages) {
+    assert.equal(languageInfo(language.code), language)
+    assert.ok(['ltr', 'rtl'].includes(language.dir), language.code)
+    assert.ok(language.dateLocale, language.code)
   }
 })
 

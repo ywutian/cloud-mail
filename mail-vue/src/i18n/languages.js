@@ -1,30 +1,28 @@
 const existing = [
-    ['zh', '简体中文', 'zh-CN'],
-    ['en', 'English', 'en-US'],
-    ['es', 'Español', 'es-ES'],
-    ['fr', 'Français', 'fr-FR'],
-    ['ja', '日本語', 'ja-JP'],
-    ['ko', '한국어', 'ko-KR'],
-    ['de', 'Deutsch', 'de-DE'],
-    ['pt', 'Português (Brasil)', 'pt-BR'],
-    ['ru', 'Русский', 'ru-RU'],
-    ['it', 'Italiano', 'it-IT'],
-    ['id', 'Bahasa Indonesia', 'id-ID'],
-    ['vi', 'Tiếng Việt', 'vi-VN'],
-    ['tr', 'Türkçe', 'tr-TR'],
-    ['ar', 'العربية', 'ar-SA'],
-    ['hi', 'हिन्दी', 'hi-IN'],
+    ['zh', '简体中文', 'zh-CN', 'zh-cn', 'ltr'],
+    ['en', 'English', 'en-US', 'en', 'ltr'],
+    ['es', 'Español', 'es-ES', 'es', 'ltr'],
+    ['fr', 'Français', 'fr-FR', 'fr', 'ltr'],
+    ['ja', '日本語', 'ja-JP', 'ja', 'ltr'],
+    ['ko', '한국어', 'ko-KR', 'ko', 'ltr'],
+    ['de', 'Deutsch', 'de-DE', 'de', 'ltr'],
+    ['pt', 'Português (Brasil)', 'pt-BR', 'pt-br', 'ltr'],
+    ['ru', 'Русский', 'ru-RU', 'ru', 'ltr'],
+    ['it', 'Italiano', 'it-IT', 'it', 'ltr'],
+    ['id', 'Bahasa Indonesia', 'id-ID', 'id', 'ltr'],
+    ['vi', 'Tiếng Việt', 'vi-VN', 'vi', 'ltr'],
+    ['tr', 'Türkçe', 'tr-TR', 'tr', 'ltr'],
+    ['ar', 'العربية', 'ar-SA', 'ar', 'rtl'],
+    ['hi', 'हिन्दी', 'hi-IN', 'hi', 'ltr'],
 ]
 
 const expanded = [
-    ['zh-Hant', '繁體中文', 'zh-TW'],
+    ['zh-Hant', '繁體中文', 'zh-TW', 'zh-tw', 'ltr'],
 ]
 
-const rightToLeft = new Set(['ar', 'fa', 'he', 'ps', 'sd', 'ug', 'ur', 'yi'])
-
 export const languages = [
-    ...existing.map(([code, name, intl]) => ({code, name, intl, dir: rightToLeft.has(code) ? 'rtl' : 'ltr', coverage: 'existing'})),
-    ...expanded.map(([code, name, intl = code]) => ({code, name, intl, dir: rightToLeft.has(code) ? 'rtl' : 'ltr', coverage: 'preview'})),
+    ...existing.map(([code, name, intl, dateLocale, dir]) => ({code, name, intl, dateLocale, dir, coverage: 'existing'})),
+    ...expanded.map(([code, name, intl, dateLocale, dir]) => ({code, name, intl, dateLocale, dir, coverage: 'preview'})),
 ]
 
 const byCode = new Map(languages.map(language => [language.code, language]))
@@ -32,17 +30,51 @@ const aliases = new Map([
     ['iw', 'he'], ['jw', 'jv'], ['tl', 'fil'], ['no', 'nb'],
 ])
 
-export function normalizeLanguage(value) {
+function parseLanguageTag(value) {
     if (typeof value !== 'string') return null
-    const parts = value.toLowerCase().trim().replaceAll('_', '-').split('-')
-    const base = parts[0]
-    if (base === 'zh') {
-        if (parts.some(part => ['hant', 'tw', 'hk', 'mo'].includes(part))) return 'zh-Hant'
-        return 'zh'
+    const parts = value.trim().replaceAll('_', '-').split('-')
+    if (!parts[0]) return null
+    parts[0] = aliases.get(parts[0].toLowerCase()) || parts[0]
+    try {
+        const locale = new Intl.Locale(parts.join('-'))
+        return {
+            tag: locale.baseName.toLowerCase(),
+            language: locale.language,
+            script: locale.script || locale.maximize().script,
+            region: locale.region,
+        }
+    } catch {
+        return null
     }
-    if (base === 'pt') return 'pt'
-    const code = aliases.get(base) || base
-    return byCode.has(code) ? code : null
+}
+
+function catalogEntries(catalog) {
+    return catalog.map(language => ({
+        language,
+        offered: parseLanguageTag(language.intl || language.code),
+        codeTag: parseLanguageTag(language.code)?.tag,
+    }))
+}
+
+const publishedEntries = catalogEntries(languages)
+
+export function matchLanguageTag(value, catalog = languages) {
+    const requested = parseLanguageTag(value)
+    if (!requested) return null
+    let best = null
+    for (const {language, offered, codeTag} of catalog === languages ? publishedEntries : catalogEntries(catalog)) {
+        if (!offered || offered.language !== requested.language || offered.script !== requested.script) continue
+        const score = requested.tag === codeTag ? 4
+            : requested.tag === offered.tag ? 3
+            : requested.region && requested.region === offered.region ? 2
+            : language.code === requested.language ? 1 : 0
+        if (!best || score > best.score) best = {code: language.code, score}
+    }
+    return best?.code || null
+}
+
+export function normalizeLanguage(value) {
+    return matchLanguageTag(value)
 }
 
 export function getBrowserLanguage() {
@@ -60,37 +92,21 @@ export function resolveLanguage(selection, browserLanguage = getBrowserLanguage(
 }
 
 export function intlLanguage(code) {
-    return byCode.get(normalizeLanguage(code))?.intl || 'en-US'
+    return languageInfo(code)?.intl || 'en-US'
 }
 
 export function languageDirection(code) {
-    return byCode.get(normalizeLanguage(code))?.dir || 'ltr'
+    return languageInfo(code)?.dir || 'ltr'
+}
+
+export function dateLocale(code) {
+    return languageInfo(code)?.dateLocale || 'en'
+}
+
+export function languageInfo(code) {
+    return byCode.get(normalizeLanguage(code)) || null
 }
 
 export function manifestPath(code, temporary = false) {
     return `/manifest-${temporary ? 'temp' : 'mail'}-${normalizeLanguage(code) || 'en'}.webmanifest`
-}
-
-const mailDescriptions = {
-    zh: '邮箱收件、发信与账号管理。',
-    en: 'Email inbox, sending and account management.',
-    es: 'Bandeja de entrada, envío de correos y gestión de cuentas.',
-    fr: 'Messagerie, envoi d’e-mails et gestion des comptes.',
-    ja: 'メールの受信、送信、アカウント管理。',
-    ko: '메일 수신, 발송 및 계정 관리.',
-    de: 'E-Mails empfangen und senden sowie Konten verwalten.',
-    pt: 'Receba e envie e-mails e gerencie suas contas.',
-    ru: 'Получение и отправка писем, управление учётными записями.',
-    it: 'Ricevi e invia e-mail e gestisci gli account.',
-    id: 'Terima dan kirim email serta kelola akun.',
-    vi: 'Nhận và gửi email, quản lý tài khoản.',
-    tr: 'E-posta alıp gönderin ve hesapları yönetin.',
-    ar: 'استقبال الرسائل وإرسالها وإدارة الحسابات.',
-    hi: 'ईमेल प्राप्त करें, भेजें और खातों का प्रबंधन करें।',
-    'zh-Hant': '信箱收件、發信與帳號管理。',
-}
-
-export function mailDescription(code) {
-    const language = normalizeLanguage(code) || 'en'
-    return mailDescriptions[language] || mailDescriptions.en
 }

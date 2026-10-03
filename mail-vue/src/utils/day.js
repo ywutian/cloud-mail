@@ -1,30 +1,55 @@
 import dayjs from 'dayjs'
-import 'dayjs/locale/zh-cn'
-import 'dayjs/locale/zh-tw'
-import 'dayjs/locale/es'
-import 'dayjs/locale/fr'
-import 'dayjs/locale/ja'
-import 'dayjs/locale/ko'
-import 'dayjs/locale/de'
-import 'dayjs/locale/pt-br'
-import 'dayjs/locale/ru'
-import 'dayjs/locale/it'
-import 'dayjs/locale/id'
-import 'dayjs/locale/vi'
-import 'dayjs/locale/tr'
-import 'dayjs/locale/ar'
-import 'dayjs/locale/hi'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
-import {useSettingStore} from "@/store/setting.js";
-import {intlLanguage, resolveLanguage} from '@/i18n/languages.js'
+import i18n from '@/i18n/index.js'
+import {dateLocale, intlLanguage, normalizeLanguage, resolveLanguage} from '@/i18n/languages.js'
 dayjs.extend(utc)
 dayjs.extend(timezone)
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-const dayjsLanguages = {zh: 'zh-cn', 'zh-Hant': 'zh-tw', pt: 'pt-br'}
+
+const dateLoaders = {
+    en: () => Promise.resolve(),
+    'zh-cn': () => import('dayjs/locale/zh-cn'),
+    'zh-tw': () => import('dayjs/locale/zh-tw'),
+    es: () => import('dayjs/locale/es'),
+    fr: () => import('dayjs/locale/fr'),
+    ja: () => import('dayjs/locale/ja'),
+    ko: () => import('dayjs/locale/ko'),
+    de: () => import('dayjs/locale/de'),
+    'pt-br': () => import('dayjs/locale/pt-br'),
+    ru: () => import('dayjs/locale/ru'),
+    it: () => import('dayjs/locale/it'),
+    id: () => import('dayjs/locale/id'),
+    vi: () => import('dayjs/locale/vi'),
+    tr: () => import('dayjs/locale/tr'),
+    ar: () => import('dayjs/locale/ar'),
+    hi: () => import('dayjs/locale/hi'),
+}
+const loading = new Map([['en', Promise.resolve()]])
+const loaded = new Set(['en'])
+
+export function hasDateLocale(code) {
+    return Boolean(normalizeLanguage(code) && dateLoaders[dateLocale(code)])
+}
+
+export function loadDateLocale(code) {
+    if (!normalizeLanguage(code)) return Promise.reject(new Error(`Date locale ${code} is unavailable`))
+    const key = dateLocale(code)
+    if (!dateLoaders[key]) return Promise.reject(new Error(`Date locale ${key} is unavailable`))
+    if (!loading.has(key)) {
+        loading.set(key, dateLoaders[key]().then(() => {
+            loaded.add(key)
+            return key
+        }).catch(error => {
+            loading.delete(key)
+            throw error
+        }))
+    }
+    return loading.get(key)
+}
 
 function currentLanguage() {
-    return resolveLanguage(useSettingStore().lang)
+    return resolveLanguage(i18n.global.locale.value)
 }
 
 export function fromNow(date) {
@@ -68,5 +93,9 @@ export function toUtc(time) {
 }
 
 export function setExtend(lang) {
-    dayjs.locale(dayjsLanguages[lang] || lang)
+    const key = dateLocale(lang)
+    if (!normalizeLanguage(lang) || !loaded.has(key)) {
+        throw new Error(`Date locale ${lang} was not loaded`)
+    }
+    dayjs.locale(key)
 }

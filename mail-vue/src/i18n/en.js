@@ -490,3 +490,18 @@ const en = {
 }
 
 export default en
+
+export const mailboxCountForms = {
+    saved: {
+        one: '{count} email saved',
+        other: '{count} emails saved',
+    },
+    email: {
+        one: '{count} email',
+        other: '{count} emails',
+    },
+    attachment: {
+        one: '{count} attachment',
+        other: '{count} attachments',
+    },
+}

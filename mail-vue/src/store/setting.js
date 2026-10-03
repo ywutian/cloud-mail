@@ -9,6 +9,7 @@ export const useSettingStore = defineStore('setting', {
         },
         lang: 'auto',
         publicMailboxLanguage: 'auto',
+        languageLoadRevision: 0,
     }),
     actions: {
 

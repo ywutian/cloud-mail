@@ -26,10 +26,10 @@ import { useI18n } from "vue-i18n";
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { useRoute } from "vue-router";
 import {useSettingStore} from "@/store/setting.js";
-import {getBrowserLanguage, loadLanguage, resolveLanguage} from "@/i18n/index.js";
-import {intlLanguage, languageDirection, mailDescription, manifestPath} from '@/i18n/languages.js';
+import {getBrowserLanguage, resolveLanguage} from "@/i18n/index.js";
+import {prepareLanguage} from '@/i18n/ready.js';
+import {intlLanguage, languageDirection, manifestPath} from '@/i18n/languages.js';
 import en from 'element-plus/es/locale/lang/en';
-import {loadElementLocale} from '@/ui/element-locale.js';
 import {setExtend} from '@/utils/day.js';
 import {startupFailed, online, updateAvailable, applyUpdate, dismissUpdate} from '@/pwa/status.js';
 function retryConnection() { window.location.reload() }
@@ -45,8 +45,9 @@ import('@/icons/index.js')
 const elementLocale = shallowRef(en)
 const { locale, t, te } = useI18n()
 const languageError = ref(false)
-const languageRetry = ref(0)
-function retryLanguage() { languageRetry.value += 1 }
+// A failed JavaScript module import is cached by the browser for this page.
+// A fresh navigation gives the language chunk another network attempt.
+function retryLanguage() { window.location.reload() }
 
 function refreshBrowserLanguage() {
   browserLang.value = getBrowserLanguage()
@@ -92,15 +93,15 @@ function applyDocumentLanguage(lang) {
     ? t('temporaryInbox.title')
     : (typeof routeTitle === 'string' && te(routeTitle) ? `${t(routeTitle)} · ${siteTitle}` : siteTitle)
   const description = document.querySelector('meta[name="description"]')
-  if (description) description.content = temporary ? t('temporaryInbox.tagline') : mailDescription(lang)
+  if (description) description.content = temporary ? t('temporaryInbox.tagline') : t('pwa.description')
   document.querySelector('link[rel="manifest"]')?.setAttribute('href', manifestPath(lang, temporary))
 }
 
-watch([effectiveLang, () => route.name, () => route.meta.title, () => settingStore.settings.title, languageRetry], async ([lang]) => {
+watch([effectiveLang, () => route.name, () => route.meta.title, () => settingStore.settings.title,
+  () => settingStore.languageLoadRevision], async ([lang]) => {
   const revision = ++languageRevision
   try {
-    await loadLanguage(lang)
-    const componentLocale = await loadElementLocale(lang)
+    const {elementLocale: componentLocale} = await prepareLanguage(lang)
     if (revision !== languageRevision) return
     elementLocale.value = componentLocale
   } catch (error) {

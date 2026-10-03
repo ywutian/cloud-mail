@@ -9,7 +9,7 @@
         <div class="login-top-actions">
           <LanguageSelect v-model="settingStore.lang" class="login-language" />
           <AppInstallButton />
-          <RouterLink to="/find" class="login-public-link">{{ t('temporaryInbox.title') }}</RouterLink>
+          <a :href="publicMailboxHref" class="login-public-link">{{ t('temporaryInbox.title') }}</a>
         </div>
       </header>
 
@@ -139,6 +139,7 @@ import {cvtR2Url} from "@/utils/convert.js";
 import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
+import {normalizeLanguage} from '@/i18n/languages.js';
 import LanguageSelect from '@/components/language-select/index.vue';
 import AppInstallButton from '@/components/app-install-button/index.vue';
 import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
@@ -149,6 +150,10 @@ const userStore = useUserStore();
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
 const route = useRoute();
+const publicMailboxHref = computed(() => {
+  const manualLanguage = normalizeLanguage(settingStore.lang)
+  return manualLanguage ? `/find?lang=${encodeURIComponent(manualLanguage)}` : '/find'
+})
 const loginLoading = ref(false)
 const bindLoading = ref(false)
 const oauthLoading = ref(false);

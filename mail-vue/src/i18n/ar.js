@@ -450,7 +450,7 @@ export default {
     "newAddress": "العنوان الجديد",
     "checking": "فحص البريد",
     "refreshIn": "التحديث خلال {seconds} ثانية",
-    "accessNote": "يمكن لأي شخص يعرف هذا العنوان قراءة رسائل البريد الإلكتروني الخاصة به من الدقائق العشر الماضية. لا تستخدمه للحصول على معلومات حساسة.",
+    "accessNote": "يمكن لأي شخص يعرف هذا العنوان قراءة رسائل البريد الإلكتروني الخاصة به من الدقائق العشر الماضية. لا تستخدمه لاستقبال معلومات حساسة.",
     "searchPlaceholder": "ابحث عن عنوان تستخدمه بالفعل",
     "search": "بحث",
     "inbox": "البريد الوارد",
@@ -487,4 +487,31 @@ export default {
   "noticeTypeSuccess": "نجاح",
   "noticeTypeWarning": "تحذير",
   "noticeTypeInfo": "معلومات"
+}
+
+export const mailboxCountForms = {
+  saved: {
+    zero: 'لا توجد رسائل محفوظة ({count})',
+    one: 'رسالة محفوظة ({count})',
+    two: 'رسالتان محفوظتان ({count})',
+    few: '{count} رسائل محفوظة',
+    many: '{count} رسالة محفوظة',
+    other: '{count} رسالة محفوظة',
+  },
+  email: {
+    zero: 'لا توجد رسائل بريد إلكتروني ({count})',
+    one: 'رسالة بريد إلكتروني ({count})',
+    two: 'رسالتا بريد إلكتروني ({count})',
+    few: '{count} رسائل بريد إلكتروني',
+    many: '{count} رسالة بريد إلكتروني',
+    other: '{count} رسالة بريد إلكتروني',
+  },
+  attachment: {
+    zero: 'لا توجد مرفقات ({count})',
+    one: 'مرفق ({count})',
+    two: 'مرفقان ({count})',
+    few: '{count} مرفقات',
+    many: '{count} مرفقًا',
+    other: '{count} مرفق',
+  },
 }

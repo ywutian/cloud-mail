@@ -5,9 +5,10 @@ import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import router from "@/router";
 import {websiteConfig} from "@/request/setting.js";
-import i18n, {getBrowserLanguage, loadLanguage, resolveLanguage} from "@/i18n/index.js";
-import {intlLanguage, languageDirection, manifestPath} from '@/i18n/languages.js'
-import {loadElementLocale} from '@/ui/element-locale.js'
+import i18n, {getBrowserLanguage, resolveLanguage} from "@/i18n/index.js";
+import {intlLanguage, languageDirection, manifestPath, normalizeLanguage} from '@/i18n/languages.js'
+import {prepareLanguage} from '@/i18n/ready.js'
+import {setExtend} from '@/utils/day.js'
 
 export async function init() {
     document.title = '\u200B'
@@ -19,17 +20,39 @@ export async function init() {
     const token = localStorage.getItem('token');
     if (!settingStore.lang) settingStore.lang = 'auto'
     const publicPage = window.location.hostname.startsWith('temp.') || window.location.pathname === '/find'
+    const landingPage = publicPage || window.location.pathname === '/login'
+    if (landingPage) {
+        const currentUrl = new URL(window.location.href)
+        const requested = currentUrl.searchParams.get('lang')
+        const carriedLanguage = normalizeLanguage(requested)
+        if (carriedLanguage) {
+            if (publicPage) settingStore.publicMailboxLanguage = carriedLanguage
+            else settingStore.lang = carriedLanguage
+            // The router captures the initial URL when installed after init().
+            // Remove the one-time preference through the router once that
+            // navigation finishes, preserving other query fields and the hash.
+            void router.isReady().then(() => {
+                const route = router.currentRoute.value
+                if (route.query.lang !== requested) return
+                const query = {...route.query}
+                delete query.lang
+                return router.replace({path: route.path, query, hash: route.hash})
+            })
+        }
+    }
     const initialLanguage = resolveLanguage(
         publicPage ? settingStore.publicMailboxLanguage : settingStore.lang,
         getBrowserLanguage(),
     )
     let loadedLanguage = initialLanguage
     try {
-        await Promise.all([loadLanguage(initialLanguage), loadElementLocale(initialLanguage)])
+        await prepareLanguage(initialLanguage)
     } catch {
         loadedLanguage = 'en'
+        await prepareLanguage('en')
     }
     i18n.global.locale.value = loadedLanguage
+    setExtend(loadedLanguage)
     document.documentElement.lang = intlLanguage(loadedLanguage)
     document.documentElement.dir = languageDirection(loadedLanguage)
     document.querySelector('link[rel="manifest"]')?.setAttribute('href', manifestPath(loadedLanguage, publicPage))

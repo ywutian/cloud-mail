@@ -62,14 +62,15 @@
                       class="tm-history-item" :class="{'is-active': item.address === address}"
                       @click="switchAddress(item.address)">
                 <span class="tm-history-address" dir="ltr">{{ item.address }}</span>
-                <span class="tm-history-count">{{ t('temporaryInbox.savedCount', {count: item.messageCount || 0}) }}</span>
+                <span class="tm-history-count">{{ formatMailboxCount(t, publicLang, 'saved', item.messageCount || 0) }}</span>
               </button>
             </div>
             <button type="button" class="tm-clear" @click="showClearConfirm = true">{{ t('temporaryInbox.clearLocal') }}</button>
           </details>
           <div v-else class="tm-history-empty">
             <span>{{ archiveUnavailable ? t('temporaryInbox.storageUnavailable') : t('temporaryInbox.noLocalHistory') }}</span>
-            <button v-if="address" type="button" class="tm-clear" @click="showClearConfirm = true">{{ t('temporaryInbox.clearLocal') }}</button>
+            <button v-if="address || archiveUnavailable || archiveWarning === 'temporaryInbox.clearFailed'" type="button"
+                    class="tm-clear" @click="showClearConfirm = true">{{ t('temporaryInbox.clearLocal') }}</button>
           </div>
           <p v-if="archiveWarning" class="tm-history-warning" role="status">{{ t(archiveWarning) }}</p>
         </div>
@@ -79,7 +80,7 @@
             <div class="tm-inbox-head">
               <div>
                 <h2 id="tm-inbox-title">{{ t('temporaryInbox.inbox') }}</h2>
-                <span v-if="mails.length" class="tm-inbox-count">{{ mails.length === 1 ? t('temporaryInbox.oneEmail') : t('temporaryInbox.emailCount', { count: mails.length }) }}</span>
+                <span v-if="mails.length" class="tm-inbox-count">{{ formatMailboxCount(t, publicLang, 'email', mails.length) }}</span>
               </div>
               <div v-if="address && !connectionNotice" class="tm-timer">
                 <span class="tm-pulse" :class="loading ? 'is-busy' : ''"></span>
@@ -181,7 +182,7 @@
           <section v-if="!viewLoading && viewing.attList?.length" class="tm-attachments">
             <div class="tm-attachments-title">
               <span>{{ t('temporaryInbox.attachments') }}</span>
-              <span>{{ viewing.attList.length === 1 ? t('temporaryInbox.oneAttachment') : t('temporaryInbox.attachmentCount', { count: viewing.attList.length }) }}</span>
+              <span>{{ formatMailboxCount(t, publicLang, 'attachment', viewing.attList.length) }}</span>
             </div>
             <div v-for="att in viewing.attList" :key="att.attId" class="tm-attachment">
               <button v-if="isImage(att.filename)" type="button" class="tm-attachment-file"
@@ -232,7 +233,8 @@ import {openCreateInbox, openDomains, openMailContent, openRecentMails} from "@/
 import {getExtName, formatBytes} from "@/utils/file-utils.js";
 import {getIconByName} from "@/utils/icon-utils.js";
 import {formatDetailDate, tzDayjs} from "@/utils/day.js";
-import {intlLanguage} from '@/i18n/languages.js'
+import {intlLanguage, normalizeLanguage} from '@/i18n/languages.js'
+import {formatMailboxCount} from '@/i18n/plurals.js'
 import {mailArchive, MAX_ARCHIVE_FILE_BYTES} from '@/local-mail/archive.js'
 
 defineOptions({
@@ -247,9 +249,15 @@ const archive = mailArchive()
 const {t, locale} = useI18n()
 const settingStore = useSettingStore()
 const publicLang = computed(() => locale.value)
-const loginHref = window.location.hostname.startsWith('temp.')
-  ? `${window.location.protocol}//${window.location.host.replace(/^temp\./, 'box.')}/login`
-  : '/login'
+const loginHref = computed(() => {
+  const target = new URL('/login', window.location.href)
+  if (window.location.hostname.startsWith('temp.')) {
+    target.hostname = window.location.hostname.replace(/^temp\./, 'box.')
+  }
+  const manualLanguage = normalizeLanguage(settingStore.publicMailboxLanguage)
+  if (manualLanguage) target.searchParams.set('lang', manualLanguage)
+  return target.toString()
+})
 
 const address = ref('')
 const manual = ref('')
@@ -376,6 +384,8 @@ function attachmentUrlFor(emailId, mailbox, att, download = false) {
   return `${import.meta.env.VITE_BASE_URL.replace(/\/$/, '')}/open/attachment?${params}`
 }
 
+class AttachmentUnavailableError extends Error {}
+
 async function attachmentBlob(att) {
   const capturedAt = Date.now()
   const session = archiveSession
@@ -393,7 +403,8 @@ async function attachmentBlob(att) {
   const response = await fetch(attachmentUrlFor(emailId, mailbox, att), {
     cache: 'no-store'
   })
-  if (!response.ok) throw new Error(t('temporaryInbox.attachmentUnavailable'))
+  if (response.status === 404 || response.status === 410) throw new AttachmentUnavailableError()
+  if (!response.ok) throw new Error(`Attachment request failed: ${response.status}`)
   const blob = await response.blob()
   if (SAVE_BINARY_FILES && !archiveUnavailable.value && session === archiveSession) {
     archive.saveBinary(key, 'attachment', att.attId, blob,
@@ -417,8 +428,9 @@ async function downloadAttachment(att) {
     link.click()
     link.remove()
     setTimeout(() => URL.revokeObjectURL(url), 30000)
-  } catch {
-    flash(t('temporaryInbox.attachmentUnavailable'))
+  } catch (error) {
+    flash(t(error instanceof AttachmentUnavailableError
+      ? 'temporaryInbox.attachmentUnavailable' : 'reqFailErrorMsg'))
   }
 }
 
@@ -456,8 +468,9 @@ async function showImage(att) {
     previewUrls.add(url)
     srcList.value = [url]
     showPreview.value = true
-  } catch {
-    flash(t('temporaryInbox.imageUnavailable'))
+  } catch (error) {
+    flash(t(error instanceof AttachmentUnavailableError
+      ? 'temporaryInbox.imageUnavailable' : 'reqFailErrorMsg'))
   }
 }
 
@@ -1024,9 +1037,10 @@ async function clearLocalHistory() {
     archiveWarning.value = selectionCleared ? 'temporaryInbox.localCleared' : 'temporaryInbox.clearFailed'
     archiveChannel?.postMessage({type: 'cleared'})
   } catch {
-    // IndexedDB can be blocked while the previous address remains in localStorage.
-    // Remove that selection even though the inaccessible archive cannot be confirmed empty.
-    if (archiveUnavailable.value && resetLocalState()) showClearConfirm.value = false
+    // Always remove the selected address from memory and localStorage. A failed
+    // archive clear is reported separately because browser copies may remain.
+    resetLocalState()
+    showClearConfirm.value = false
     archiveWarning.value = 'temporaryInbox.clearFailed'
   }
   finally { clearing.value = false }

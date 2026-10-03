@@ -201,6 +201,23 @@ describe('public attachments', () => {
     expect(await legacyLink.text()).toContain('Access denied');
   });
 
+  it('localizes public attachment and message-view errors by language and script', async () => {
+    const attachment = await app.request(
+      'http://localhost/open/attachment?emailId=2&address=right@example.com&attId=12',
+      {headers: {'Accept-Language': 'zh-HK'}}, context
+    );
+    expect(attachment.status).toBe(404);
+    expect(await attachment.text()).toBe('附件不存在或已過期');
+    expect(attachment.headers.get('Cache-Control')).toBe('no-store');
+
+    const messageView = await app.request('http://localhost/telegram/getEmail/invalid',
+      {headers: {'Accept-Language': 'ar-EG'}}, context);
+    const page = await messageView.text();
+    expect(page).toContain("<html lang='ar-SA' dir='rtl'>");
+    expect(page).toContain('تم رفض الوصول');
+    expect(messageView.headers.get('Cache-Control')).toContain('no-store');
+  });
+
   it('binds private attachment bytes to the signed-in owner', async () => {
     database.exec('UPDATE email SET user_id = 8 WHERE email_id = 1');
     await expect(mediaService.privateAttachment({env: context}, {emailId: 1, attId: 10}, 9)).rejects.toThrow();

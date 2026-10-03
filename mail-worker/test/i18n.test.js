@@ -25,6 +25,13 @@ test('script and regional variants select the corresponding available dictionary
 	assert.equal(requestLanguage(context('zh-Hant')), 'zh-Hant');
 	assert.equal(requestLanguage(context('zh-TW,zh;q=0.9,en;q=0.8')), 'zh-Hant');
 	assert.equal(requestLanguage(context('zh-TW,zh-Hans-CN;q=0.9')), 'zh-Hant');
+	assert.equal(requestLanguage(context('zh-HK')), 'zh-Hant');
+	assert.equal(requestLanguage(context('zh-MO')), 'zh-Hant');
+	assert.equal(requestLanguage(context('zh-SG')), 'zh');
+	assert.equal(requestLanguage(context('zh-Hans')), 'zh');
+	assert.equal(requestLanguage(context('zh-Latn,fr;q=0.8')), 'fr');
+	assert.equal(requestLanguage(context('ar-Latn,hi-Latn;q=0.9')), 'en');
+	assert.equal(requestLanguage(context('ar-EG')), 'ar');
 	assert.equal(requestLanguage(context('pt-PT,pt;q=0.9,en;q=0.8')), 'pt');
 	assert.equal(requestLanguage(context('pt-PT,pt-BR;q=0.9')), 'pt');
 	assert.equal(requestLanguage(context('pt-BR')), 'pt');

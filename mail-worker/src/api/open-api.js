@@ -27,7 +27,10 @@ app.get('/open/attachment', async (c) => {
 	try {
 		return await openService.attachment(c, c.req.query());
 	} catch (error) {
-		if (error instanceof BizError) return c.text(t(c, 'attachmentGone'), 404);
+		if (error instanceof BizError) {
+			c.header('Cache-Control', 'no-store');
+			return c.text(t(c, 'attachmentGone'), 404);
+		}
 		throw error;
 	}
 });
