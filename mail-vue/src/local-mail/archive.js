@@ -1,6 +1,5 @@
 import Dexie from 'dexie'
 
-const DAY_MS = 24 * 60 * 60 * 1000
 export const MAX_ARCHIVE_FILE_BYTES = 10 * 1024 * 1024
 export const MAX_ARCHIVE_BINARY_BYTES = 100 * 1024 * 1024
 
@@ -37,7 +36,6 @@ export function createMailArchive({name = 'temporary-mail-archive-v1', indexedDB
     await Promise.all([db.meta.clear(), db.addresses.clear(), db.messages.clear(), db.binaries.clear()])
     await db.meta.bulkPut([
       {key: 'clearedAt', value: clearedAt},
-      {key: 'lastActiveAt', value: now},
       {key: 'binaryBytes', value: 0},
     ])
     return clearedAt
@@ -49,24 +47,13 @@ export function createMailArchive({name = 'temporary-mail-archive-v1', indexedDB
     })
   }
 
-  async function startSession({idleDays, now = Date.now()} = {}) {
-    return db.transaction('rw', db.meta, db.addresses, db.messages, db.binaries, async () => {
-      const lastActive = (await db.meta.get('lastActiveAt'))?.value || 0
-      const expired = Number.isFinite(idleDays) && idleDays > 0
-        && lastActive > 0 && now - lastActive >= idleDays * DAY_MS
-      let clearRevision
-      if (expired) clearRevision = await clearInside(now)
-      else {
-        clearRevision = await lastClear()
-        await db.meta.put({key: 'lastActiveAt', value: now})
+  async function startSession() {
+    return db.transaction('r', db.meta, db.addresses, async () => {
+      return {
+        clearRevision: await lastClear(),
+        addresses: await db.addresses.orderBy('lastUsedAt').reverse().toArray(),
       }
-      return {expired, clearRevision,
-        addresses: expired ? [] : await db.addresses.orderBy('lastUsedAt').reverse().toArray()}
     })
-  }
-
-  async function touch(now = Date.now()) {
-    await db.meta.put({key: 'lastActiveAt', value: now})
   }
 
   async function listAddresses() {
@@ -86,7 +73,6 @@ export function createMailArchive({name = 'temporary-mail-archive-v1', indexedDB
         lastUsedAt: now,
         messageCount: existing?.messageCount || 0,
       })
-      await db.meta.put({key: 'lastActiveAt', value: now})
       return true
     })
   }
@@ -194,7 +180,7 @@ export function createMailArchive({name = 'temporary-mail-archive-v1', indexedDB
     }
   }
 
-  return {db, clear, startSession, touch, listAddresses, recordAddress, saveMessage,
+  return {db, clear, startSession, listAddresses, recordAddress, saveMessage,
     getMessage, listMessages, countMessages, saveBinary, getBinary, getInlineBinaries, stats, mailKey}
 }
 

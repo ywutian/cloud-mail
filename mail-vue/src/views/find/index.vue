@@ -205,7 +205,6 @@ defineOptions({
 
 const REFRESH_SEC = 8
 const ADDR_KEY = 'findAddress'
-const AUTO_CLEAR_IDLE_DAYS = 30
 const SAVE_BINARY_FILES = true
 const LOCAL_PAGE_SIZE = 100
 const archive = mailArchive()
@@ -257,7 +256,7 @@ const archiveChannel = typeof BroadcastChannel === 'undefined' ? null : new Broa
 let archiveSession = 0
 let archiveClearRevision = null
 let localRequestId = 0
-let lastRetentionCheck = Date.now()
+let lastHistorySync = Date.now()
 let disposed = false
 
 // 邮件 HTML 在受限 iframe 内渲染，不允许脚本和同源访问。
@@ -549,20 +548,16 @@ onMounted(async () => {
       countdown.value = REFRESH_SEC
       load()
     }
-    if (!document.hidden && Date.now() - lastRetentionCheck >= 60 * 60 * 1000) void onVisible()
+    if (!document.hidden && Date.now() - lastHistorySync >= 60 * 60 * 1000) void onVisible()
   }, 1000)
 
   const domainRequest = openDomains().then(result => { domains.value = result || [] })
     .catch(() => { /* 历史记录仍可离线查看 */ })
   try {
-    const session = await archive.startSession({idleDays: AUTO_CLEAR_IDLE_DAYS})
+    const session = await archive.startSession()
     if (disposed) return
     archiveClearRevision = session.clearRevision
     history.value = session.addresses
-    if (session.expired) {
-      removeSavedInbox()
-      archiveWarning.value = 'temporaryInbox.autoCleared'
-    }
     navigator.storage?.persist?.().catch(() => {})
   } catch {
     archiveUnavailable.value = true
@@ -615,16 +610,15 @@ onUnmounted(() => {
 
 async function onVisible() {
   if (document.hidden || archiveUnavailable.value) return
-  lastRetentionCheck = Date.now()
+  lastHistorySync = Date.now()
   try {
-    const session = await archive.startSession({idleDays: AUTO_CLEAR_IDLE_DAYS})
+    const session = await archive.startSession()
     const previousRevision = archiveClearRevision
     archiveClearRevision = session.clearRevision
-    if (session.expired || (previousRevision !== null && previousRevision !== session.clearRevision)) {
+    if (previousRevision !== null && previousRevision !== session.clearRevision) {
       archiveSession += 1
       resetLocalState()
-      archiveWarning.value = session.expired ? 'temporaryInbox.autoCleared' : 'temporaryInbox.localCleared'
-      if (session.expired) archiveChannel?.postMessage({type: 'cleared'})
+      archiveWarning.value = 'temporaryInbox.localCleared'
     } else {
       history.value = session.addresses
     }

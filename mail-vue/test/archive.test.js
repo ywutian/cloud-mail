@@ -37,18 +37,19 @@ test('addresses and full messages survive reopening the local database', async (
   await reopened.db.delete()
 })
 
-test('idle cleanup removes all addresses, messages, and binary files', async () => {
+test('long inactivity preserves addresses, messages, and binary files', async () => {
   const store = archive()
-  const start = Date.now() - 32 * DAY
+  const start = Date.now() - 365 * DAY
   await store.recordAddress('a@example.com', start)
   await store.saveMessage('a@example.com', {emailId: 1, createTime: '2026-08-01 12:00:00'}, {capturedAt: start})
   await store.saveBinary(store.mailKey('a@example.com', 1), 'attachment', 5,
     new Blob(['test']), {capturedAt: start})
+  await store.db.meta.put({key: 'lastActiveAt', value: start})
 
-  const session = await store.startSession({idleDays: 30, now: start + 31 * DAY})
-  assert.equal(session.expired, true)
-  assert.deepEqual(await store.stats(), {addresses: 0, messages: 0, binaryBytes: 0})
-  assert.equal((await store.saveMessage('a@example.com', {emailId: 2}, {capturedAt: start})), false)
+  const session = await store.startSession()
+  assert.equal(session.addresses[0].address, 'a@example.com')
+  assert.deepEqual(await store.stats(), {addresses: 1, messages: 1, binaryBytes: 4})
+  assert.equal((await store.getBinary(store.mailKey('a@example.com', 1), 'attachment', 5)).size, 4)
   await store.db.delete()
 })
 
@@ -68,7 +69,7 @@ test('binary limits are enforced without discarding saved mail', async () => {
 test('manual clear removes every address and rejects captures started before it', async () => {
   const store = archive()
   const started = Date.now() - 1000
-  const previousRevision = (await store.startSession({idleDays: 30})).clearRevision
+  const previousRevision = (await store.startSession()).clearRevision
   await store.recordAddress('first@example.com', started)
   await store.recordAddress('second@example.com', started)
   await store.saveMessage('first@example.com', {emailId: 1, createTime: '2026-10-02 12:00:00'},
