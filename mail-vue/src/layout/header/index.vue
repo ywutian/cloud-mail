@@ -10,6 +10,7 @@
       </div>
     </div>
     <div class="toolbar">
+      <AppInstallButton compact />
       <div v-if="uiStore.dark" class="sun-icon icon-item" @click="openDark($event)">
         <Icon icon="mingcute:sun-fill"/>
       </div>
@@ -75,6 +76,7 @@
 <script setup>
 import router from "@/router";
 import hanburger from '@/components/hamburger/index.vue'
+import AppInstallButton from '@/components/app-install-button/index.vue'
 import {logout} from "@/request/login.js";
 import {Icon} from "@iconify/vue";
 import {useUiStore} from "@/store/ui.js";

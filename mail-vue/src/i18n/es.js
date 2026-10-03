@@ -353,6 +353,22 @@ const es = {
     "clientId": "ID de cliente",
     "clientSecret": "Secreto del cliente",
     "notOwner": "El correo electrónico base no te pertenece",
+    "pwa": {
+        "appName": "Cloud Mail",
+        "install": "Añadir a la pantalla de inicio",
+        "installHelp": "Abre tu buzón en una ventana independiente desde la pantalla de inicio. Los correos y adjuntos siguen requiriendo conexión a Internet.",
+        "installios": "Pulsa Compartir en el navegador y luego Añadir a la pantalla de inicio. Si no aparece, abre esta página en Safari.",
+        "installandroid": "Abre el menú del navegador y elige Instalar aplicación o Añadir a la pantalla de inicio.",
+        "installdesktop": "Abre el menú del navegador y elige Instalar aplicación. Algunos navegadores también muestran un icono de instalación en la barra de direcciones.",
+        "close": "Entendido",
+        "updateReady": "Hay una nueva versión disponible.",
+        "updateNow": "Actualizar ahora",
+        "updateLater": "Más tarde",
+        "offlineNotice": "No tienes conexión. El correo y los adjuntos necesitan Internet.",
+        "connectTitle": "No se puede conectar al correo",
+        "connectBody": "Comprueba tu conexión e inténtalo de nuevo. Los correos y adjuntos no se guardan para usarlos sin conexión.",
+        "retry": "Reintentar"
+    },
     "temporaryInbox": {
         "language": "Idioma",
         "autoLanguage": "Automático",

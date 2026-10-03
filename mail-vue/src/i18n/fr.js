@@ -353,6 +353,22 @@ const fr = {
     "clientId": "ID client",
     "clientSecret": "Secret client",
     "notOwner": "L'e-mail de base ne vous appartient pas",
+    "pwa": {
+        "appName": "Cloud Mail",
+        "install": "Ajouter à l’écran d’accueil",
+        "installHelp": "Ouvrez votre boîte mail dans une fenêtre dédiée depuis l’écran d’accueil. Les messages et pièces jointes nécessitent toujours une connexion Internet.",
+        "installios": "Touchez Partager dans le navigateur, puis Ajouter à l’écran d’accueil. Si l’option n’apparaît pas, ouvrez cette page dans Safari.",
+        "installandroid": "Ouvrez le menu du navigateur, puis choisissez Installer l’application ou Ajouter à l’écran d’accueil.",
+        "installdesktop": "Ouvrez le menu du navigateur et choisissez Installer l’application. Certains navigateurs affichent aussi une icône dans la barre d’adresse.",
+        "close": "Compris",
+        "updateReady": "Une nouvelle version est disponible.",
+        "updateNow": "Mettre à jour",
+        "updateLater": "Plus tard",
+        "offlineNotice": "Vous êtes hors ligne. Les messages et pièces jointes nécessitent Internet.",
+        "connectTitle": "Connexion à la messagerie impossible",
+        "connectBody": "Vérifiez votre connexion et réessayez. Les messages et pièces jointes ne sont pas conservés hors ligne.",
+        "retry": "Réessayer"
+    },
     "temporaryInbox": {
         "language": "Langue",
         "autoLanguage": "Automatique",

@@ -5,6 +5,7 @@
       <header class="tm-head">
         <div class="tm-language">
           <LanguageSelect v-model="settingStore.publicMailboxLanguage" />
+          <AppInstallButton />
         </div>
         <div class="tm-brand">
           <Icon icon="fluent:mail-24-filled" width="20" height="20"/>
@@ -152,6 +153,7 @@
 import {computed, defineOptions, onMounted, onUnmounted, ref} from "vue";
 import {Icon} from "@iconify/vue";
 import LanguageSelect from '@/components/language-select/index.vue'
+import AppInstallButton from '@/components/app-install-button/index.vue'
 import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
 import {getBrowserLanguage, resolveLanguage} from "@/i18n/index.js";
@@ -534,6 +536,8 @@ function fmt(t) {
 .tm-language {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 20px;
   --language-control-border: var(--line);
   --language-control-bg: var(--card);

@@ -353,6 +353,22 @@ const ko = {
     "clientId": "클라이언트 ID",
     "clientSecret": "클라이언트 비밀번호",
     "notOwner": "기본 이메일은 귀하의 것이 아닙니다",
+    "pwa": {
+        "appName": "Cloud Mail",
+        "install": "홈 화면에 추가",
+        "installHelp": "홈 화면에서 메일을 별도 창으로 열 수 있습니다. 메일과 첨부파일을 가져오려면 계속 인터넷 연결이 필요합니다.",
+        "installios": "브라우저에서 공유를 누른 뒤 ‘홈 화면에 추가’를 선택하세요. 보이지 않으면 Safari에서 이 페이지를 여세요.",
+        "installandroid": "브라우저 메뉴에서 ‘앱 설치’ 또는 ‘홈 화면에 추가’를 선택하세요.",
+        "installdesktop": "브라우저 메뉴에서 ‘앱 설치’를 선택하세요. 일부 브라우저는 주소 표시줄에도 설치 아이콘을 표시합니다.",
+        "close": "확인",
+        "updateReady": "새 버전을 사용할 수 있습니다.",
+        "updateNow": "지금 업데이트",
+        "updateLater": "나중에",
+        "offlineNotice": "오프라인 상태입니다. 메일과 첨부파일에는 인터넷 연결이 필요합니다.",
+        "connectTitle": "메일에 연결할 수 없습니다",
+        "connectBody": "연결을 확인하고 다시 시도하세요. 메일과 첨부파일은 오프라인용으로 저장되지 않습니다.",
+        "retry": "다시 시도"
+    },
     "temporaryInbox": {
         "language": "언어",
         "autoLanguage": "자동",

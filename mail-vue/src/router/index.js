@@ -8,7 +8,7 @@ const routes = [
     {
         path: '/',
         name: 'layout',
-        redirect: '/inbox',
+        redirect: () => window.location.hostname.startsWith('temp.') ? '/find' : '/inbox',
         component: () => import('@/layout/index.vue'),
         children: [
             {

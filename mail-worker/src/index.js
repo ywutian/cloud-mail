@@ -11,6 +11,19 @@ export default {
 
 		const url = new URL(req.url)
 
+		if (url.pathname === '/manifest.webmanifest') {
+			const manifestUrl = new URL(req.url);
+			manifestUrl.pathname = url.hostname.startsWith('temp.')
+				? '/manifest-temp.webmanifest'
+				: '/manifest.webmanifest';
+			const asset = await env.assets.fetch(new Request(manifestUrl.toString(), req));
+			const response = new Response(asset.body, asset);
+			response.headers.set('Content-Type', 'application/manifest+json; charset=utf-8');
+			response.headers.set('Cache-Control', 'public, max-age=300');
+			response.headers.set('X-Content-Type-Options', 'nosniff');
+			return response;
+		}
+
 		// temp.* 是给别人的公开入口，进来直接到查码页，不给看登录页
 		if (url.hostname.startsWith('temp.') && url.pathname === '/') {
 			return Response.redirect(url.origin + '/find', 302)

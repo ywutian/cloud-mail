@@ -10,7 +10,10 @@
     <div v-else :style="background"></div>
     <div class="form-wrapper">
       <div class="container">
-        <LanguageSelect v-model="settingStore.lang" class="login-language" />
+        <div class="login-top-actions">
+          <LanguageSelect v-model="settingStore.lang" class="login-language" />
+          <AppInstallButton />
+        </div>
         <span class="form-title">{{ settingStore.settings.title }}</span>
         <span class="form-desc" v-if="show === 'login'">{{ $t('loginTitle') }}</span>
         <span class="form-desc" v-else>{{ $t('regTitle') }}</span>
@@ -169,6 +172,7 @@ import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
 import LanguageSelect from '@/components/language-select/index.vue';
+import AppInstallButton from '@/components/app-install-button/index.vue';
 import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
 
 const {t} = useI18n();
@@ -667,8 +671,11 @@ function submitRegister() {
   border-left: 1px solid var(--login-border);
   box-shadow: var(--el-box-shadow-light);
 
-  .login-language {
-    align-self: flex-end;
+  .login-top-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
     margin-bottom: 18px;
   }
   @media (max-width: 1024px) {

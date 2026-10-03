@@ -353,6 +353,22 @@ const de = {
     "clientId": "Kunden-ID",
     "clientSecret": "Client-Geheimnis",
     "notOwner": "Die Basis-E-Mail gehört nicht Ihnen",
+    "pwa": {
+        "appName": "Cloud Mail",
+        "install": "Zum Startbildschirm hinzufügen",
+        "installHelp": "Öffnen Sie Ihr Postfach vom Startbildschirm aus in einem eigenen Fenster. Für E-Mails und Anhänge ist weiterhin eine Internetverbindung erforderlich.",
+        "installios": "Tippen Sie im Browser auf Teilen und dann auf Zum Home-Bildschirm. Falls die Option fehlt, öffnen Sie diese Seite in Safari.",
+        "installandroid": "Öffnen Sie das Browsermenü und wählen Sie App installieren oder Zum Startbildschirm hinzufügen.",
+        "installdesktop": "Öffnen Sie das Browsermenü und wählen Sie App installieren. Einige Browser zeigen auch ein Installationssymbol in der Adressleiste.",
+        "close": "Verstanden",
+        "updateReady": "Eine neue Version ist verfügbar.",
+        "updateNow": "Jetzt aktualisieren",
+        "updateLater": "Später",
+        "offlineNotice": "Sie sind offline. E-Mails und Anhänge benötigen eine Internetverbindung.",
+        "connectTitle": "Keine Verbindung zum Postfach",
+        "connectBody": "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut. E-Mails und Anhänge werden nicht offline gespeichert.",
+        "retry": "Erneut versuchen"
+    },
     "temporaryInbox": {
         "language": "Sprache",
         "autoLanguage": "Automatisch",
