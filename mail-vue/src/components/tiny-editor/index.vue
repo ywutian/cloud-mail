@@ -10,6 +10,8 @@ import {ref, onMounted, onBeforeUnmount, watch, nextTick, shallowRef, defineEmit
 import loading from "@/components/loading/index.vue";
 import {useI18n} from 'vue-i18n'
 import {useUiStore} from '@/store/ui.js'
+import {languageDirection} from '@/i18n/languages.js'
+import {editorLocale} from '@/ui/editor-locales.js'
 
 defineExpose({
   clearEditor,
@@ -60,25 +62,8 @@ watch(() => [uiStore.dark, locale.value], () => {
   initTinyMCE(content);
 });
 
-const language = computed(() => {
-  const packs = {
-    zh: 'zh_CN',
-    es: 'es',
-    fr: 'fr_FR',
-    ja: 'ja',
-    ko: 'ko_KR',
-    de: 'de',
-    pt: 'pt_BR',
-    ru: 'ru',
-    it: 'it',
-    id: 'id',
-    vi: 'vi',
-    tr: 'tr',
-    ar: 'ar',
-    hi: 'hi',
-  };
-  return packs[locale.value] || 'en';
-})
+const language = computed(() => editorLocale(locale.value))
+const rightToLeft = computed(() => languageDirection(locale.value) === 'rtl')
 
 function clearEditor() {
   if (editor.value) {
@@ -127,13 +112,13 @@ function initEditor(content = props.defValue) {
          --scrollbar-thumb-color: ${uiStore.dark ? '#8D9095' : '#A8ABB2'};
     }`,
     plugins: 'link image advlist lists emoticons fullscreen table preview code directionality',
-    toolbar: `bold emoticons forecolor backcolor italic fontsize | alignleft aligncenter alignright alignjustify | outdent indent | bullist numlist | link image | table code preview fullscreen${locale.value === 'ar' ? ' | ltr rtl' : ''}`,
+    toolbar: `bold emoticons forecolor backcolor italic fontsize | alignleft aligncenter alignright alignjustify | outdent indent | bullist numlist | link image | table code preview fullscreen${rightToLeft.value ? ' | ltr rtl' : ''}`,
     toolbar_mode: 'scrolling',
     font_size_formats: '8px 10px 12px 14px 16px 18px 24px 36px',
     emoticons_search: false,
     language: language.value,
     language_url: language.value === 'en' ? undefined : `/tinymce/langs/${language.value}.js`,
-    directionality: locale.value === 'ar' ? 'rtl' : 'ltr',
+    directionality: rightToLeft.value ? 'rtl' : 'ltr',
     language_load: true,
     menubar: false,
     license_key: 'gpl',

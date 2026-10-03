@@ -1,6 +1,6 @@
 {
   "id": "/temporary-mail-app",
-  "name": "Kotak Masuk Sementara",
+  "name": "Kotak Surat Sementara",
   "short_name": "Email Sementara",
   "description": "Kotak masuk sementara untuk email terbaru dan kode verifikasi, dengan salinan tersimpan di perangkat.",
   "start_url": "/find",

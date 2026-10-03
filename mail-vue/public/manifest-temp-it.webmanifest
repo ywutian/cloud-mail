@@ -1,6 +1,6 @@
 {
   "id": "/temporary-mail-app",
-  "name": "Casella temporanea",
+  "name": "Casella di posta temporanea",
   "short_name": "Posta temp.",
   "description": "Casella temporanea per e-mail recenti e codici di verifica, con copie salvate sul dispositivo.",
   "start_url": "/find",

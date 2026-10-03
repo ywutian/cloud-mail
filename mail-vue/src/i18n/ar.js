@@ -270,6 +270,9 @@ export default {
   "message": "بريد",
   "language": "اللغة",
   "languageAuto": "تلقائي",
+  "languageSearch": "البحث عن اللغات",
+  "languageNoResults": "لم يتم العثور على لغات",
+  "languagePreview": "ترجمة أولية",
   "loginLoading": "تسجيل الدخول…",
   "bindMailboxTitle": "تسجيل عنوان بريد إلكتروني",
   "bindAction": "ربط العنوان",
@@ -396,6 +399,8 @@ export default {
   "clientSecret": "سر العميل",
   "notOwner": "البريد الإلكتروني الأساسي ليس ملكك",
   "pwa": {
+    "shortName": "Cloud Mail",
+    "description": "استقبال الرسائل وإرسالها وإدارة الحسابات.",
     "appName": "البريد السحابي",
     "install": "أضف إلى الشاشة الرئيسية",
     "installHelp": "افتح صندوق البريد الخاص بك في نافذته الخاصة من شاشتك الرئيسية. لا يزال البريد والمرفقات يتطلبان اتصالاً بالإنترنت.",
@@ -413,6 +418,8 @@ export default {
     "retry": "حاول مرة أخرى"
   },
   "temporaryInbox": {
+    "shortName": "بريد مؤقت",
+    "description": "صندوق بريد مؤقت للرسائل الحديثة ورموز التحقق مع نسخ محفوظة على الجهاز.",
     "noActiveAddress": "لا يوجد عنوان نشط",
     "createAddress": "إنشاء عنوان",
     "localHistory": "محفوظ على هذا الجهاز",

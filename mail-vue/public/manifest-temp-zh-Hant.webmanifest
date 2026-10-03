@@ -1,13 +1,13 @@
 {
-  "id": "/mail-app",
-  "name": "Cloud Mail",
-  "short_name": "Cloud Mail",
-  "description": "Получение и отправка писем, управление учётными записями.",
-  "start_url": "/inbox",
+  "id": "/temporary-mail-app",
+  "name": "臨時信箱",
+  "short_name": "臨時信箱",
+  "description": "免註冊的臨時收件匣，可在本機儲存收到的郵件。",
+  "start_url": "/find",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f5f7fb",
-  "theme_color": "#175cd3",
+  "background_color": "#0a0e14",
+  "theme_color": "#0a0e14",
   "icons": [
     {
       "src": "/app-icon-192.png",
@@ -28,6 +28,6 @@
       "purpose": "maskable"
     }
   ],
-  "lang": "ru-RU",
+  "lang": "zh-TW",
   "dir": "ltr"
 }

@@ -7,34 +7,29 @@
       <button type="button" @click="retryConnection">{{ $t('pwa.retry') }}</button>
     </main>
     <router-view v-else />
-    <div v-if="!startupFailed && (!online || updateAvailable)" class="app-status" role="status">
-      <span>{{ !online ? $t(route.name === 'find' ? 'temporaryInbox.offlineHistoryOnly' : 'pwa.offlineNotice') : $t('pwa.updateReady') }}</span>
-      <button v-if="online && updateAvailable" type="button" @click="applyUpdate">{{ $t('pwa.updateNow') }}</button>
-      <button v-if="online && updateAvailable" type="button" @click="dismissUpdate">{{ $t('pwa.updateLater') }}</button>
+    <div v-if="!startupFailed && (languageError || !online || updateAvailable)" class="app-status"
+         :role="languageError ? 'alert' : 'status'">
+      <template v-if="languageError">
+        <span>{{ $t('language') }}: {{ $t('reqFailErrorMsg') }}</span>
+        <button type="button" @click="retryLanguage">{{ $t('pwa.retry') }}</button>
+      </template>
+      <template v-else>
+        <span>{{ !online ? $t(route.name === 'find' ? 'temporaryInbox.offlineHistoryOnly' : 'pwa.offlineNotice') : $t('pwa.updateReady') }}</span>
+        <button v-if="online && updateAvailable" type="button" @click="applyUpdate">{{ $t('pwa.updateNow') }}</button>
+        <button v-if="online && updateAvailable" type="button" @click="dismissUpdate">{{ $t('pwa.updateLater') }}</button>
+      </template>
     </div>
   </el-config-provider>
 </template>
 <script setup>
 import { useI18n } from "vue-i18n";
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { useRoute } from "vue-router";
 import {useSettingStore} from "@/store/setting.js";
-import {getBrowserLanguage, resolveLanguage} from "@/i18n/index.js";
-import {intlLanguage, mailDescription, manifestPath} from '@/i18n/languages.js';
+import {getBrowserLanguage, loadLanguage, resolveLanguage} from "@/i18n/index.js";
+import {intlLanguage, languageDirection, mailDescription, manifestPath} from '@/i18n/languages.js';
 import en from 'element-plus/es/locale/lang/en';
-import es from 'element-plus/es/locale/lang/es';
-import fr from 'element-plus/es/locale/lang/fr';
-import ja from 'element-plus/es/locale/lang/ja';
-import ko from 'element-plus/es/locale/lang/ko';
-import de from 'element-plus/es/locale/lang/de';
-import pt from 'element-plus/es/locale/lang/pt-br';
-import ru from 'element-plus/es/locale/lang/ru';
-import it from 'element-plus/es/locale/lang/it';
-import id from 'element-plus/es/locale/lang/id';
-import vi from 'element-plus/es/locale/lang/vi';
-import tr from 'element-plus/es/locale/lang/tr';
-import ar from 'element-plus/es/locale/lang/ar';
-import hi from 'element-plus/es/locale/lang/hi';
+import {loadElementLocale} from '@/ui/element-locale.js';
 import {setExtend} from '@/utils/day.js';
 import {startupFailed, online, updateAvailable, applyUpdate, dismissUpdate} from '@/pwa/status.js';
 function retryConnection() { window.location.reload() }
@@ -46,11 +41,12 @@ const temporaryPage = computed(() => route.name === 'find'
 const effectiveLang = computed(() => temporaryPage.value
   ? resolveLanguage(settingStore.publicMailboxLanguage, browserLang.value)
   : resolveLanguage(settingStore.lang, browserLang.value))
-import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import('@/icons/index.js')
-const elementLocales = {zh: zhCn, en, es, fr, ja, ko, de, pt, ru, it, id, vi, tr, ar, hi}
-const elementLocale = computed(() => elementLocales[effectiveLang.value] || en)
+const elementLocale = shallowRef(en)
 const { locale, t, te } = useI18n()
+const languageError = ref(false)
+const languageRetry = ref(0)
+function retryLanguage() { languageRetry.value += 1 }
 
 function refreshBrowserLanguage() {
   browserLang.value = getBrowserLanguage()
@@ -84,10 +80,10 @@ onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 
-watch([effectiveLang, () => route.name, () => route.meta.title, () => settingStore.settings.title], ([lang]) => {
-  locale.value = lang
+let languageRevision = 0
+function applyDocumentLanguage(lang) {
   document.documentElement.lang = intlLanguage(lang)
-  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr'
+  document.documentElement.dir = languageDirection(lang)
   setExtend(lang)
   const temporary = temporaryPage.value
   const siteTitle = settingStore.settings.title || t('pwa.appName')
@@ -98,6 +94,26 @@ watch([effectiveLang, () => route.name, () => route.meta.title, () => settingSto
   const description = document.querySelector('meta[name="description"]')
   if (description) description.content = temporary ? t('temporaryInbox.tagline') : mailDescription(lang)
   document.querySelector('link[rel="manifest"]')?.setAttribute('href', manifestPath(lang, temporary))
+}
+
+watch([effectiveLang, () => route.name, () => route.meta.title, () => settingStore.settings.title, languageRetry], async ([lang]) => {
+  const revision = ++languageRevision
+  try {
+    await loadLanguage(lang)
+    const componentLocale = await loadElementLocale(lang)
+    if (revision !== languageRevision) return
+    elementLocale.value = componentLocale
+  } catch (error) {
+    if (revision === languageRevision) {
+      languageError.value = true
+      applyDocumentLanguage(locale.value)
+      console.error('Could not load selected language:', error)
+    }
+    return
+  }
+  languageError.value = false
+  locale.value = lang
+  applyDocumentLanguage(lang)
 }, { immediate: true, flush: 'sync' })
 </script>
 <style scoped>
@@ -110,12 +126,12 @@ watch([effectiveLang, () => route.name, () => route.meta.title, () => settingSto
   gap: 14px;
   padding: 24px;
   text-align: center;
-  background: var(--el-bg-color);
-  color: var(--el-text-color-primary);
+  background: var(--ui-bg);
+  color: var(--ui-ink);
 }
 .app-connect-error img { border-radius: 16px; }
 .app-connect-error h1 { font-size: 22px; }
-.app-connect-error p { max-width: 420px; color: var(--el-text-color-secondary); line-height: 1.6; }
+.app-connect-error p { max-width: 420px; color: var(--ui-muted); line-height: 1.6; }
 .app-connect-error button, .app-status button {
   border-radius: 8px;
   background: var(--el-color-primary);
@@ -138,10 +154,10 @@ watch([effectiveLang, () => route.name, () => route.meta.title, () => settingSto
   gap: 12px;
   max-width: min(640px, calc(100vw - 24px));
   padding: 12px 14px;
-  border: 1px solid var(--el-border-color);
+  border: 1px solid var(--ui-line);
   border-radius: 12px;
-  background: var(--el-bg-color);
-  color: var(--el-text-color-primary);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
   box-shadow: var(--el-box-shadow);
   line-height: 1.4;
 }

@@ -1,13 +1,13 @@
 {
   "id": "/mail-app",
-  "name": "Cloud Mail",
+  "name": "البريد السحابي",
   "short_name": "Cloud Mail",
   "description": "استقبال الرسائل وإرسالها وإدارة الحسابات.",
   "start_url": "/inbox",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1890ff",
+  "background_color": "#f5f7fb",
+  "theme_color": "#175cd3",
   "icons": [
     {
       "src": "/app-icon-192.png",

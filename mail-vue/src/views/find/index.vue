@@ -1,125 +1,134 @@
 <template>
   <div class="tm">
     <div class="tm-shell" :inert="Boolean(viewing)">
-
       <header class="tm-head">
+        <div class="tm-brand">
+          <span class="tm-mark"><Icon icon="fluent:mail-24-filled" width="20" height="20" aria-hidden="true"/></span>
+          <span>{{ t('temporaryInbox.title') }}</span>
+        </div>
         <div class="tm-language">
           <LanguageSelect v-model="settingStore.publicMailboxLanguage" />
           <AppInstallButton />
+          <a class="tm-nav-link" :href="loginHref">{{ t('loginBtn') }}</a>
         </div>
-        <div class="tm-brand">
-          <Icon icon="fluent:mail-24-filled" width="20" height="20"/>
-          <span>{{ t('temporaryInbox.title') }}</span>
-        </div>
-        <p class="tm-tagline">{{ t('temporaryInbox.tagline') }}</p>
       </header>
 
-      <section class="tm-card">
-        <div class="tm-card-label">{{ t('temporaryInbox.yourAddress') }}</div>
-
-        <div class="tm-addr">
-          <button v-if="address" type="button" class="tm-address-copy" dir="ltr"
-                  :aria-label="`${t('temporaryInbox.copyAddress')}: ${address}`" @click="copyAddr">{{ address }}</button>
-          <span v-else-if="creating" class="tm-addr-skeleton"></span>
-          <span v-else class="tm-no-address">{{ t('temporaryInbox.noActiveAddress') }}</span>
-        </div>
-
-        <div class="tm-actions">
-          <button v-if="!address" type="button" class="tm-btn tm-btn-primary" :disabled="creating" @click="genAddr">
-            <Icon icon="mingcute:refresh-2-line" width="17" height="17"/>
-            {{ t('temporaryInbox.createAddress') }}
-          </button>
-          <button v-if="address" type="button" class="tm-btn tm-btn-primary" @click="copyAddr">
-            <Icon :icon="copied ? 'fluent:checkmark-24-filled' : 'fluent:copy-24-regular'" width="17" height="17"/>
-            {{ copied ? t('temporaryInbox.copied') : t('temporaryInbox.copyAddress') }}
-          </button>
-          <button v-if="address" type="button" class="tm-btn" @click="copyAccessLink">{{ t('temporaryInbox.copyLink') }}</button>
-          <button v-if="address" type="button" class="tm-btn" :disabled="creating" @click="genAddr">
-            <Icon icon="mingcute:refresh-2-line" width="17" height="17"/>
-            {{ t('temporaryInbox.newAddress') }}
-          </button>
-          <div v-if="address && !connectionNotice" class="tm-timer">
-            <span class="tm-pulse" :class="loading ? 'is-busy' : ''"></span>
-            {{ loading ? t('temporaryInbox.checking') : t('temporaryInbox.refreshIn', { seconds: countdown }) }}
-          </div>
-        </div>
-        <p class="tm-access-note">{{ t('temporaryInbox.accessNote') }}</p>
-      </section>
-
-      <div v-if="connectionNotice" class="tm-connection" :class="isOnline ? 'is-failed' : 'is-offline'"
-           role="status" aria-live="polite" aria-atomic="true">
-        <Icon :icon="isOnline ? 'mingcute:warning-line' : 'mingcute:wifi-off-line'" width="19" height="19" aria-hidden="true"/>
-        <span>{{ t(connectionNotice) }}</span>
-        <button v-if="isOnline && address" type="button" class="tm-btn tm-btn-slim"
-                :disabled="loading" @click="retryLoad">{{ t('pwa.retry') }}</button>
+      <div class="tm-intro">
+        <h1>{{ t('temporaryInbox.title') }}</h1>
+        <p>{{ t('temporaryInbox.tagline') }}</p>
       </div>
 
-      <div class="tm-manual">
-        <Icon class="tm-manual-icon" icon="iconoir:search" width="16" height="16"/>
-        <input v-model="manual" :placeholder="t('temporaryInbox.searchPlaceholder')"
-               :aria-label="t('temporaryInbox.searchPlaceholder')" spellcheck="false" dir="auto"
-               @keyup.enter="useManual"/>
-        <button type="button" class="tm-btn tm-btn-slim" @click="useManual">{{ t('temporaryInbox.search') }}</button>
-      </div>
-
-      <section class="tm-history" :class="{'is-empty': !history.length}" aria-labelledby="tm-history-title">
-        <div class="tm-history-head">
-          <div>
-            <h2 id="tm-history-title">{{ t('temporaryInbox.localHistory') }}</h2>
-            <p v-if="history.length">{{ t('temporaryInbox.localHistoryNote') }}</p>
-          </div>
-          <button v-if="history.length || address" type="button" class="tm-clear" @click="showClearConfirm = true">
-            {{ t('temporaryInbox.clearLocal') }}
-          </button>
-        </div>
-        <div v-if="history.length" class="tm-history-list">
-          <button v-for="item in history" :key="item.address" type="button"
-                  class="tm-history-item" :class="{'is-active': item.address === address}"
-                  @click="switchAddress(item.address)">
-            <span class="tm-history-address" dir="ltr">{{ item.address }}</span>
-            <span class="tm-history-count">{{ t('temporaryInbox.savedCount', {count: item.messageCount || 0}) }}</span>
-          </button>
-        </div>
-        <p v-else class="tm-history-empty">{{ archiveUnavailable ? t('temporaryInbox.storageUnavailable') : t('temporaryInbox.noLocalHistory') }}</p>
-        <p v-if="archiveWarning" class="tm-history-warning" role="status">{{ t(archiveWarning) }}</p>
-      </section>
-
-      <section class="tm-inbox">
-        <div class="tm-inbox-head">
-          <span>{{ t('temporaryInbox.inbox') }}</span>
-          <span class="tm-inbox-count">{{ mails.length ? (mails.length === 1 ? t('temporaryInbox.oneEmail') : t('temporaryInbox.emailCount', { count: mails.length })) : '' }}</span>
-        </div>
-
-        <transition-group name="tm-fade" tag="div">
-          <article v-for="m in mails" :key="m.emailId" class="tm-mail">
-            <button type="button" class="tm-mail-open"
-                    :aria-label="`${m.sendName || m.sendEmail} — ${m.subject || t('temporaryInbox.noSubject')}`"
-                    @click="openMail(m, $event)"></button>
-            <div class="tm-mail-body">
-              <div class="tm-mail-from">{{ m.sendName || m.sendEmail }}</div>
-              <div class="tm-mail-subject">{{ m.subject || t('temporaryInbox.noSubject') }}</div>
-              <div v-if="m.localOnly" class="tm-mail-local">{{ t(m.complete ? 'temporaryInbox.savedLocally' : 'temporaryInbox.summaryOnly') }}</div>
+      <div class="tm-grid">
+        <div class="tm-side">
+          <section class="tm-card" aria-labelledby="tm-address-title" :aria-busy="creating">
+            <h2 id="tm-address-title" class="tm-card-label">{{ t('temporaryInbox.yourAddress') }}</h2>
+            <div class="tm-addr">
+              <button v-if="address" type="button" class="tm-address-copy" dir="ltr"
+                      :aria-label="`${t('temporaryInbox.copyAddress')}: ${address}`" @click="copyAddr">{{ address }}</button>
+              <span v-else-if="creating" class="tm-addr-skeleton" aria-hidden="true"></span>
+              <span v-else class="tm-no-address">{{ t('temporaryInbox.noActiveAddress') }}</span>
             </div>
-            <button v-if="m.code" type="button" class="tm-code" :title="t('temporaryInbox.clickToCopy')"
-                    :aria-label="`${t('temporaryInbox.clickToCopy')}: ${m.code}`" @click="copyCode(m.code)">
-              {{ m.code }}
-            </button>
-            <time class="tm-mail-time">{{ fmt(m.createTime) }}</time>
-            <Icon class="tm-mail-arrow" icon="mingcute:right-line" width="17" height="17"/>
-          </article>
-        </transition-group>
+            <div class="tm-actions">
+              <button v-if="!address" type="button" class="tm-btn tm-btn-primary" :disabled="creating || !isOnline" @click="genAddr">
+                <Icon icon="mingcute:add-line" width="18" height="18" aria-hidden="true"/>
+                {{ t('temporaryInbox.createAddress') }}
+              </button>
+              <button v-if="address" type="button" class="tm-btn tm-btn-primary" @click="copyAddr">
+                <Icon :icon="copied ? 'fluent:checkmark-24-filled' : 'fluent:copy-24-regular'" width="18" height="18" aria-hidden="true"/>
+                {{ copied ? t('temporaryInbox.copied') : t('temporaryInbox.copyAddress') }}
+              </button>
+              <button v-if="address" type="button" class="tm-btn" @click="copyAccessLink">{{ t('temporaryInbox.copyLink') }}</button>
+              <button v-if="address" type="button" class="tm-btn" :disabled="creating || !isOnline" @click="genAddr">
+                {{ t('temporaryInbox.newAddress') }}
+              </button>
+            </div>
+            <p class="tm-access-note">{{ t('temporaryInbox.accessNote') }}</p>
+          </section>
 
-        <div v-if="!mails.length" class="tm-empty">
-          <Icon icon="fluent:mail-inbox-24-regular" width="34" height="34"/>
-          <p>{{ connectionNotice ? t('temporaryInbox.savedCount', {count: 0}) : (inboxError ? t(inboxError) : (searched ? t('temporaryInbox.noRecentMail') : t('temporaryInbox.waitingForMail'))) }}</p>
+          <form class="tm-manual" @submit.prevent="useManual">
+            <label for="tm-manual-address">{{ t('temporaryInbox.searchPlaceholder') }}</label>
+            <div class="tm-manual-row">
+              <input id="tm-manual-address" v-model="manual" type="email" :placeholder="t('temporaryInbox.searchPlaceholder')"
+                     spellcheck="false" autocomplete="off" dir="ltr"/>
+              <button type="submit" class="tm-btn">{{ t('temporaryInbox.search') }}</button>
+            </div>
+          </form>
+
+          <details v-if="history.length" class="tm-history" :open="!address">
+            <summary>{{ t('temporaryInbox.localHistory') }} <span>{{ history.length }}</span></summary>
+            <p class="tm-history-note">{{ t('temporaryInbox.localHistoryNote') }}</p>
+            <div class="tm-history-list">
+              <button v-for="item in history" :key="item.address" type="button"
+                      class="tm-history-item" :class="{'is-active': item.address === address}"
+                      @click="switchAddress(item.address)">
+                <span class="tm-history-address" dir="ltr">{{ item.address }}</span>
+                <span class="tm-history-count">{{ t('temporaryInbox.savedCount', {count: item.messageCount || 0}) }}</span>
+              </button>
+            </div>
+            <button type="button" class="tm-clear" @click="showClearConfirm = true">{{ t('temporaryInbox.clearLocal') }}</button>
+          </details>
+          <div v-else class="tm-history-empty">
+            <span>{{ archiveUnavailable ? t('temporaryInbox.storageUnavailable') : t('temporaryInbox.noLocalHistory') }}</span>
+            <button v-if="address" type="button" class="tm-clear" @click="showClearConfirm = true">{{ t('temporaryInbox.clearLocal') }}</button>
+          </div>
+          <p v-if="archiveWarning" class="tm-history-warning" role="status">{{ t(archiveWarning) }}</p>
         </div>
-      </section>
 
-      <button v-if="hasMoreLocal" class="tm-btn tm-load-more" type="button" @click="loadMoreLocal">
-        {{ t('temporaryInbox.loadOlder') }}
-      </button>
+        <div class="tm-workspace">
+          <section class="tm-inbox" aria-labelledby="tm-inbox-title">
+            <div class="tm-inbox-head">
+              <div>
+                <h2 id="tm-inbox-title">{{ t('temporaryInbox.inbox') }}</h2>
+                <span v-if="mails.length" class="tm-inbox-count">{{ mails.length === 1 ? t('temporaryInbox.oneEmail') : t('temporaryInbox.emailCount', { count: mails.length }) }}</span>
+              </div>
+              <div v-if="address && !connectionNotice" class="tm-timer">
+                <span class="tm-pulse" :class="loading ? 'is-busy' : ''"></span>
+                {{ loading ? t('temporaryInbox.checking') : t('temporaryInbox.refreshIn', { seconds: countdown }) }}
+              </div>
+            </div>
 
-      <p class="tm-foot">{{ t('temporaryInbox.retentionWithArchive') }}</p>
+            <div v-if="connectionNotice" class="tm-connection" :class="isOnline ? 'is-failed' : 'is-offline'"
+                 role="status" aria-live="polite" aria-atomic="true">
+              <Icon :icon="isOnline ? 'mingcute:warning-line' : 'mingcute:wifi-off-line'" width="19" height="19" aria-hidden="true"/>
+              <span>{{ t(connectionNotice) }}</span>
+              <button v-if="isOnline && address && inboxError !== 'temporaryInbox.registeredAddress'" type="button" class="tm-btn tm-btn-slim"
+                      :disabled="loading" @click="retryLoad">{{ t('pwa.retry') }}</button>
+            </div>
+
+            <transition-group name="tm-fade" tag="div" class="tm-mail-list">
+              <article v-for="m in mails" :key="m.emailId" class="tm-mail">
+                <button type="button" class="tm-mail-open"
+                        :aria-label="`${m.sendName || m.sendEmail} — ${m.subject || t('temporaryInbox.noSubject')}`"
+                        @click="openMail(m, $event)"></button>
+                <div class="tm-mail-main">
+                  <div class="tm-mail-from" dir="auto">{{ m.sendName || m.sendEmail }}</div>
+                  <div class="tm-mail-subject" dir="auto">{{ m.subject || t('temporaryInbox.noSubject') }}</div>
+                  <div v-if="mailPreview(m)" class="tm-mail-preview" dir="auto">{{ mailPreview(m) }}</div>
+                  <div v-if="m.localOnly" class="tm-mail-local">{{ t(m.complete ? 'temporaryInbox.savedLocally' : 'temporaryInbox.summaryOnly') }}</div>
+                </div>
+                <div class="tm-mail-side">
+                  <time class="tm-mail-time">{{ fmt(m.createTime) }}</time>
+                  <button v-if="m.code" type="button" class="tm-code" :title="t('temporaryInbox.clickToCopy')"
+                          :aria-label="`${t('temporaryInbox.clickToCopy')}: ${m.code}`" @click="copyCode(m.code)">
+                    {{ m.code }}
+                  </button>
+                </div>
+              </article>
+            </transition-group>
+
+            <div v-if="!mails.length" class="tm-empty">
+              <span class="tm-empty-icon"><Icon icon="fluent:mail-inbox-24-regular" width="27" height="27" aria-hidden="true"/></span>
+              <strong>{{ !address ? t('temporaryInbox.noActiveAddress') : t('temporaryInbox.inbox') }}</strong>
+              <p>{{ t(emptyStateText, {count: 0}) }}</p>
+            </div>
+          </section>
+
+          <button v-if="hasMoreLocal" class="tm-btn tm-load-more" type="button" @click="loadMoreLocal">
+            {{ t('temporaryInbox.loadOlder') }}
+          </button>
+          <p class="tm-foot">{{ t('temporaryInbox.retentionWithArchive') }}</p>
+        </div>
+      </div>
     </div>
 
     <div v-if="viewing" class="tm-modal" role="presentation" @click.self="closeMail">
@@ -127,7 +136,7 @@
            aria-labelledby="tm-view-subject" tabindex="-1" @keydown="onDialogKeydown">
         <header class="tm-view-head">
           <div class="tm-view-meta">
-            <div id="tm-view-subject" class="tm-view-subject">{{ viewing.subject || t('temporaryInbox.noSubject') }}</div>
+            <h2 id="tm-view-subject" class="tm-view-subject" dir="auto">{{ viewing.subject || t('temporaryInbox.noSubject') }}</h2>
           </div>
           <button ref="viewCloseButton" type="button" class="tm-view-close"
                   :title="t('temporaryInbox.close')" :aria-label="t('temporaryInbox.close')" @click="closeMail">
@@ -138,7 +147,7 @@
         <div class="tm-view-info">
           <div class="tm-view-info-row">
             <span class="tm-view-info-label">{{ t('temporaryInbox.sender') }}</span>
-            <span class="tm-view-name">{{ viewing.sendName || viewing.sendEmail }}</span>
+            <span class="tm-view-name" dir="auto">{{ viewing.sendName || viewing.sendEmail }}</span>
             <span v-if="viewing.sendName && viewing.sendEmail" class="tm-view-addr" dir="ltr">&lt;{{ viewing.sendEmail }}&gt;</span>
           </div>
           <div class="tm-view-info-row">
@@ -238,6 +247,9 @@ const archive = mailArchive()
 const {t, locale} = useI18n()
 const settingStore = useSettingStore()
 const publicLang = computed(() => locale.value)
+const loginHref = window.location.hostname.startsWith('temp.')
+  ? `${window.location.protocol}//${window.location.host.replace(/^temp\./, 'box.')}/login`
+  : '/login'
 
 const address = ref('')
 const manual = ref('')
@@ -266,7 +278,13 @@ const searched = ref(false)
 const inboxError = ref('')
 const connectionNotice = computed(() => !isOnline.value
   ? 'temporaryInbox.offlineHistoryOnly'
-  : inboxError.value === 'reqFailErrorMsg' ? 'reqFailErrorMsg' : '')
+  : inboxError.value)
+const emptyStateText = computed(() => {
+  if (!address.value) return 'temporaryInbox.createAddress'
+  if (!isOnline.value) return 'temporaryInbox.savedCount'
+  if (inboxError.value) return inboxError.value
+  return searched.value ? 'temporaryInbox.noRecentMail' : 'temporaryInbox.waitingForMail'
+})
 const copied = ref(false)
 const countdown = ref(REFRESH_SEC)
 const domains = ref([])
@@ -298,11 +316,14 @@ let previewReturnFocusElement = null
 // 邮件 HTML 在受限 iframe 内渲染，不允许脚本和同源访问。
 const viewHtml = computed(() => {
   if (!viewing.value) return ''
-  const raw = (!viewError.value && viewing.value.content?.replace(
-      /\{\{domain\}\}(attachments\/[A-Za-z0-9._-]+)/g,
-      (_, key) => viewing.value.inlineMedia?.[key] || ''
-  ).replace(/\{\{domain\}\}/g, ''))
-      || `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(viewError.value ? t('temporaryInbox.mailExpired') : viewing.value.text || t('temporaryInbox.emptyMail'))}</pre>`
+  const content = typeof viewing.value.content === 'string' ? viewing.value.content : ''
+  const htmlContent = !viewError.value && content
+    ? content.replace(/\{\{domain\}\}(attachments\/[A-Za-z0-9._-]+)/g,
+      (_, key) => viewing.value.inlineMedia?.[key] || '')
+      .replace(/\{\{domain\}\}/g, '')
+    : ''
+  const raw = htmlContent
+      || `<pre dir="auto" style="white-space:pre-wrap;font:inherit">${escapeHtml(viewError.value ? t('temporaryInbox.mailExpired') : viewing.value.text || t('temporaryInbox.emptyMail'))}</pre>`
   return `<!doctype html><meta charset="utf-8">`
       + `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${window.location.origin} data: blob:; style-src 'unsafe-inline'">`
       + `<meta name="referrer" content="no-referrer">`
@@ -689,10 +710,13 @@ onMounted(async () => {
   } catch { /* 隐私模式读不到 */ }
 
   const fragment = new URLSearchParams(window.location.hash.slice(1))
-  const sharedAddress = fragment.get('address')
+  const query = new URLSearchParams(window.location.search)
+  const sharedAddress = fragment.get('address') || query.get('address')
   if (sharedAddress) {
     saved = sharedAddress
-    window.history.replaceState({}, '', window.location.pathname + window.location.search)
+    query.delete('address')
+    const remainingQuery = query.toString()
+    window.history.replaceState({}, '', window.location.pathname + (remainingQuery ? `?${remainingQuery}` : ''))
   }
 
   const normalized = String(saved || '').trim().toLowerCase()
@@ -712,7 +736,6 @@ onMounted(async () => {
     }
   }
   if (history.value.length) await selectAddress(history.value[0].address)
-  else if (isOnline.value) await genAddr()
 })
 
 onUnmounted(() => {
@@ -763,7 +786,8 @@ function removeSavedInbox() {
   try {
     localStorage.removeItem(ADDR_KEY)
     localStorage.removeItem('findInbox')
-  } catch { /* 浏览器可能禁用本地存储 */ }
+    return true
+  } catch { return false }
 }
 
 function saveInbox() {
@@ -986,7 +1010,7 @@ function resetLocalState() {
   searched.value = false
   inboxError.value = ''
   countdown.value = REFRESH_SEC
-  removeSavedInbox()
+  return removeSavedInbox()
 }
 
 async function clearLocalHistory() {
@@ -995,11 +1019,16 @@ async function clearLocalHistory() {
   archiveSession += 1
   try {
     archiveClearRevision = await archive.clear()
-    resetLocalState()
+    const selectionCleared = resetLocalState()
     showClearConfirm.value = false
-    archiveWarning.value = 'temporaryInbox.localCleared'
+    archiveWarning.value = selectionCleared ? 'temporaryInbox.localCleared' : 'temporaryInbox.clearFailed'
     archiveChannel?.postMessage({type: 'cleared'})
-  } catch { archiveWarning.value = 'temporaryInbox.clearFailed' }
+  } catch {
+    // IndexedDB can be blocked while the previous address remains in localStorage.
+    // Remove that selection even though the inaccessible archive cannot be confirmed empty.
+    if (archiveUnavailable.value && resetLocalState()) showClearConfirm.value = false
+    archiveWarning.value = 'temporaryInbox.clearFailed'
+  }
   finally { clearing.value = false }
 }
 
@@ -1050,500 +1079,116 @@ function fmt(value) {
     hour: 'numeric', minute: '2-digit',
   }).format(date)
 }
+
+function mailPreview(mail) {
+  return String(mail.text || '').replace(/\s+/g, ' ').trim().slice(0, 160)
+}
 </script>
 
 <style scoped>
 .tm {
-  --bg: #0a0e14;
-  --card: #141b24;
-  --card-2: #1b232e;
-  --line: #232d3a;
-  --ink: #e9eef4;
-  --ink-2: #c4cfdb;
-  --ink-3: #a9b9cc;
-  --accent: #2563eb;
-  --accent-ink: #ffffff;
-  --good: #34d399;
+  --bg: var(--ui-bg, #f5f7fb);
+  --card: var(--ui-surface, #ffffff);
+  --card-2: var(--ui-surface-alt, #edf2f8);
+  --line: var(--ui-line, #d3dce6);
+  --ink: var(--ui-ink, #172432);
+  --ink-2: var(--ui-muted, #526174);
+  --ink-3: var(--ui-muted, #526174);
+  --accent: var(--ui-primary, #175cd3);
+  --focus: var(--ui-focus, #175cd3);
+  --good: var(--ui-success, #187a5d);
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-
-  min-height: 100vh;
-  padding: 56px 18px 40px;
-  background:
-      radial-gradient(1000px 420px at 50% -180px, #172236 0%, transparent 70%),
-      var(--bg);
+  min-height: 100dvh;
+  padding: 0 24px 52px;
   color: var(--ink);
+  background: var(--bg);
   font-feature-settings: "tnum";
 }
-
-.tm-shell {
-  max-width: 620px;
-  margin: 0 auto;
-}
-
-/* ---------- header ---------- */
-
-.tm-head {
-  text-align: center;
-  margin-bottom: 30px;
-}
-
-.tm-language {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
-  --language-control-border: var(--line);
-  --language-control-bg: var(--card);
-  --language-control-text: var(--ink);
-}
-
-.tm-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 19px;
-  font-weight: 600;
-  letter-spacing: -.01em;
-  color: var(--ink);
-}
-
-.tm-brand svg {
-  color: var(--accent);
-}
-
-.tm-tagline {
-  margin: 9px 0 0;
-  font-size: 13.5px;
-  color: var(--ink-2);
-}
-
-/* ---------- address card ---------- */
-
-.tm-card {
-  padding: 22px 22px 18px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: linear-gradient(180deg, var(--card-2), var(--card));
-}
-
-.tm-card-label {
-  font-size: 10.5px;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.tm-addr {
-  margin: 12px 0 18px;
-  font-family: var(--mono);
-  font-size: 25px;
-  font-weight: 600;
-  letter-spacing: -.01em;
-  word-break: break-all;
-  color: var(--ink);
-}
-
-.tm-address-copy {
-  display: block;
-  max-width: 100%;
-  color: inherit;
-  font: inherit;
-  font-weight: inherit;
-  letter-spacing: inherit;
-  overflow-wrap: anywhere;
-  text-align: start;
-  cursor: pointer;
-}
-
-.tm-address-copy:focus-visible,
-.tm-btn:focus-visible,
-.tm-code:focus-visible,
-.tm-mail-open:focus-visible,
-.tm-attachment-file:focus-visible,
-.tm-attachment-actions button:focus-visible,
-.tm-view-close:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.tm-addr-skeleton {
-  display: block;
-  width: 62%;
-  height: 26px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, var(--card-2), var(--line), var(--card-2));
-  background-size: 200% 100%;
-  animation: tm-shimmer 1.3s linear infinite;
-}
-
-.tm-no-address { font-size: 15px; color: var(--ink-3); font-family: inherit; }
-
-@keyframes tm-shimmer {
-  to { background-position: -200% 0; }
-}
-
-.tm-actions {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  flex-wrap: wrap;
-}
-
-.tm-access-note {
-  margin: 13px 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--ink-3);
-}
-
-.tm-connection {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 12px;
-  padding: 12px 14px;
-  border: 1px solid #385678;
-  border-radius: 10px;
-  background: #142439;
-  color: var(--ink-2);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.tm-connection svg { flex-shrink: 0; color: #8cc4ff; }
-.tm-connection span { flex: 1 1 200px; min-width: 0; }
-.tm-connection.is-failed { border-color: #715033; background: #292019; color: #ffd6a6; }
-.tm-connection.is-failed svg { color: #fbbf7b; }
-.tm-connection .tm-btn { min-height: 44px; margin-inline-start: auto; color: inherit; }
-
-/* ---------- buttons ---------- */
-
-.tm-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 15px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--card-2);
-  color: var(--ink-2);
-  font-size: 13.5px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: border-color .15s, color .15s, background .15s;
-}
-
-.tm-btn:hover:not(:disabled) {
-  border-color: var(--ink-3);
-  color: var(--ink);
-}
-
-.tm-btn:disabled {
-  opacity: .45;
-  cursor: default;
-}
-
-.tm-btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 500;
-}
-
-.tm-btn-primary:hover:not(:disabled) {
-  filter: brightness(1.1);
-  border-color: var(--accent);
-  color: var(--accent-ink);
-}
-
-.tm-btn-slim {
-  padding: 8px 13px;
-}
-
-/* ---------- refresh timer ---------- */
-
-.tm-timer {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-inline-start: auto;
-  font-size: 12.5px;
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-}
-
-.tm-pulse {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--good);
-}
-
-.tm-pulse.is-busy {
-  background: var(--accent);
-  animation: tm-blink .8s ease-in-out infinite;
-}
-
-@keyframes tm-blink {
-  50% { opacity: .25; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tm-pulse.is-busy,
-  .tm-addr-skeleton { animation: none; }
-}
-
-/* ---------- manual search ---------- */
-
-.tm-manual {
-  display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 9px;
-  margin: 16px 0 22px;
-  padding: 5px 5px 5px 13px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--card);
-}
-
-.tm-manual input:first-of-type {
-  grid-column: 2;
-}
-
-.tm-manual input:nth-of-type(2) {
-  grid-column: 2;
-  grid-row: 2;
-  border-top: 1px solid var(--line);
-}
-
-.tm-manual button {
-  grid-column: 3;
-  grid-row: 1 / 3;
-}
-
-.tm-manual-icon {
-  color: var(--ink-3);
-  flex-shrink: 0;
-}
-
-.tm-manual input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: var(--ink);
-  font-size: 13.5px;
-  font-family: inherit;
-  padding: 6px 0;
-}
-
-.tm-manual input::placeholder {
-  color: var(--ink-3);
-}
-
-.tm-manual:focus-within {
-  border-color: var(--accent);
-}
-
-/* ---------- local archive ---------- */
-
-.tm-history {
-  margin: 0 0 22px;
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--card);
-}
-
-.tm-history.is-empty {
-  margin-bottom: 14px;
-  padding: 12px 16px;
-}
-
-.tm-history.is-empty .tm-history-empty {
-  margin-top: 4px;
-}
-
-.tm-history-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.tm-history-head h2 { font-size: 14px; font-weight: 600; color: var(--ink); }
-.tm-history-head p { margin-top: 5px; font-size: 12px; line-height: 1.5; color: var(--ink-3); }
-.tm-clear {
-  flex: 0 0 auto;
-  padding: 5px 0;
-  color: #fba4a4;
-  font-size: 12px;
-  cursor: pointer;
-}
-.tm-clear:hover { text-decoration: underline; }
-.tm-clear:focus-visible, .tm-history-item:focus-visible, .tm-load-more:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.tm-history-list { display: grid; gap: 7px; max-height: 206px; overflow-y: auto; margin-top: 14px; }
-.tm-history-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  padding: 9px 11px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--card-2);
-  color: var(--ink-2);
-  text-align: start;
-  cursor: pointer;
-}
-.tm-history-item:hover, .tm-history-item.is-active { border-color: var(--accent); color: var(--ink); }
+.tm-shell { max-width: 1160px; margin: 0 auto; }
+.tm-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; min-height: 78px; }
+.tm-brand { display: inline-flex; align-items: center; gap: 11px; font-size: 18px; font-weight: 750; letter-spacing: -.035em; }
+.tm-mark { display: inline-grid; place-items: center; flex: 0 0 auto; width: 34px; height: 34px; border-radius: 10px; color: #fff; background: var(--accent); }
+.tm-language { display: flex; align-items: center; gap: 8px; min-width: 0; --language-control-border: var(--line); --language-control-bg: var(--card); --language-control-text: var(--ink); }
+.tm-nav-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 9px 13px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--card); font-size: 13px; text-decoration: none; white-space: nowrap; }
+.tm-nav-link:hover { border-color: var(--accent); color: var(--accent); }
+.tm-intro { margin: 27px 0 26px; }
+.tm-intro h1 { margin: 0 0 8px; font-size: clamp(26px, 3vw, 32px); line-height: 1.15; letter-spacing: -.045em; }
+.tm-intro p { max-width: 650px; margin: 0; color: var(--ink-2); font-size: 15px; line-height: 1.55; }
+.tm-grid { display: grid; grid-template-columns: minmax(300px, 370px) minmax(0, 1fr); align-items: start; gap: 20px; }
+.tm-side, .tm-workspace { min-width: 0; }
+.tm-card, .tm-manual, .tm-history, .tm-inbox { border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.tm-card { padding: 22px; }
+.tm-card-label { margin: 0; color: var(--ink-2); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.tm-addr { margin: 17px 0; min-height: 50px; }
+.tm-address-copy { display: block; width: 100%; padding: 13px; border: 1px dashed var(--line); border-radius: 9px; color: var(--ink); background: var(--card-2); font: 700 18px/1.3 var(--mono); overflow-wrap: anywhere; text-align: start; cursor: pointer; }
+.tm-address-copy:hover { border-color: var(--accent); }
+.tm-addr-skeleton { display: block; width: 70%; height: 46px; border-radius: 8px; background: var(--card-2); animation: tm-shimmer 1.3s ease-in-out infinite alternate; }
+.tm-no-address { display: block; padding-top: 8px; color: var(--ink); font-size: 20px; font-weight: 700; }
+.tm-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.tm-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--card); color: var(--ink); font-family: inherit; font-size: 13px; font-weight: 650; line-height: 1.3; text-align: center; cursor: pointer; }
+.tm-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.tm-btn:disabled { opacity: .5; cursor: not-allowed; }
+.tm-btn-primary { color: #fff; background: var(--accent); border-color: var(--accent); }
+.tm-btn-primary:hover:not(:disabled) { color: #fff; filter: brightness(.93); }
+.tm-access-note { margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 12px; line-height: 1.6; }
+.tm-manual { display: grid; gap: 9px; margin-top: 16px; padding: 18px; }
+.tm-manual label { color: var(--ink); font-size: 13px; font-weight: 700; }
+.tm-manual-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.tm-manual input { min-width: 0; width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; outline: none; background: var(--card); color: var(--ink); font: inherit; font-size: 13px; }
+.tm-manual input::placeholder { color: var(--ink-2); }
+.tm-manual input:focus-visible { border-color: var(--accent); }
+.tm-history { margin-top: 16px; padding: 16px 18px; }
+.tm-history summary { cursor: pointer; color: var(--ink); font-size: 14px; font-weight: 700; }
+.tm-history summary span { margin-inline-start: 4px; color: var(--ink-2); font-weight: 500; }
+.tm-history-note { margin: 10px 0 0; color: var(--ink-2); font-size: 12px; line-height: 1.55; }
+.tm-history-list { display: grid; max-height: 240px; overflow-y: auto; margin-top: 12px; }
+.tm-history-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 46px; width: 100%; padding: 10px 0; border: 0; border-top: 1px solid var(--line); color: var(--ink); background: transparent; text-align: start; cursor: pointer; }
+.tm-history-item:hover, .tm-history-item.is-active { color: var(--accent); }
 .tm-history-address { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--mono); }
-.tm:dir(rtl) .tm-mail-arrow { transform: scaleX(-1); }
-.tm-history-count { flex: 0 0 auto; font-size: 11px; color: var(--ink-3); }
-.tm-history-empty { margin-top: 14px; font-size: 12px; color: var(--ink-3); }
-.tm-history-warning { margin-top: 12px; font-size: 12px; line-height: 1.5; color: #fbbf7b; }
-
-/* ---------- inbox ---------- */
-
-.tm-inbox {
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--card);
-  overflow: hidden;
-}
-
-.tm-inbox-head {
-  display: flex;
-  justify-content: space-between;
-  padding: 13px 18px;
-  border-bottom: 1px solid var(--line);
-  font-size: 10.5px;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.tm-inbox-count {
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.tm-mail {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 15px 18px;
-  border-bottom: 1px solid var(--line);
-  position: relative;
-  transition: background .15s;
-}
-
-.tm-mail-open {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  width: 100%;
-  cursor: pointer;
-}
-
-.tm-mail-open:focus-visible {
-  outline-offset: -3px;
-}
-
-.tm-mail:hover {
-  background: var(--card-2);
-}
-
-.tm-mail-arrow {
-  flex-shrink: 0;
-  color: var(--ink-3);
-}
-
-.tm-mail:last-child {
-  border-bottom: none;
-}
-
-.tm-mail-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.tm-mail-from {
-  font-size: 14px;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tm-mail-subject {
-  margin-top: 2px;
-  font-size: 12.5px;
-  color: var(--ink-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tm-mail-local { margin-top: 4px; color: var(--good); font-size: 11px; }
+.tm-history-count { flex: 0 0 auto; color: var(--ink-2); font-size: 11px; }
+.tm-clear { display: inline-flex; min-height: 36px; align-items: center; padding: 7px 0; border: 0; background: transparent; color: var(--ui-danger, #b42332); font-size: 12px; font-weight: 650; cursor: pointer; }
+.tm-clear:hover { text-decoration: underline; }
+.tm-history-empty { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 16px; color: var(--ink-2); font-size: 12px; }
+.tm-history-warning { margin: 10px 0 0; color: var(--ui-danger, #b42332); font-size: 12px; line-height: 1.5; }
+.tm-inbox { min-height: 380px; overflow: hidden; }
+.tm-inbox-head { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 12px; padding: 19px 22px 15px; border-bottom: 1px solid var(--line); }
+.tm-inbox-head h2 { margin: 0; font-size: 18px; line-height: 1.3; letter-spacing: -.02em; }
+.tm-inbox-count { display: block; margin-top: 3px; color: var(--ink-2); font-size: 12px; }
+.tm-timer { display: inline-flex; align-items: center; gap: 7px; min-height: 24px; color: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.tm-pulse { display: inline-block; width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--good); }
+.tm-pulse.is-busy { background: var(--accent); animation: tm-blink .8s ease-in-out infinite; }
+.tm-connection { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 14px 18px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--card-2); color: var(--ink); font-size: 13px; line-height: 1.5; }
+.tm-connection svg { flex: 0 0 auto; color: var(--accent); }
+.tm-connection span { flex: 1 1 200px; min-width: 0; }
+.tm-connection.is-failed svg { color: var(--ui-danger, #b42332); }
+.tm-connection .tm-btn { margin-inline-start: auto; }
+.tm-mail { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; min-height: 102px; padding: 17px 22px; border-bottom: 1px solid var(--line); position: relative; }
+.tm-mail:last-child { border-bottom: 0; }
+.tm-mail:hover, .tm-mail:focus-within { background: var(--card-2); }
+.tm-mail-open { position: absolute; inset: 0; z-index: 1; width: 100%; border: 0; background: transparent; cursor: pointer; }
+.tm-mail-open:focus-visible { outline-offset: -3px; }
+.tm-mail-main { min-width: 0; }
+.tm-mail-from, .tm-mail-subject, .tm-mail-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-mail-from { color: var(--ink); font-size: 14px; font-weight: 700; }
+.tm-mail-subject { margin-top: 4px; color: var(--ink); font-size: 13px; font-weight: 600; }
+.tm-mail-preview { margin-top: 3px; color: var(--ink-2); font-size: 12px; }
+.tm-mail-local { margin-top: 5px; color: var(--good); font-size: 11px; }
+.tm-mail-side { display: flex; align-items: flex-end; flex-direction: column; gap: 12px; }
+.tm-mail-time { color: var(--ink-2); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tm-code { position: relative; z-index: 2; min-height: 44px; padding: 6px 10px; border: 1px solid var(--accent); border-radius: 8px; color: var(--accent); background: var(--card); font: 700 15px var(--mono); letter-spacing: .05em; cursor: pointer; }
+.tm-code:hover { background: var(--card-2); }
+.tm-empty { display: grid; justify-items: center; align-content: center; min-height: 290px; padding: 42px 22px; text-align: center; }
+.tm-empty-icon { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 14px; border-radius: 12px; color: var(--accent); background: var(--card-2); }
+.tm-empty strong { color: var(--ink); font-size: 15px; }
+.tm-empty p { max-width: 360px; margin: 5px 0 0; color: var(--ink-2); font-size: 13px; }
 .tm-load-more { display: flex; margin: 14px auto 0; }
-
-.tm-code {
-  flex-shrink: 0;
-  position: relative;
-  z-index: 2;
-  padding: 7px 13px;
-  border: 1px solid rgba(59, 130, 246, .35);
-  border-radius: 8px;
-  background: rgba(59, 130, 246, .12);
-  color: #7cb0fb;
-  font-family: var(--mono);
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: .09em;
-  cursor: pointer;
-  transition: background .15s;
-}
-
-.tm-code:hover {
-  background: rgba(59, 130, 246, .22);
-}
-
-.tm-mail-time {
-  flex-shrink: 0;
-  font-size: 12px;
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-}
-
-.tm-empty {
-  padding: 54px 18px;
-  text-align: center;
-  color: var(--ink-3);
-}
-
-.tm-empty p {
-  margin: 10px 0 0;
-  font-size: 13px;
-}
-
-.tm-fade-enter-active {
-  transition: opacity .28s ease, transform .28s ease;
-}
-
-.tm-fade-enter-from {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-
-.tm-foot {
-  margin: 18px 0 0;
-  text-align: center;
-  font-size: 12px;
-  color: var(--ink-3);
-}
+.tm-foot { margin: 18px 0 0; color: var(--ink-2); font-size: 12px; line-height: 1.55; }
+.tm-fade-enter-active { transition: opacity .18s ease, transform .18s ease; }
+.tm-fade-enter-from { opacity: 0; transform: translateY(-5px); }
+.tm :is(button, input, summary, a):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+@keyframes tm-blink { 50% { opacity: .25; } }
+@keyframes tm-shimmer { to { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .tm-pulse.is-busy, .tm-addr-skeleton, .tm-fade-enter-active { animation: none; transition: none; } }
 
 /* ---------- 正文弹窗 ---------- */
 
@@ -1585,6 +1230,7 @@ function fmt(value) {
 }
 
 .tm-view-subject {
+  margin: 0;
   font-size: 16px;
   font-weight: 600;
   line-height: 1.4;
@@ -1739,6 +1385,7 @@ function fmt(value) {
   align-items: center;
   gap: 10px;
   min-width: 0;
+  min-height: 44px;
   color: inherit;
   text-align: start;
 }
@@ -1777,9 +1424,12 @@ button.tm-attachment-file {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
-  border: 0;
-  background: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
   color: var(--ink-2);
   cursor: pointer;
 }
@@ -1789,62 +1439,55 @@ button.tm-attachment-file {
   color: var(--ink);
 }
 
-/* ---------- mobile ---------- */
+.tm-view-close { min-width: 44px; min-height: 44px; justify-content: center; align-items: center; }
+.tm-view-code { flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .tm-grid { grid-template-columns: minmax(0, 1fr); }
+  .tm-side { display: contents; }
+  .tm-card { order: 1; }
+  .tm-manual { order: 2; margin-top: -4px; }
+  .tm-workspace { order: 3; }
+  .tm-history, .tm-history-empty { order: 4; margin-top: -4px; }
+  .tm-history-warning { order: 5; margin-top: -14px; }
+}
 
 @media (max-width: 560px) {
-  .tm {
-    padding: 34px 13px 30px;
-  }
+  .tm { padding: 0 16px 36px; }
+  .tm-head { padding: 13px 0; gap: 10px; }
+  .tm-brand { width: 100%; font-size: 17px; }
+  .tm-language { width: 100%; }
+  .tm-language :deep(.language-picker) { flex: 1 1 auto; }
+  .tm-intro { margin: 14px 0 18px; }
+  .tm-intro h1 { font-size: 25px; }
+  .tm-intro p { font-size: 13px; }
+  .tm-grid { gap: 16px; }
+  .tm-card { padding: 18px; }
+  .tm-addr { min-height: 42px; margin: 12px 0 16px; }
+  .tm-address-copy { font-size: 16px; }
+  .tm-no-address { font-size: 18px; }
+  .tm-manual { margin-top: 0; padding: 15px; }
+  .tm-inbox { min-height: 290px; }
+  .tm-inbox-head { padding: 17px 17px 13px; }
+  .tm-mail { padding: 15px 17px; min-height: 98px; }
+  .tm-mail-time { max-width: 82px; white-space: normal; text-align: end; line-height: 1.25; }
+  .tm-code { max-width: 105px; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+  .tm-history, .tm-history-empty { margin-top: 0; }
+  .tm-modal { padding: 0; }
+  .tm-view { max-width: none; max-height: 100dvh; height: 100dvh; border: 0; border-radius: 0; }
+  .tm-view-head { padding: 14px 16px; }
+  .tm-view-info { padding: 0 16px 12px; }
+  .tm-view-code { margin: 0 16px 4px; }
+  .tm-view-stage { padding: 12px 16px 18px; }
+  .tm-attachment { grid-template-columns: minmax(0, 1fr) auto; }
+  .tm-attachment-actions { grid-column: 1 / -1; justify-content: flex-end; padding-inline-start: 0; }
+}
 
-  .tm-addr {
-    font-size: 18px;
-  }
-
-  .tm-timer {
-    width: 100%;
-    margin-inline-start: 0;
-    order: 3;
-  }
-
-  .tm-code {
-    font-size: 16px;
-    padding: 6px 10px;
-  }
-
-  .tm-mail-time {
-    max-width: 90px;
-    text-align: end;
-    white-space: normal;
-    line-height: 1.3;
-  }
-
-  /* 手机上弹窗贴边铺满，别再留一圈边距挤内容 */
-  .tm-modal {
-    padding: 0;
-    align-items: flex-end;
-  }
-
-  .tm-view {
-    max-width: none;
-    max-height: 92vh;
-    border-radius: 16px 16px 0 0;
-    border-bottom: none;
-  }
-
-  .tm-view-code {
-    margin: 0 14px 4px;
-  }
-
-  .tm-view-stage {
-    padding: 12px 14px 16px;
-  }
-
-  .tm-view-head {
-    padding: 16px 14px 14px;
-  }
-
-  .tm-view-info {
-    padding: 0 14px 12px;
-  }
+@media (max-width: 350px) {
+  .tm { padding-inline: 12px; }
+  .tm-language { gap: 5px; }
+  .tm-nav-link { padding-inline: 9px; }
+  .tm-actions .tm-btn-primary { flex: 1 1 100%; }
+  .tm-mail { gap: 7px; }
 }
 </style>

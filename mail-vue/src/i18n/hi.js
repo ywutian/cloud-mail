@@ -270,6 +270,9 @@ export default {
   "message": "मेल",
   "language": "भाषा",
   "languageAuto": "ऑटो",
+  "languageSearch": "भाषाएँ खोजें",
+  "languageNoResults": "कोई भाषा नहीं मिली",
+  "languagePreview": "प्रारंभिक अनुवाद",
   "loginLoading": "साइन इन करना…",
   "bindMailboxTitle": "एक ईमेल पता पंजीकृत करें",
   "bindAction": "बाइंड पता",
@@ -396,6 +399,8 @@ export default {
   "clientSecret": "क्लाइंट सीक्रेट",
   "notOwner": "मूल ईमेल पता आपका नहीं है",
   "pwa": {
+    "shortName": "Cloud Mail",
+    "description": "ईमेल प्राप्त करें, भेजें और खातों का प्रबंधन करें।",
     "appName": "क्लाउड मेल",
     "install": "होम स्क्रीन पर जोड़ें",
     "installHelp": "अपने मेलबॉक्स को अपनी होम स्क्रीन से उसकी अपनी विंडो में खोलें। मेल और अनुलग्नकों के लिए अभी भी इंटरनेट कनेक्शन की आवश्यकता होती है।",
@@ -413,6 +418,8 @@ export default {
     "retry": "पुनः प्रयास करें"
   },
   "temporaryInbox": {
+    "shortName": "अस्थायी मेल",
+    "description": "हाल के ईमेल और सत्यापन कोड के लिए अस्थायी इनबॉक्स; प्रतियाँ डिवाइस पर सहेजी जाती हैं।",
     "noActiveAddress": "कोई सक्रिय पता नहीं",
     "createAddress": "एक पता बनाएं",
     "localHistory": "इस डिवाइस पर सहेजा गया",

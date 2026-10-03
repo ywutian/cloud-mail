@@ -371,6 +371,8 @@ const es = {
     "clientSecret": "Secreto del cliente",
     "notOwner": "El correo electrónico base no te pertenece",
     "pwa": {
+        "shortName": "Cloud Mail",
+        "description": "Bandeja de entrada, envío de correos y gestión de cuentas.",
         "appName": "Cloud Mail",
         "install": "Añadir a la pantalla de inicio",
         "installHelp": "Abre tu buzón en una ventana independiente desde la pantalla de inicio. Los correos y adjuntos siguen requiriendo conexión a Internet.",
@@ -388,6 +390,8 @@ const es = {
         "retry": "Reintentar"
     },
     "temporaryInbox": {
+        "shortName": "Buzón temporal",
+        "description": "Buzón temporal para correos recientes y códigos de verificación, con copias guardadas en el dispositivo.",
         "noActiveAddress": "No hay ninguna dirección activa",
         "createAddress": "Crear una dirección",
         "localHistory": "Guardado en este dispositivo",
@@ -451,6 +455,9 @@ const es = {
         "copyFailed": "Su navegador bloqueó la copia. Seleccionar y copiar el texto manualmente"
     },
     "languageAuto": "Automático",
+    "languageSearch": "Buscar idiomas",
+    "languageNoResults": "No se encontraron idiomas",
+    "languagePreview": "Traducción preliminar",
     "loginLoading": "Iniciando sesión…",
     "bindMailboxTitle": "Registrar una dirección de correo electrónico",
     "bindAction": "Vincular dirección",

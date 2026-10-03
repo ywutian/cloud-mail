@@ -2,15 +2,21 @@
   <div :class="accountShow && hasPerm('account:query') ? 'main-box-show' : 'main-box-hide'">
     <div :class="accountShow && hasPerm('account:query') ? 'block-show' : 'block-hide'" @click="uiStore.accountShow = false"></div>
     <account  :class="accountShow && hasPerm('account:query') ? 'show' : 'hide'" />
-    <router-view class="main-view" v-slot="{ Component,route }">
-      <keep-alive :include="['email','all-email','send','sys-setting','star','user','role','analysis','reg-key','draft']">
-        <component :is="Component" :key="route.name"/>
+    <div v-if="mailWorkspace" class="mail-workspace" :class="{ 'is-reading': route.name === 'content' }">
+      <EmailView class="mail-list-pane" />
+      <ContentView v-if="route.name === 'content'" class="mail-reader-pane" />
+    </div>
+    <router-view v-else class="main-view" v-slot="{ Component,route: viewRoute }">
+      <keep-alive :include="['all-email','send','sys-setting','star','user','role','analysis','reg-key','draft']">
+        <component :is="Component" :key="viewRoute.name"/>
       </keep-alive>
     </router-view>
   </div>
 </template>
 <script setup>
 import account from '@/layout/account/index.vue'
+import EmailView from '@/views/email/index.vue'
+import ContentView from '@/views/content/index.vue'
 import {useUiStore} from "@/store/ui.js";
 import {useSettingStore} from "@/store/setting.js";
 import {computed, onBeforeUnmount, onMounted, watch} from "vue";
@@ -20,6 +26,9 @@ import { hasPerm } from "@/perm/perm.js"
 const settingStore = useSettingStore()
 const uiStore = useUiStore();
 const route = useRoute()
+// 详情页只在从收件箱进入时保留收件箱双栏；其他来源使用各自的列表返回路径。
+const mailWorkspace = computed(() => route.name === 'email'
+  || (route.name === 'content' && /^\/inbox(?:[?#]|$)/.test(window.history.state?.back || '')))
 let  innerWidth =  window.innerWidth
 
 let elNotification = null
@@ -94,7 +103,7 @@ const handleResize = () => {
   if (['content','email','send'].includes(route.meta.name)) {
     if (innerWidth !==  window.innerWidth) {
       innerWidth = window.innerWidth;
-      uiStore.accountShow = window.innerWidth >= 767;
+      uiStore.accountShow = window.innerWidth >= 1440;
     }
   }
 }
@@ -146,9 +155,10 @@ const handleResize = () => {
 
 .main-box-show {
   display: grid;
-  grid-template-columns: 260px  1fr;
+  grid-template-columns: 240px minmax(0, 1fr);
   height: calc(100% - 60px);
-  @media (max-width: 767px) {
+  min-width: 0;
+  @media (max-width: 1439px) {
     grid-template-columns: 1fr;
   }
 }
@@ -157,11 +167,72 @@ const handleResize = () => {
   display: grid;
   grid-template-columns: 1fr;
   height: calc(100% - 60px);
+  min-width: 0;
 }
 
 
 .main-view {
-  background: var(--el-bg-color);
+  min-width: 0;
+  background: var(--ui-surface, var(--el-bg-color));
+}
+
+.mail-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--ui-surface, var(--el-bg-color));
+}
+
+.mail-list-pane,
+.mail-reader-pane {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.mail-workspace.is-reading .mail-list-pane {
+  display: none;
+}
+
+@media (min-width: 1200px) {
+  .mail-workspace.is-reading {
+    grid-template-columns: minmax(320px, 38%) minmax(0, 1fr);
+  }
+
+  .mail-workspace.is-reading .mail-list-pane {
+    display: block;
+    border-inline-end: 1px solid var(--ui-line, var(--el-border-color));
+  }
+
+  .mail-reader-pane {
+    background: var(--ui-surface, var(--el-bg-color));
+  }
+}
+
+@media (max-width: 1439px) {
+  .main-box-show > :deep(.show) {
+    position: fixed;
+    z-index: 100;
+    inset-block: 60px 0;
+    inset-inline-start: 0;
+    width: min(300px, 88vw);
+    box-shadow: var(--aside-right-border);
+  }
+  .main-box-show > .block-show {
+    position: fixed;
+    z-index: 99;
+    inset: 60px 0 0;
+    background: rgba(0, 0, 0, .42);
+  }
+}
+
+@media (max-width: 1199px) {
+  .mail-workspace.is-reading .mail-reader-pane {
+    display: block;
+  }
 }
 
 

@@ -1,32 +1,48 @@
-export const languages = [
-    {code: 'zh', name: '简体中文', intl: 'zh-CN'},
-    {code: 'en', name: 'English', intl: 'en-US'},
-    {code: 'es', name: 'Español', intl: 'es-ES'},
-    {code: 'fr', name: 'Français', intl: 'fr-FR'},
-    {code: 'ja', name: '日本語', intl: 'ja-JP'},
-    {code: 'ko', name: '한국어', intl: 'ko-KR'},
-    {code: 'de', name: 'Deutsch', intl: 'de-DE'},
-    {code: 'pt', name: 'Português (Brasil)', intl: 'pt-BR'},
-    {code: 'ru', name: 'Русский', intl: 'ru-RU'},
-    {code: 'it', name: 'Italiano', intl: 'it-IT'},
-    {code: 'id', name: 'Bahasa Indonesia', intl: 'id-ID'},
-    {code: 'vi', name: 'Tiếng Việt', intl: 'vi-VN'},
-    {code: 'tr', name: 'Türkçe', intl: 'tr-TR'},
-    {code: 'ar', name: 'العربية', intl: 'ar-SA'},
-    {code: 'hi', name: 'हिन्दी', intl: 'hi-IN'},
+const existing = [
+    ['zh', '简体中文', 'zh-CN'],
+    ['en', 'English', 'en-US'],
+    ['es', 'Español', 'es-ES'],
+    ['fr', 'Français', 'fr-FR'],
+    ['ja', '日本語', 'ja-JP'],
+    ['ko', '한국어', 'ko-KR'],
+    ['de', 'Deutsch', 'de-DE'],
+    ['pt', 'Português (Brasil)', 'pt-BR'],
+    ['ru', 'Русский', 'ru-RU'],
+    ['it', 'Italiano', 'it-IT'],
+    ['id', 'Bahasa Indonesia', 'id-ID'],
+    ['vi', 'Tiếng Việt', 'vi-VN'],
+    ['tr', 'Türkçe', 'tr-TR'],
+    ['ar', 'العربية', 'ar-SA'],
+    ['hi', 'हिन्दी', 'hi-IN'],
 ]
 
-const supported = new Set(languages.map(({code}) => code))
+const expanded = [
+    ['zh-Hant', '繁體中文', 'zh-TW'],
+]
+
+const rightToLeft = new Set(['ar', 'fa', 'he', 'ps', 'sd', 'ug', 'ur', 'yi'])
+
+export const languages = [
+    ...existing.map(([code, name, intl]) => ({code, name, intl, dir: rightToLeft.has(code) ? 'rtl' : 'ltr', coverage: 'existing'})),
+    ...expanded.map(([code, name, intl = code]) => ({code, name, intl, dir: rightToLeft.has(code) ? 'rtl' : 'ltr', coverage: 'preview'})),
+]
+
+const byCode = new Map(languages.map(language => [language.code, language]))
+const aliases = new Map([
+    ['iw', 'he'], ['jw', 'jv'], ['tl', 'fil'], ['no', 'nb'],
+])
 
 export function normalizeLanguage(value) {
     if (typeof value !== 'string') return null
-    const parts = value.toLowerCase().replaceAll('_', '-').split('-')
-    const code = parts[0]
-    // Only simplified Chinese and Brazilian Portuguese have translations.
-    // Skip unsupported variants so the next browser preference can be used.
-    if (code === 'zh' && parts.some(part => ['hant', 'tw', 'hk', 'mo'].includes(part))) return null
-    if (code === 'pt' && parts.includes('pt', 1)) return null
-    return supported.has(code) ? code : null
+    const parts = value.toLowerCase().trim().replaceAll('_', '-').split('-')
+    const base = parts[0]
+    if (base === 'zh') {
+        if (parts.some(part => ['hant', 'tw', 'hk', 'mo'].includes(part))) return 'zh-Hant'
+        return 'zh'
+    }
+    if (base === 'pt') return 'pt'
+    const code = aliases.get(base) || base
+    return byCode.has(code) ? code : null
 }
 
 export function getBrowserLanguage() {
@@ -40,11 +56,15 @@ export function getBrowserLanguage() {
 }
 
 export function resolveLanguage(selection, browserLanguage = getBrowserLanguage()) {
-    return normalizeLanguage(selection) || browserLanguage
+    return normalizeLanguage(selection) || normalizeLanguage(browserLanguage) || 'en'
 }
 
 export function intlLanguage(code) {
-    return languages.find(language => language.code === code)?.intl || 'en-US'
+    return byCode.get(normalizeLanguage(code))?.intl || 'en-US'
+}
+
+export function languageDirection(code) {
+    return byCode.get(normalizeLanguage(code))?.dir || 'ltr'
 }
 
 export function manifestPath(code, temporary = false) {
@@ -67,8 +87,10 @@ const mailDescriptions = {
     tr: 'E-posta alıp gönderin ve hesapları yönetin.',
     ar: 'استقبال الرسائل وإرسالها وإدارة الحسابات.',
     hi: 'ईमेल प्राप्त करें, भेजें और खातों का प्रबंधन करें।',
+    'zh-Hant': '信箱收件、發信與帳號管理。',
 }
 
 export function mailDescription(code) {
-    return mailDescriptions[normalizeLanguage(code) || 'en']
+    const language = normalizeLanguage(code) || 'en'
+    return mailDescriptions[language] || mailDescriptions.en
 }

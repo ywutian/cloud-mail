@@ -14,9 +14,11 @@ import vi from './vi.js';
 import tr from './tr.js';
 import ar from './ar.js';
 import hi from './hi.js';
+import expanded from './expanded.js';
+import {normalizeLanguage} from '../../../mail-vue/src/i18n/languages.js';
 
 const resources = Object.fromEntries(
-	Object.entries({zh, en, es, fr, ja, ko, de, pt, ru, it, id, vi, tr, ar, hi})
+	Object.entries({...expanded, zh, en, es, fr, ja, ko, de, pt, ru, it, id, vi, tr, ar, hi})
 		.map(([language, translation]) => [language, {translation}]),
 );
 
@@ -34,8 +36,7 @@ export function requestLanguage(c) {
 	const ranked = preferences.split(',').map((entry, index) => {
 		const [tag, ...parameters] = entry.trim().split(';').map(part => part.trim());
 		if (!/^[a-z]{2,8}(?:[-_][a-z0-9]{1,8})*$/i.test(tag)) return null;
-		const parts = tag.toLowerCase().replaceAll('_', '-').split('-');
-		const language = parts[0];
+		const language = normalizeLanguage(tag);
 		if (!Object.hasOwn(resources, language)) return null;
 
 		let quality = 1;
@@ -45,14 +46,10 @@ export function requestLanguage(c) {
 			if (!match) return null;
 			quality = Number(match[1]);
 		}
-		const unsupportedVariant = (language === 'zh' &&
-			(parts.includes('hant') || parts.some(part => ['tw', 'hk', 'mo'].includes(part)))) ||
-			(language === 'pt' && parts.slice(1).some(part => /^[a-z]{2}$/.test(part) && part !== 'br'));
-		return {language, quality, index, unsupportedVariant};
+		return {language, quality, index};
 	}).filter(Boolean).sort((a, b) => b.quality - a.quality || a.index - b.index);
 	for (const preference of ranked) {
 		if (preference.quality <= 0) continue;
-		if (preference.unsupportedVariant) continue;
 		return preference.language;
 	}
 	return 'en';

@@ -1,5 +1,6 @@
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
+import 'dayjs/locale/zh-tw'
 import 'dayjs/locale/es'
 import 'dayjs/locale/fr'
 import 'dayjs/locale/ja'
@@ -20,7 +21,7 @@ import {intlLanguage, resolveLanguage} from '@/i18n/languages.js'
 dayjs.extend(utc)
 dayjs.extend(timezone)
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-const dayjsLanguages = {zh: 'zh-cn', pt: 'pt-br'}
+const dayjsLanguages = {zh: 'zh-cn', 'zh-Hant': 'zh-tw', pt: 'pt-br'}
 
 function currentLanguage() {
     return resolveLanguage(useSettingStore().lang)

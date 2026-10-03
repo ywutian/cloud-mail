@@ -371,6 +371,8 @@ const ko = {
     "clientSecret": "클라이언트 비밀번호",
     "notOwner": "기본 이메일은 귀하의 것이 아닙니다",
     "pwa": {
+        "shortName": "Cloud Mail",
+        "description": "메일 수신, 발송 및 계정 관리.",
         "appName": "Cloud Mail",
         "install": "홈 화면에 추가",
         "installHelp": "홈 화면에서 메일을 별도 창으로 열 수 있습니다. 메일과 첨부파일을 가져오려면 계속 인터넷 연결이 필요합니다.",
@@ -388,6 +390,8 @@ const ko = {
         "retry": "다시 시도"
     },
     "temporaryInbox": {
+        "shortName": "임시 메일함",
+        "description": "최근 메일과 인증 코드를 확인하고 기기에 사본을 저장하는 임시 메일함.",
         "noActiveAddress": "사용 중인 주소가 없습니다",
         "createAddress": "주소 만들기",
         "localHistory": "이 기기에 저장됨",
@@ -451,6 +455,9 @@ const ko = {
         "copyFailed": "귀하의 브라우저가 복사를 차단했습니다. 텍스트를 수동으로 선택하고 복사하세요."
     },
     "languageAuto": "자동",
+    "languageSearch": "언어 검색",
+    "languageNoResults": "언어를 찾을 수 없습니다",
+    "languagePreview": "초기 번역",
     "loginLoading": "로그인 중…",
     "bindMailboxTitle": "이메일 주소 등록",
     "bindAction": "주소 연결",

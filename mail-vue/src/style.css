@@ -29,12 +29,12 @@ html, body {
 body {
     font-family: -apple-system, Inter, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
     line-height: 1.5;
-    color: var(--el-text-color-primary);
+    color: var(--ui-ink);
     font-size: 14px;
 }
 
 html, body {
-    background: var(--el-bg-color);
+    background: var(--ui-bg);
 }
 
 ul, ol {
@@ -119,6 +119,19 @@ a:focus-visible,
 }
 
 :root {
+    color-scheme: light;
+    --ui-bg: #f5f7fb;
+    --ui-surface: #ffffff;
+    --ui-surface-alt: #edf2f8;
+    --ui-ink: #172432;
+    --ui-muted: #526174;
+    --ui-line: #d3dce6;
+    --ui-primary: #175cd3;
+    --ui-focus: #175cd3;
+    --ui-sidebar: #132b49;
+    --ui-sidebar-ink: #eaf2fb;
+    --ui-success: #187a5d;
+    --ui-danger: #b42332;
     --el-color-primary: #175cd3;
     --el-color-primary-dark-2: #10469f;
     --el-color-primary-light-3: #5d8be0;
@@ -157,6 +170,20 @@ a:focus-visible,
 }
 
 .dark {
+    color-scheme: dark;
+    --ui-bg: #0d1420;
+    --ui-surface: #151f2c;
+    --ui-surface-alt: #1d2b3b;
+    --ui-ink: #eff3f8;
+    --ui-muted: #a7b5c5;
+    --ui-line: #364657;
+    --ui-primary: #2563eb;
+    --ui-focus: #8cc4ff;
+    --ui-sidebar: #0a1422;
+    --ui-sidebar-ink: #eff3f8;
+    --ui-success: #47caa0;
+    --ui-danger: #ff8491;
+    --el-color-primary: #2563eb;
     --extra-light-fill: #191919;
     --light-ill: #262727;
     --light-border: #414243;

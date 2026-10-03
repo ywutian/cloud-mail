@@ -17,9 +17,10 @@
         <div class="temp-addr-label">{{ t('temporaryAddressHint') }}</div>
         <div class="temp-addr-row">
           <Icon class="temp-addr-icon" icon="eva:email-outline" width="22" height="22"/>
-          <span class="temp-addr-text" :class="tempAddr ? '' : 'is-empty'" @click="copyTemp">
+          <button type="button" class="temp-addr-text" :class="tempAddr ? '' : 'is-empty'"
+                  :disabled="!tempAddr || randomLoading" :aria-label="t('copy')" @click="copyTemp">
             {{ tempAddr || t('generatingAddress') }}
-          </span>
+          </button>
           <el-button type="primary" :disabled="!tempAddr" @click="copyTemp">
             <Icon icon="fluent:copy-24-regular" width="16" height="16" style="margin-right: 5px"/>
             {{ t('copy') }}
@@ -32,10 +33,11 @@
     </template>
 
     <template #first>
-      <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-down-outline"
-            v-if="params.timeSort === 0" width="28" height="28"/>
-      <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-up-outline" v-else
-            width="28" height="28"/>
+      <button type="button" class="sort-button" :title="t('order')" :aria-label="t('order')"
+              :aria-pressed="params.timeSort === 1" @click="changeTimeSort">
+        <Icon :icon="params.timeSort === 0 ? 'material-symbols-light:timer-arrow-down-outline' : 'material-symbols-light:timer-arrow-up-outline'"
+              width="25" height="25" aria-hidden="true"/>
+      </button>
     </template>
 
   </emailScroll>
@@ -48,7 +50,7 @@ import {useSettingStore} from "@/store/setting.js";
 import emailScroll from "@/components/email-scroll/index.vue"
 import {emailList, emailDelete, emailLatest, emailRead} from "@/request/email.js";
 import {starAdd, starCancel} from "@/request/star.js";
-import {defineOptions, h, onMounted, reactive, ref, watch} from "vue";
+import {defineOptions, h, onMounted, onUnmounted, nextTick, reactive, ref, watch} from "vue";
 import {sleep} from "@/utils/time-utils.js";
 import router from "@/router/index.js";
 import {Icon} from "@iconify/vue";
@@ -70,11 +72,31 @@ const scroll = ref({})
 const params = reactive({
   timeSort: 0,
 })
+let disposed = false
+let lastOpenedRow = null
+let lastOpenedEmailId = null
 
 onMounted(() => {
   emailStore.emailScroll = scroll;
   latest()
   initTempAddr()
+})
+
+onUnmounted(() => {
+  disposed = true
+  lastOpenedRow = null
+  lastOpenedEmailId = null
+})
+
+watch(() => route.name, (name, previousName) => {
+  if (name === 'email' && previousName === 'content') {
+    nextTick(() => {
+      const rowButtons = scroll.value?.$el?.querySelectorAll('.row-open-action[data-email-id]') || []
+      const currentRow = Array.from(rowButtons).find(button => button.dataset.emailId === String(lastOpenedEmailId))
+      const target = currentRow || (lastOpenedRow?.isConnected ? lastOpenedRow : null)
+      target?.focus()
+    })
+  }
 })
 
 
@@ -162,6 +184,8 @@ function changeTimeSort() {
 }
 
 function jumpContent(email) {
+  lastOpenedRow = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  lastOpenedEmailId = email?.emailId
   emailStore.contentData.email = emailStore.toContentEmail(email)
   emailStore.contentData.delType = 'logic'
   emailStore.contentData.showUnread = true
@@ -173,10 +197,12 @@ function jumpContent(email) {
 const existIds = new Set();
 
 async function latest() {
-  while (true) {
+  while (!disposed) {
 
     let autoRefresh = settingStore.settings.autoRefresh;
     await sleep(autoRefresh > 1 ? autoRefresh * 1000 : 3000);
+
+    if (disposed) break
 
     if (route.name !== 'email') {
       continue;
@@ -257,6 +283,9 @@ function getEmailList(emailId, size) {
 .temp-addr {
   padding: 14px 16px 12px;
   border-bottom: 1px solid var(--el-border-color-lighter);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .temp-addr-label {
@@ -271,6 +300,12 @@ function getEmailList(emailId, size) {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.temp-addr-row > .el-button {
+  flex: 0 0 auto;
 }
 
 .temp-addr-icon {
@@ -286,9 +321,38 @@ function getEmailList(emailId, size) {
   letter-spacing: .01em;
   color: var(--el-text-color-primary);
   cursor: pointer;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  text-align: start;
+  direction: ltr;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.temp-addr-text:focus-visible,
+.sort-button:focus-visible {
+  outline: 2px solid var(--ui-focus, var(--el-color-primary));
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ui-ink, var(--el-text-color-primary));
+  cursor: pointer;
+}
+
+.sort-button:hover {
+  background: var(--ui-surface-alt, var(--el-fill-color-light));
 }
 
 .temp-addr-text.is-empty {
@@ -298,8 +362,32 @@ function getEmailList(emailId, size) {
 }
 
 @media (max-width: 767px) {
+  .temp-addr-row {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .temp-addr-icon {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
   .temp-addr-text {
     font-size: 15px;
+    grid-column: 2 / 4;
+    grid-row: 1;
+  }
+
+  .temp-addr-row > .el-button:not(:last-child) {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: start;
+  }
+
+  .temp-addr-row > .el-button:last-child {
+    grid-column: 3;
+    grid-row: 2;
   }
 }
 </style>

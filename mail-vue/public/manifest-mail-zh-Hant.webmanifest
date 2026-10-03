@@ -2,7 +2,7 @@
   "id": "/mail-app",
   "name": "Cloud Mail",
   "short_name": "Cloud Mail",
-  "description": "Получение и отправка писем, управление учётными записями.",
+  "description": "信箱收件、發信與帳號管理。",
   "start_url": "/inbox",
   "scope": "/",
   "display": "standalone",
@@ -28,6 +28,6 @@
       "purpose": "maskable"
     }
   ],
-  "lang": "ru-RU",
+  "lang": "zh-TW",
   "dir": "ltr"
 }

@@ -270,6 +270,9 @@ const tr = {
   "message": "Posta",
   "language": "Dil",
   "languageAuto": "Otomatik",
+  "languageSearch": "Dil ara",
+  "languageNoResults": "Dil bulunamadı",
+  "languagePreview": "Ön çeviri",
   "loginLoading": "Oturum açılıyor…",
   "bindMailboxTitle": "Bir e-posta adresini kaydedin",
   "bindAction": "Adresi bağla",
@@ -401,6 +404,8 @@ const tr = {
   "clientSecret": "İstemci gizli anahtarı",
   "notOwner": "Ana e-posta adresi size ait değil",
   "pwa": {
+    "shortName": "Cloud Mail",
+    "description": "E-posta alıp gönderin ve hesapları yönetin.",
     "appName": "Cloud Mail",
     "install": "Ana Ekrana Ekle",
     "installHelp": "Posta kutunuzu ana ekranınızdan kendi penceresinde açın. Posta ve ekler yine de internet bağlantısı gerektirir.",
@@ -418,6 +423,8 @@ const tr = {
     "retry": "Tekrar dene"
   },
   "temporaryInbox": {
+    "shortName": "Geçici Posta",
+    "description": "Son e-postalar ve doğrulama kodları için geçici gelen kutusu; kopyalar cihazda saklanır.",
     "noActiveAddress": "Aktif adres yok",
     "createAddress": "Adres oluştur",
     "localHistory": "Bu cihaza kaydedildi",

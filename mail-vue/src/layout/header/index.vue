@@ -15,14 +15,7 @@
     </button>
     <div class="toolbar">
       <LanguageSelect v-model="settingStore.lang" class="header-language" />
-      <el-popover placement="bottom-end" trigger="click" :width="240">
-        <template #reference>
-          <button type="button" class="language-mobile icon-item" :title="t('language')" :aria-label="t('language')">
-            <Icon icon="mdi:translate" width="20" height="20" aria-hidden="true"/>
-          </button>
-        </template>
-        <LanguageSelect v-model="settingStore.lang" />
-      </el-popover>
+      <LanguageSelect v-model="settingStore.lang" class="language-mobile" />
       <AppInstallButton compact />
       <button v-if="uiStore.dark" type="button" class="sun-icon icon-item"
               :aria-label="t('enableLightMode')" :title="t('enableLightMode')" @click="openDark($event)">
@@ -374,16 +367,19 @@ function formatName(email) {
 
 
 .header {
-  text-align: right;
+  min-width: 0;
+  text-align: end;
   font-size: 12px;
   display: grid;
   height: 100%;
-  gap: 10px;
-  grid-template-columns: auto auto 1fr;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  color: var(--ui-ink, var(--el-text-color-primary));
+  background: var(--ui-surface, var(--el-bg-color));
 }
 
 .header.not-send {
-  grid-template-columns: auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .writer-box {
@@ -402,7 +398,7 @@ function formatName(email) {
     height: 34px;
     border-radius: 50%;
     color: #ffffff;
-    background: var(--el-color-primary);
+    background: var(--ui-primary, var(--el-color-primary));
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
@@ -451,8 +447,8 @@ function formatName(email) {
 
 .breadcrumb-item {
   font-weight: bold;
-  font-size: 14px;
-  color: var(--el-text-color-primary);
+  font-size: 17px;
+  color: var(--ui-ink, var(--el-text-color-primary));
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -460,8 +456,9 @@ function formatName(email) {
 
 .toolbar {
   display: flex;
-  justify-content: end;
+  justify-content: flex-end;
   align-items: center;
+  min-width: 0;
   gap: 8px;
   @media (max-width: 767px) {
     gap: 2px;
@@ -478,15 +475,24 @@ function formatName(email) {
     cursor: pointer;
   }
 
-  .language-mobile { display: none; }
+  :deep(.language-mobile) { display: none; }
 
   @media (max-width: 767px) {
     .header-language { display: none; }
-    .language-mobile { display: flex; }
+    :deep(.language-mobile) { display: inline-flex; }
+    :deep(.language-mobile .language-picker-trigger) {
+      width: 44px;
+      justify-content: center;
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+    :deep(.language-mobile .language-picker-name),
+    :deep(.language-mobile .language-picker-trigger > svg:last-child) { display: none; }
   }
 
   .icon-item:hover {
-    background: var(--base-fill);
+    background: var(--ui-surface-alt, var(--base-fill));
   }
 
   .notice {
@@ -511,8 +517,8 @@ function formatName(email) {
     cursor: pointer;
 
     .avatar-text {
-      background: var(--el-bg-color);
-      color: var(--el-text-color-primary);
+      background: var(--ui-surface-alt, var(--el-bg-color));
+      color: var(--ui-ink, var(--el-text-color-primary));
       height: 30px;
       width: 30px;
       display: flex;
@@ -530,6 +536,12 @@ function formatName(email) {
     }
   }
 
+}
+
+.header button:focus-visible {
+  outline: 2px solid var(--ui-focus, var(--el-color-primary));
+  outline-offset: -2px;
+  border-radius: 8px;
 }
 
 .toolbar :deep(.app-install-button.compact) {

@@ -16,7 +16,7 @@ Review the rendered product independently of the implementation author. Read the
 
 ## Matrix
 
-Use representative 320/375 px phones, a 768 px tablet, and a 1440 px desktop. Check both themes where supported. Check Simplified Chinese, English, a long-label language such as German or Russian, and Arabic right-to-left; sample other supported languages when changed strings or typography warrant it. Include empty, loading, network error, stale/local, long subject/address, and multiple-attachment states.
+Use representative 320/375 px phones, a 768 px tablet, and a 1440 px desktop. Check both themes where supported. Check Simplified Chinese, English, a long-label language such as German or Russian, and representative Arabic, Devanagari, CJK, Cyrillic, and Southeast Asian scripts. Sample newly added languages across every writing direction, and check language search, browser matching, and generated translation placeholders. Include empty, loading, network error, stale/local, long subject/address, and multiple-attachment states.
 
 ## Observe
 

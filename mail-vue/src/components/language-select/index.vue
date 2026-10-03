@@ -1,27 +1,129 @@
 <template>
   <div class="language-picker">
-    <Icon icon="mdi:translate" width="18" height="18" aria-hidden="true" />
-    <select :value="modelValue || 'auto'" :aria-label="t('language')" @change="emit('update:modelValue', $event.target.value)">
-      <option value="auto">{{ t('languageAuto') }} · {{ browserLanguageName }}</option>
-      <option v-for="language in languages" :key="language.code" :value="language.code">
-        {{ language.name }}
-      </option>
-    </select>
-    <Icon icon="mingcute:down-small-fill" width="16" height="16" aria-hidden="true" />
+    <button ref="trigger" type="button" class="language-picker-trigger" :aria-label="`${t('language')}: ${selectedName}`"
+            aria-haspopup="dialog" :aria-expanded="open" @click="open = true">
+      <Icon icon="mdi:translate" width="18" height="18" aria-hidden="true" />
+      <span class="language-picker-name" :dir="selectedDirection">{{ selectedName }}</span>
+      <Icon icon="mingcute:down-small-fill" width="16" height="16" aria-hidden="true" />
+    </button>
+
+    <el-dialog v-model="open" :title="t('language')" class="language-picker-dialog"
+               width="min(480px, calc(100vw - 24px))" append-to-body align-center
+               @opened="focusSearch" @closed="restoreFocus">
+      <div class="language-picker-search-wrap">
+        <Icon icon="lucide:search" width="18" height="18" aria-hidden="true" />
+        <input ref="searchInput" v-model="query" type="search" :aria-label="t('languageSearch')"
+               :placeholder="t('languageSearch')" autocomplete="off" />
+      </div>
+
+      <p v-if="pickerError" class="language-picker-error" role="alert">{{ t('reqFailErrorMsg') }}</p>
+      <div class="language-picker-list" :aria-busy="loading" @keydown="onListKeydown">
+        <button v-if="matchesAuto" type="button" class="language-picker-option" :disabled="loading"
+                :class="{'is-selected': modelValue === 'auto' || !modelValue}"
+                :aria-pressed="modelValue === 'auto' || !modelValue" @click="choose('auto')">
+          <span class="language-picker-option-text">
+            <strong>{{ t('languageAuto') }}</strong>
+            <small>{{ t('temporaryInbox.followBrowser') }} · {{ browserLanguageName }}</small>
+          </span>
+          <Icon v-if="modelValue === 'auto' || !modelValue" icon="lucide:check" width="18" height="18" aria-hidden="true" />
+        </button>
+        <button v-for="language in filteredLanguages" :key="language.code" type="button" :disabled="loading"
+                class="language-picker-option" :class="{'is-selected': modelValue === language.code}"
+                :aria-pressed="modelValue === language.code" @click="choose(language.code)">
+          <span class="language-picker-option-text" :lang="language.intl" :dir="language.dir">
+            <strong>{{ language.name }}</strong>
+            <small>{{ englishName(language) }}<template v-if="language.coverage === 'preview'"> · {{ t('languagePreview') }}</template></small>
+          </span>
+          <Icon v-if="modelValue === language.code" icon="lucide:check" width="18" height="18" aria-hidden="true" />
+        </button>
+        <p v-if="!matchesAuto && !filteredLanguages.length" class="language-picker-empty" role="status">
+          {{ t('languageNoResults') }}
+        </p>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {Icon} from '@iconify/vue'
 import {useI18n} from 'vue-i18n'
-import {languages, getBrowserLanguage} from '@/i18n/languages.js'
+import {getBrowserLanguage, languages, languageDirection, normalizeLanguage} from '@/i18n/languages.js'
+import {loadLanguage} from '@/i18n/index.js'
 
-defineProps({modelValue: {type: String, default: 'auto'}})
+const props = defineProps({modelValue: {type: String, default: 'auto'}})
 const emit = defineEmits(['update:modelValue'])
 const {t} = useI18n()
+const open = ref(false)
+const query = ref('')
+const trigger = ref(null)
+const searchInput = ref(null)
+const loading = ref(false)
+const pickerError = ref(false)
 const browserLanguage = ref(getBrowserLanguage())
+const englishDisplayNames = typeof Intl.DisplayNames === 'function'
+  ? new Intl.DisplayNames(['en'], {type: 'language'})
+  : null
+
+const selectedLanguage = computed(() => languages.find(language => language.code === normalizeLanguage(props.modelValue)))
 const browserLanguageName = computed(() => languages.find(language => language.code === browserLanguage.value)?.name || 'English')
+const selectedName = computed(() => selectedLanguage.value?.name || `${t('languageAuto')} · ${browserLanguageName.value}`)
+const selectedDirection = computed(() => selectedLanguage.value?.dir || languageDirection(browserLanguage.value))
+
+function englishName(language) {
+  try { return englishDisplayNames?.of(language.intl) || language.code }
+  catch { return language.code }
+}
+
+function fold(value) {
+  return value.normalize('NFKD').replace(/\p{M}/gu, '').toLocaleLowerCase()
+}
+
+const foldedQuery = computed(() => fold(query.value.trim()))
+const matchesAuto = computed(() => !foldedQuery.value || fold(`${t('languageAuto')} ${browserLanguageName.value} auto ${t('temporaryInbox.followBrowser')}`).includes(foldedQuery.value))
+const filteredLanguages = computed(() => {
+  if (!foldedQuery.value) return languages
+  return languages.filter(language => fold(`${language.name} ${englishName(language)} ${language.code} ${language.intl}`).includes(foldedQuery.value))
+})
+
+async function choose(value) {
+  if (loading.value) return
+  loading.value = true
+  pickerError.value = false
+  try {
+    await loadLanguage(value === 'auto' ? browserLanguage.value : value)
+    emit('update:modelValue', value)
+    open.value = false
+  } catch {
+    pickerError.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+function focusSearch() {
+  searchInput.value?.focus()
+}
+
+function restoreFocus() {
+  query.value = ''
+  pickerError.value = false
+  nextTick(() => trigger.value?.focus())
+}
+
+function onListKeydown(event) {
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+  const items = [...event.currentTarget.querySelectorAll('.language-picker-option')]
+  if (!items.length) return
+  const index = items.indexOf(document.activeElement)
+  let next = index
+  if (event.key === 'ArrowDown') next = Math.min(index + 1, items.length - 1)
+  if (event.key === 'ArrowUp') next = Math.max(index - 1, 0)
+  if (event.key === 'Home') next = 0
+  if (event.key === 'End') next = items.length - 1
+  event.preventDefault()
+  items[next]?.focus()
+}
 
 function refreshBrowserLanguage() {
   browserLanguage.value = getBrowserLanguage()
@@ -31,6 +133,7 @@ function onVisibilityChange() {
   if (!document.hidden) refreshBrowserLanguage()
 }
 
+watch(open, value => { if (value) refreshBrowserLanguage() })
 onMounted(() => {
   window.addEventListener('languagechange', refreshBrowserLanguage)
   window.addEventListener('focus', refreshBrowserLanguage)
@@ -44,47 +147,42 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.language-picker {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  min-width: 0;
-  max-width: 100%;
-  padding: 0 10px;
-  border: 1px solid var(--language-control-border, var(--el-border-color));
-  border-radius: 9px;
+.language-picker { display: inline-flex; min-width: 0; max-width: 100%; }
+.language-picker-trigger {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 7px;
+  min-width: 0; max-width: 100%; min-height: 44px; padding: 0 10px;
+  border: 1px solid var(--language-control-border, var(--el-border-color)); border-radius: 9px;
   background: var(--language-control-bg, var(--el-fill-color-blank));
-  color: var(--language-control-text, var(--el-text-color-primary));
+  color: var(--language-control-text, var(--el-text-color-primary)); font: inherit; font-size: 13px; cursor: pointer;
 }
-
-.language-picker:focus-within {
-  outline: 2px solid var(--el-color-primary, #3b82f6);
-  outline-offset: 2px;
+.language-picker-trigger:hover { border-color: var(--el-color-primary); }
+.language-picker-trigger:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.language-picker-name { min-width: 0; max-width: 155px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.language-picker-search-wrap {
+  display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 0 12px;
+  border: 1px solid var(--el-border-color); border-radius: 9px;
+  color: var(--el-text-color-secondary);
 }
-
-.language-picker select {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 180px;
-  height: 42px;
-  border: 0;
-  outline: 0;
-  appearance: none;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
+.language-picker-search-wrap:focus-within { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.language-picker-search-wrap input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--el-text-color-primary); font: inherit; font-size: 15px; }
+.language-picker-list { max-height: min(55vh, 440px); overflow-y: auto; overscroll-behavior: contain; padding: 6px 0 0; }
+.language-picker-option {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; min-height: 48px; padding: 8px 10px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--el-text-color-primary); text-align: start; cursor: pointer;
 }
-
-.language-picker option {
-  color: #17202b;
-  background: #fff;
-}
-
+.language-picker-option:hover, .language-picker-option:focus-visible { background: var(--el-fill-color-light); }
+.language-picker-option:disabled { cursor: wait; opacity: .65; }
+.language-picker-option:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: -2px; }
+.language-picker-option.is-selected { color: var(--el-color-primary); background: var(--el-color-primary-light-9); }
+.language-picker-option-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.language-picker-option-text strong { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.language-picker-option-text small { font-size: 12px; color: var(--el-text-color-secondary); overflow-wrap: anywhere; }
+.language-picker-empty { padding: 18px 10px; color: var(--el-text-color-secondary); text-align: center; }
+.language-picker-error { margin: 8px 0 0; color: var(--el-color-danger); font-size: 13px; }
 @media (max-width: 480px) {
   .language-picker { flex: 1 1 auto; }
-  .language-picker select { width: 100%; }
+  .language-picker-trigger { width: 100%; }
+  .language-picker-name { max-width: min(155px, 30vw); }
 }
 </style>

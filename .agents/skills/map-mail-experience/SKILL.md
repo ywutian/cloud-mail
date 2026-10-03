@@ -18,7 +18,7 @@ Turn a UI request into a screen and state specification that another designer or
 - The public mailbox can be opened with an address alone. Do not describe it as private to the current device or require an account or secret.
 - A public message must expose its full body and available attachment actions. The app does not automatically clear local history. Attachment caching has 10 MiB per-file and 100 MiB total binary limits, and browser storage can be removed by site-data clearing or storage pressure.
 - Online mail availability and locally saved content are distinct states. Make the source and limitations understandable without hiding either.
-- Language follows the browser by default and can be changed manually. Plan for the current 15 languages, long labels, and right-to-left Arabic.
+- Language follows the browser by default and can be changed manually. Plan for every selectable language, long labels, and right-to-left scripts; keep addresses and codes left-to-right.
 - Signed-in actions respect existing permissions. Do not put an unavailable action in the primary path.
 
 ## Method

@@ -24,19 +24,17 @@
     <div></div>
     <el-scrollbar class="scrollbar">
       <div class="container">
-        <div class="email-title">
-          {{ email.subject }}
-        </div>
+        <h1 ref="readerHeading" class="email-title" tabindex="-1">{{ email.subject || t('noSubject') }}</h1>
         <div class="content">
           <div class="email-info">
             <div>
               <div class="send"><span class="send-source">{{$t('from')}}</span>
                 <div class="send-name">
                   <span class="send-name-title">{{ email.name }}</span>
-                  <span><{{ email.sendEmail }}></span>
+                  <span dir="ltr">&lt;{{ email.sendEmail }}&gt;</span>
                 </div>
               </div>
-              <div class="receive"><span class="source">{{$t('recipient')}}</span><span class="receive-email">{{  formateReceive(email.recipient) }}</span></div>
+              <div class="receive"><span class="source">{{$t('recipient')}}</span><span class="receive-email" dir="ltr">{{ formateReceive(email.recipient) }}</span></div>
               <div class="date">
                 <div>{{ formatDetailDate(email.createTime) }}</div>
               </div>
@@ -48,7 +46,7 @@
           <el-scrollbar class="htm-scrollbar" :class="!email.attList?.length ? 'bottom-distance' : ''">
             <iframe class="mail-frame" :title="t('emailText')" :srcdoc="frameHtml" v-if="email.content"
                     sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"/>
-            <pre v-else class="email-text" >{{email.text}}</pre>
+            <pre v-else class="email-text" dir="auto">{{email.text}}</pre>
           </el-scrollbar>
           <div class="att" v-if="email.attList?.length > 0">
             <div class="att-title">
@@ -116,6 +114,7 @@ const uiStore = useUiStore();
 const accountStore = useAccountStore();
 const emailStore = useEmailStore();
 const router = useRouter()
+const readerHeading = ref(null)
 const email = computed(() => emailStore.contentData.email || {
   emailId: 0,
   attList: [],
@@ -197,6 +196,7 @@ watch(
 onMounted(() => {
   tryMarkRead()
   window.addEventListener('keydown', handleKeyDown, true);
+  nextTick(() => readerHeading.value?.focus())
 })
 
 onUnmounted(() => {
@@ -224,7 +224,9 @@ function openForward() {
 }
 
 function toMessage(message) {
-  return  message ? JSON.parse(message).message : '';
+  if (!message) return ''
+  try { return JSON.parse(message).message || '' }
+  catch { return String(message) }
 }
 
 function attachmentUrl(att) {
@@ -325,7 +327,8 @@ function changeStar() {
 }
 
 const handleBack = () => {
-  router.back()
+  if (window.history.state?.back) router.back()
+  else router.push({name: 'email'})
 }
 
 const handleDelete = () => {
@@ -584,5 +587,95 @@ const handleDelete = () => {
   margin-bottom: 30px;
 }
 
+.box {
+  min-width: 0;
+  background: var(--ui-surface, var(--el-bg-color));
+}
+
+.header-actions {
+  min-height: 56px;
+  padding: 5px 16px;
+  gap: 6px;
+  border-bottom: 1px solid var(--ui-line, var(--el-border-color));
+  box-shadow: none;
+
+  .icon-button {
+    min-width: 44px;
+    min-height: 44px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+  }
+
+  .icon-button:hover { background: var(--ui-surface-alt, var(--el-fill-color-light)); }
+}
+
+.icon-button:focus-visible,
+.att-item button:focus-visible {
+  outline-color: var(--ui-focus, var(--el-color-primary));
+}
+
+.scrollbar { height: calc(100% - 56px); }
+
+.container {
+  width: min(100%, 900px);
+  margin-inline: auto;
+  padding: 26px clamp(18px, 3vw, 46px) 64px;
+  font-size: 15px;
+  line-height: 1.65;
+
+  .email-title {
+    margin: 0 0 22px;
+    color: var(--ui-ink, var(--el-text-color-primary));
+    font-size: clamp(22px, 2.3vw, 30px);
+    line-height: 1.25;
+    letter-spacing: -.025em;
+    overflow-wrap: anywhere;
+  }
+
+  .email-title:focus { outline: none; }
+
+  .content {
+    .email-info {
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+      border-color: var(--ui-line, var(--light-border-color));
+      .date, .send .send-name, .receive span:nth-child(2) { color: var(--ui-muted, var(--regular-text-color)); }
+      .send .send-name { min-width: 0; gap: 4px; overflow-wrap: anywhere; }
+      .send-source, .source { padding-inline-end: 10px; padding-right: 0; }
+      .receive-email { text-align: start; }
+    }
+
+    .att {
+      width: min(100%, 680px);
+      margin-block: 28px 30px;
+      padding: 16px;
+      border-color: var(--ui-line, var(--light-border-color));
+      border-radius: 10px;
+      .att-box { min-width: 0; width: 100%; max-width: none; }
+      .att-item {
+        grid-template-columns: auto minmax(0, 1fr) auto auto;
+        gap: 7px;
+        padding: 10px;
+        border-radius: 8px;
+        button { min-width: 36px; min-height: 36px; }
+        .att-name { margin-inline: 4px; margin-left: 0; margin-right: 0; }
+        .opt-icon { padding-inline-start: 8px; padding-left: 0; }
+      }
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .header-actions { padding-inline: 8px; }
+  .container { padding: 22px 16px 72px; }
+  .container .content .att .att-item {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    .att-size { grid-column: 2; }
+    .opt-icon { grid-column: 3; grid-row: 1 / 3; }
+  }
+}
+
+:global([dir="rtl"] .box .header-actions .icon-button:first-child svg) { transform: scaleX(-1); }
 
 </style>

@@ -371,6 +371,8 @@ const pt = {
     "clientSecret": "Segredo do cliente",
     "notOwner": "O e-mail base não pertence a você",
     "pwa": {
+        "shortName": "Cloud Mail",
+        "description": "Receba e envie e-mails e gerencie suas contas.",
         "appName": "Cloud Mail",
         "install": "Adicionar à tela inicial",
         "installHelp": "Abra sua caixa de entrada em uma janela própria pela tela inicial. E-mails e anexos ainda precisam de conexão com a internet.",
@@ -388,6 +390,8 @@ const pt = {
         "retry": "Tentar novamente"
     },
     "temporaryInbox": {
+        "shortName": "Caixa temp.",
+        "description": "Caixa temporária para e-mails recentes e códigos de verificação, com cópias salvas no dispositivo.",
         "noActiveAddress": "Nenhum endereço ativo",
         "createAddress": "Criar endereço",
         "localHistory": "Salvo neste dispositivo",
@@ -451,6 +455,9 @@ const pt = {
         "copyFailed": "Seu navegador bloqueou a cópia. Selecione e copie o texto manualmente"
     },
     "languageAuto": "Automático",
+    "languageSearch": "Pesquisar idiomas",
+    "languageNoResults": "Nenhum idioma encontrado",
+    "languagePreview": "Tradução preliminar",
     "loginLoading": "Fazendo login…",
     "bindMailboxTitle": "Cadastre um endereço de e-mail",
     "bindAction": "Vincular endereço",

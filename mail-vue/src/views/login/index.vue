@@ -1,95 +1,100 @@
 <template>
-  <div id="login-box" :style=" background ? 'background: var(--el-bg-color)' : ''" v-loading="oauthLoading" :element-loading-text="t('loginLoading')">
-    <div id="background-wrap" v-if="!settingStore.settings.background">
-      <div class="x1 cloud"></div>
-      <div class="x2 cloud"></div>
-      <div class="x3 cloud"></div>
-      <div class="x4 cloud"></div>
-      <div class="x5 cloud"></div>
-    </div>
-    <div v-else :style="background"></div>
-    <div class="form-wrapper">
-      <div class="container">
+  <div id="login-box" class="login-page" v-loading="oauthLoading" :element-loading-text="t('loginLoading')">
+    <div class="login-shell">
+      <header class="login-topline">
+        <div class="login-brand">
+          <span class="login-mark"><Icon icon="fluent:mail-24-filled" width="20" height="20" aria-hidden="true" /></span>
+          <span>{{ settingStore.settings.title }}</span>
+        </div>
         <div class="login-top-actions">
           <LanguageSelect v-model="settingStore.lang" class="login-language" />
           <AppInstallButton />
+          <RouterLink to="/find" class="login-public-link">{{ t('temporaryInbox.title') }}</RouterLink>
         </div>
-        <h1 class="form-title">{{ settingStore.settings.title }}</h1>
-        <p class="form-desc" v-if="show === 'login'">{{ $t('loginTitle') }}</p>
-        <p class="form-desc" v-else>{{ $t('regTitle') }}</p>
-        <div v-show="show === 'login'">
-          <label class="field-label" for="login-email">{{ $t('emailAccount') }}</label>
-          <el-input id="login-email" :class="!hideLoginDomain ? 'email-input' : ''" v-model="form.email" dir="ltr"
-                    type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="submit">
-            <template #append v-if="!hideLoginDomain">
-              <select v-model="suffix" class="domain-select" dir="ltr" :aria-label="t('domain')" :title="suffix">
-                <option v-for="item in domainList" :key="item" :value="item">{{ item }}</option>
-              </select>
-            </template>
-          </el-input>
-          <label class="field-label" for="login-password">{{ $t('password') }}</label>
-          <el-input id="login-password" v-model="form.password" :placeholder="$t('password')" type="password" autocomplete="off" @keyup.enter="submit">
-          </el-input>
-          <el-button class="btn" type="primary" @click="submit" :loading="loginLoading"
-          >{{ $t('loginBtn') }}
-          </el-button>
-          <el-button v-for="p in oauthProviders" :key="p.key" class="btn" style="margin-top: 10px" @click="oauthLogin(p.key)">
-            <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18" style="margin-right: 10px" />
-            <Icon v-else :icon="p.icon" width="18" height="18" style="margin-right: 10px" />
-            {{ p.label }}
-          </el-button>
-        </div>
-        <div v-show="show !== 'login'">
-          <label class="field-label" for="register-email">{{ $t('emailAccount') }}</label>
-          <el-input id="register-email" :class="!hideLoginDomain ? 'email-input' : ''" v-model="registerForm.email" dir="ltr" type="text" :placeholder="$t('emailAccount')"
-                    autocomplete="off" @keyup.enter="submitRegister">
-            <template #append v-if="!hideLoginDomain">
-              <select v-model="suffix" class="domain-select" dir="ltr" :aria-label="t('domain')" :title="suffix">
-                <option v-for="item in domainList" :key="item" :value="item">{{ item }}</option>
-              </select>
-            </template>
-          </el-input>
-          <label class="field-label" for="register-password">{{ $t('password') }}</label>
-          <el-input id="register-password" v-model="registerForm.password" :placeholder="$t('password')" type="password" autocomplete="off" @keyup.enter="submitRegister"/>
-          <label class="field-label" for="register-confirm-password">{{ $t('confirmPwd') }}</label>
-          <el-input id="register-confirm-password" v-model="registerForm.confirmPassword" :placeholder="$t('confirmPwd')" type="password"
-                    autocomplete="off" @keyup.enter="submitRegister"/>
-          <label v-if="settingStore.settings.regKey === 0" class="field-label" for="register-invite-code">{{ $t('regKey') }}</label>
-          <el-input v-if="settingStore.settings.regKey === 0" id="register-invite-code" v-model="registerForm.code" :placeholder="$t('regKey')"
-                    type="text" autocomplete="off" @keyup.enter="submitRegister"/>
-          <label v-if="settingStore.settings.regKey === 2" class="field-label" for="register-invite-code">{{ $t('regKeyOptional') }}</label>
-          <el-input v-if="settingStore.settings.regKey === 2" id="register-invite-code" v-model="registerForm.code"
-                    :placeholder="$t('regKeyOptional')" type="text" autocomplete="off" @keyup.enter="submitRegister"/>
-          <div v-show="verifyShow"
-               class="register-turnstile"
-               :data-sitekey="settingStore.settings.siteKey"
-               data-callback="onTurnstileSuccess"
-               data-error-callback="onTurnstileError"
-               data-after-interactive-callback="loadAfter"
-               data-before-interactive-callback="loadBefore"
-          >
-            <span style="font-size: 12px;color: #F56C6C" v-if="botJsError">{{ $t('verifyModuleFailed') }}</span>
+      </header>
+
+      <main class="login-grid">
+        <section class="login-story" :class="{'has-background': Boolean(settingStore.settings.background)}" :style="background">
+          <div class="login-story-inner">
+            <h1>{{ show === 'login' ? t('loginTitle') : t('regTitle') }}</h1>
+            <div class="login-story-rule" aria-hidden="true"></div>
+            <ul class="login-story-features">
+              <li>{{ t('receiveEmail') }}</li>
+              <li>{{ t('sendEmail') }}</li>
+              <li>{{ t('attachments') }}</li>
+            </ul>
           </div>
-          <el-button class="btn" style="margin: 0" type="primary" @click="submitRegister" :loading="registerLoading"
-          >{{ $t('regBtn') }}
-          </el-button>
-          <el-button v-for="p in oauthProviders" :key="p.key" class="btn" style="margin-top: 10px" @click="oauthLogin(p.key)">
-            <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18" style="margin-right: 10px" />
-            <Icon v-else :icon="p.icon" width="18" height="18" style="margin-right: 10px" />
-            {{ p.label }}
-          </el-button>
-        </div>
-        <template v-if="settingStore.settings.register === 0">
-          <p class="switch" v-if="show === 'login'">{{ $t('noAccount') }}
-            <button type="button" class="switch-action" @click="show = 'register'">{{ $t('regSwitch') }}</button>
-          </p>
-          <p class="switch" v-else>{{ $t('hasAccount') }}
-            <button type="button" class="switch-action" @click="show = 'login'">{{ $t('loginSwitch') }}</button>
-          </p>
-        </template>
-      </div>
+        </section>
+
+        <section class="login-card" aria-labelledby="login-form-title">
+          <div class="login-card-head">
+            <h2 id="login-form-title">{{ show === 'login' ? t('loginBtn') : t('regBtn') }}</h2>
+          </div>
+
+          <form v-show="show === 'login'" class="login-form" @submit.prevent="submit">
+            <label class="field-label" for="login-email">{{ t('emailAccount') }}</label>
+            <el-input ref="loginEmailInput" id="login-email" :class="!hideLoginDomain ? 'email-input' : ''" v-model="form.email" dir="ltr"
+                      type="text" :placeholder="t('emailAccount')" :autocomplete="hideLoginDomain ? 'username' : 'off'">
+              <template #append v-if="!hideLoginDomain">
+                <select v-model="suffix" class="domain-select" dir="ltr" :aria-label="t('domain')" :title="suffix">
+                  <option v-for="item in domainList" :key="item" :value="item">{{ item }}</option>
+                </select>
+              </template>
+            </el-input>
+            <label class="field-label" for="login-password">{{ t('password') }}</label>
+            <el-input id="login-password" v-model="form.password" :placeholder="t('password')" type="password" autocomplete="current-password" />
+            <el-button class="submit-button" type="primary" native-type="submit" :loading="loginLoading">{{ t('loginBtn') }}</el-button>
+          </form>
+
+          <form v-show="show !== 'login'" class="login-form" @submit.prevent="submitRegister">
+            <label class="field-label" for="register-email">{{ t('emailAccount') }}</label>
+            <el-input ref="registerEmailInput" id="register-email" :class="!hideLoginDomain ? 'email-input' : ''" v-model="registerForm.email" dir="ltr" type="text" :placeholder="t('emailAccount')"
+                      :autocomplete="hideLoginDomain ? 'username' : 'off'">
+              <template #append v-if="!hideLoginDomain">
+                <select v-model="suffix" class="domain-select" dir="ltr" :aria-label="t('domain')" :title="suffix">
+                  <option v-for="item in domainList" :key="item" :value="item">{{ item }}</option>
+                </select>
+              </template>
+            </el-input>
+            <label class="field-label" for="register-password">{{ t('password') }}</label>
+            <el-input id="register-password" v-model="registerForm.password" :placeholder="t('password')" type="password" autocomplete="new-password" />
+            <label class="field-label" for="register-confirm-password">{{ t('confirmPwd') }}</label>
+            <el-input id="register-confirm-password" v-model="registerForm.confirmPassword" :placeholder="t('confirmPwd')" type="password" autocomplete="new-password" />
+            <label v-if="settingStore.settings.regKey === 0" class="field-label" for="register-invite-code">{{ t('regKey') }}</label>
+            <el-input v-if="settingStore.settings.regKey === 0" id="register-invite-code" v-model="registerForm.code" :placeholder="t('regKey')" type="text" autocomplete="off" />
+            <label v-if="settingStore.settings.regKey === 2" class="field-label" for="register-invite-code">{{ t('regKeyOptional') }}</label>
+            <el-input v-if="settingStore.settings.regKey === 2" id="register-invite-code" v-model="registerForm.code" :placeholder="t('regKeyOptional')" type="text" autocomplete="off" />
+            <div v-show="verifyShow" class="register-turnstile"
+                 :data-sitekey="settingStore.settings.siteKey"
+                 data-callback="onTurnstileSuccess"
+                 data-error-callback="onTurnstileError"
+                 data-after-interactive-callback="loadAfter"
+                 data-before-interactive-callback="loadBefore">
+              <span class="verify-error" v-if="botJsError">{{ t('verifyModuleFailed') }}</span>
+            </div>
+            <el-button class="submit-button" type="primary" native-type="submit" :loading="registerLoading">{{ t('regBtn') }}</el-button>
+          </form>
+
+          <div v-if="oauthProviders.length" class="oauth-options">
+            <el-button v-for="p in oauthProviders" :key="p.key" class="provider-button" @click="oauthLogin(p.key)">
+              <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18" />
+              <Icon v-else :icon="p.icon" width="18" height="18" aria-hidden="true" />
+              {{ t('loginBtn') }} · {{ p.label }}
+            </el-button>
+          </div>
+
+          <template v-if="settingStore.settings.register === 0">
+            <p class="switch" v-if="show === 'login'">{{ t('noAccount') }}
+              <button type="button" class="switch-action" @click="switchMode('register')">{{ t('regSwitch') }}</button>
+            </p>
+            <p class="switch" v-else>{{ t('hasAccount') }}
+              <button type="button" class="switch-action" @click="switchMode('login')">{{ t('loginSwitch') }}</button>
+            </p>
+          </template>
+        </section>
+      </main>
     </div>
-    <el-dialog class="bind-dialog" v-model="showBindForm" :title="t('bindMailboxTitle')" >
+    <el-dialog class="bind-dialog" v-model="showBindForm" :title="t('bindMailboxTitle')" width="min(440px, calc(100vw - 32px))" >
       <div class="bind-container">
         <label class="field-label" for="bind-email">{{ $t('emailAccount') }}</label>
         <el-input id="bind-email" :class="!hideLoginDomain ? 'email-input' : ''" v-model="bindForm.email" dir="ltr" type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="bind">
@@ -149,6 +154,16 @@ const bindLoading = ref(false)
 const oauthLoading = ref(false);
 const showBindForm = ref(false);
 const show = ref('login')
+const loginEmailInput = ref(null)
+const registerEmailInput = ref(null)
+
+function switchMode(mode) {
+  show.value = mode
+  void nextTick(() => {
+    if (mode === 'login') loginEmailInput.value?.focus()
+    else registerEmailInput.value?.focus()
+  })
+}
 
 const oauthKeys = ['linuxdo', 'github', 'google']
 
@@ -166,6 +181,11 @@ const oauthProviders = computed(() => {
     { key: 'linuxdo', label: 'LinuxDo', icon: '/image/linuxdo.webp', iconType: 'image' },
   ]
   return allProviders.filter(p => settingStore.settings[p.key + 'Switch'] === 0)
+})
+
+const loginOpacity = computed(() => {
+  const opacity = settingStore.settings.loginOpacity
+  return uiStore.dark ? `rgba(21, 31, 44, ${opacity})` : `rgba(255, 255, 255, ${opacity})`
 })
 
 const bindForm = reactive({
@@ -223,11 +243,6 @@ window.loadAfter = (e) => {
 window.loadBefore = (e) => {
   console.log('loadBefore')
 }
-
-const loginOpacity = computed(() => {
-  const opacity = settingStore.settings.loginOpacity
-  return uiStore.dark ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`
-})
 
 const hideLoginDomain = computed(() => settingStore.settings.loginDomain === 1)
 
@@ -603,290 +618,89 @@ function submitRegister() {
 </style>
 
 <style lang="scss" scoped>
-
-.form-wrapper {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  height: 100dvh;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  align-items: safe center;
-  justify-content: center;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  @media (max-width: 767px) {
-    width: 100%;
-    padding-block: 16px;
-  }
+.login-page {
+  min-height: 100dvh;
+  padding: 0 24px 52px;
+  overflow-x: clip;
+  color: var(--ui-ink, #172432);
+  background: var(--ui-bg, #f5f7fb);
 }
-
-.container {
-  background: v-bind(loginOpacity);
-  padding-left: 40px;
-  padding-right: 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  width: 450px;
-  min-height: 100%;
-  border-left: 1px solid var(--login-border);
-  box-shadow: var(--el-box-shadow-light);
-
-  .login-top-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-bottom: 18px;
-  }
-  @media (max-width: 1024px) {
-    padding: 20px 18px;
-    width: 384px;
-    margin-left: 18px;
-  }
-  @media (max-width: 767px) {
-    border: 1px solid var(--login-border);
-    padding: 20px 18px;
-    border-radius: 6px;
-    min-height: 0;
-    width: 100%;
-    margin-right: 18px;
-    margin-left: 18px;
-  }
-
-  .btn {
-    height: 36px;
-    width: 100%;
-    border-radius: 6px;
-  }
-
-  .form-desc {
-    margin-top: 5px;
-    margin-bottom: 18px;
-    color: var(--form-desc-color);
-  }
-
-  .form-title {
-    font-weight: bold;
-    font-size: 22px !important;
-    line-height: 1.3;
-  }
-
-  .switch {
-    margin-top: 20px;
-    text-align: center;
-    line-height: 1.6;
-  }
-
-  :deep(.el-input__wrapper) {
-    border-radius: 6px;
-    background: var(--el-bg-color);
-  }
-
-  .email-input :deep(.el-input__wrapper) {
-    border-start-start-radius: 6px;
-    border-end-start-radius: 6px;
-    border-start-end-radius: 0;
-    border-end-end-radius: 0;
-    background: var(--el-bg-color);
-  }
-
-  .el-input {
-    height: 38px;
-    width: 100%;
-    margin-bottom: 14px;
-
-    :deep(.el-input__inner) {
-      height: 36px;
-    }
-  }
+.login-shell { max-width: 1160px; margin: 0 auto; }
+.login-topline { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; min-height: 78px; }
+.login-brand { display: inline-flex; align-items: center; gap: 11px; min-width: 0; font-size: 18px; font-weight: 750; letter-spacing: -.035em; }
+.login-brand > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.login-mark { display: inline-grid; place-items: center; flex: 0 0 auto; width: 34px; height: 34px; border-radius: 10px; color: #fff; background: var(--ui-primary, #175cd3); }
+.login-top-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; min-width: 0; --language-control-border: var(--ui-line); --language-control-bg: var(--ui-surface); --language-control-text: var(--ui-ink); }
+.login-public-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 9px 13px; border: 1px solid var(--ui-line); border-radius: 9px; color: var(--ui-ink); background: var(--ui-surface); font-size: 13px; font-weight: 650; line-height: 1.3; text-align: center; text-decoration: none; }
+.login-public-link:hover { border-color: var(--ui-primary); color: var(--ui-primary); }
+.login-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 430px); align-items: center; gap: clamp(32px, 7vw, 96px); min-height: min(690px, calc(100dvh - 130px)); }
+.login-story { position: relative; min-width: 0; padding: 32px 12px 32px 0; background-size: cover; background-position: center; }
+.login-story.has-background { min-height: 500px; display: flex; align-items: center; padding: 38px; border-radius: 16px; overflow: hidden; }
+.login-story.has-background::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(9, 25, 47, .89), rgba(9, 25, 47, .58)); }
+.login-story-inner { position: relative; z-index: 1; }
+.login-story.has-background .login-story-inner { color: #fff; }
+.login-story h1 { max-width: 580px; margin: 0; color: inherit; font-size: clamp(38px, 5vw, 58px); font-weight: 780; line-height: 1.07; letter-spacing: -.055em; overflow-wrap: anywhere; }
+.login-story-rule { width: 76px; height: 4px; margin: 36px 0; border-radius: 9px; background: var(--ui-primary); }
+.login-story-features { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.login-story-features li { display: flex; align-items: center; gap: 12px; color: var(--ui-muted); font-size: 14px; }
+.login-story-features li::before { content: ''; display: inline-block; flex: 0 0 auto; width: 8px; height: 8px; border: 2px solid var(--ui-primary); border-radius: 50%; }
+.login-story.has-background .login-story-features li { color: #e2eaf4; }
+.login-story.has-background .login-story-features li::before { border-color: #8cc4ff; }
+.login-card { width: 100%; min-width: 0; padding: 32px; border: 1px solid var(--ui-line); border-radius: 14px; background: v-bind(loginOpacity); backdrop-filter: blur(14px); box-shadow: 0 12px 36px rgba(17, 42, 72, .06); }
+.login-card-head h2 { margin: 0 0 24px; font-size: 25px; line-height: 1.3; letter-spacing: -.04em; }
+.login-form { display: grid; gap: 8px; }
+.field-label { display: block; color: var(--ui-ink); font-size: 13px; font-weight: 700; line-height: 1.4; }
+.login-form .field-label:not(:first-child) { margin-top: 8px; }
+.login-form :deep(.el-input) { width: 100%; min-width: 0; min-height: 46px; }
+.login-form :deep(.el-input__wrapper) { min-height: 46px; border-radius: 8px; background: var(--ui-surface); box-shadow: 0 0 0 1px var(--ui-line) inset; }
+.login-form :deep(.el-input__wrapper:hover) { box-shadow: 0 0 0 1px var(--ui-primary) inset; }
+.login-form :deep(.el-input__wrapper.is-focus) { box-shadow: 0 0 0 2px var(--ui-focus) inset; }
+.login-form :deep(.el-input__inner) { color: var(--ui-ink); font-size: 14px; }
+.login-form :deep(.el-input-group__append) { padding-inline: 8px; border-start-end-radius: 8px; border-end-end-radius: 8px; background: var(--ui-surface-alt); box-shadow: 0 0 0 1px var(--ui-line) inset; }
+.login-form .email-input :deep(.el-input__wrapper) { border-start-end-radius: 0; border-end-end-radius: 0; }
+.domain-select { width: clamp(96px, 30vw, 145px); height: 44px; padding-inline: 3px; border: 0; background: transparent; color: var(--ui-ink); font-size: 13px; cursor: pointer; }
+.submit-button { width: 100%; min-height: 46px; margin-top: 14px; border-radius: 9px; font-weight: 700; }
+.register-turnstile { max-width: 100%; margin-top: 10px; overflow-x: auto; }
+.verify-error { color: var(--ui-danger, #b42332); font-size: 12px; }
+.oauth-options { display: grid; gap: 8px; margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--ui-line); }
+.provider-button { width: 100%; min-height: 44px; margin: 0; border-radius: 9px; color: var(--ui-ink); background: var(--ui-surface); font-weight: 650; }
+.oauth-options :deep(.el-button + .el-button) { margin-inline-start: 0; }
+.provider-button :deep(.el-avatar), .provider-button :deep(svg) { margin-inline-end: 8px; }
+.switch { margin: 25px 0 0; color: var(--ui-muted); font-size: 13px; line-height: 1.5; text-align: center; }
+.switch-action { padding: 4px; border: 0; color: var(--ui-primary); background: transparent; font: inherit; font-weight: 700; cursor: pointer; }
+.switch-action:hover { text-decoration: underline; }
+.bind-container { display: grid; gap: 8px; }
+.bind-container :deep(.el-input) { min-height: 44px; margin-bottom: 8px; }
+.bind-container :deep(.el-input__wrapper) { min-height: 44px; }
+.bind-container :deep(.el-input-group__append) { padding-inline: 8px; background: var(--ui-surface-alt); }
+.bind-container .btn { min-height: 44px; margin-top: 8px; }
+.github { position: fixed; inset-block-end: 12px; inset-inline-end: 12px; z-index: 10; display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--ui-line); border-radius: 9px; background: var(--ui-surface); }
+.login-page :is(button, input, select, a):focus-visible { outline: 3px solid var(--ui-focus); outline-offset: 2px; }
+@media (max-width: 900px) {
+  .login-grid { grid-template-columns: minmax(0, 1fr); align-items: start; gap: 14px; min-height: 0; }
+  .login-story { padding: 20px 0 10px; }
+  .login-story.has-background { min-height: 180px; padding: 26px; }
+  .login-story h1 { font-size: 34px; margin-bottom: 8px; }
+  .login-story-rule, .login-story-features { display: none; }
+  .login-card { max-width: 540px; }
 }
-
-.field-label {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--el-text-color-regular);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.4;
+@media (max-width: 560px) {
+  .login-page { padding: 0 16px 36px; }
+  .login-topline { gap: 10px; padding: 13px 0; }
+  .login-brand { width: 100%; font-size: 17px; }
+  .login-top-actions { width: 100%; justify-content: flex-start; }
+  .login-language { flex: 1 1 140px; }
+  .login-story { padding: 15px 0 2px; }
+  .login-story.has-background { min-height: 130px; padding: 20px; }
+  .login-story h1 { font-size: 29px; }
+  .login-card { padding: 22px; }
+  .login-card-head h2 { font-size: 23px; }
 }
-
-.switch-action {
-  color: var(--login-switch-color);
-  font-weight: 600;
-  cursor: pointer;
+@media (max-width: 350px) {
+  .login-page { padding-inline: 12px; }
+  .login-top-actions { gap: 5px; }
+  .login-public-link { padding-inline: 9px; }
+  .login-card { padding: 18px; }
+  .domain-select { width: 96px; }
 }
-
-.switch-action:hover {
-  text-decoration: underline;
-}
-
-@media (max-height: 700px) {
-  .form-wrapper { align-items: flex-start; }
-}
-
-:deep(.bind-dialog) {
-  width: 400px !important;
-  @media (max-width: 440px) {
-    width: calc(100% - 40px) !important;
-    margin-right: 20px !important;
-    margin-left: 20px !important;
-  }
-}
-
-.bind-container {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0;
-
-  .el-input { margin-bottom: 15px; }
-}
-
-.github {
-  position: fixed;
-  width: 35px;
-  height: 35px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 50%;
-  background: var(--el-bg-color);
-  bottom: 10px;
-  right: 10px;
-  z-index: 1000;
-  border: 1px solid var(--el-border-color-light);
-  box-shadow: var(--el-box-shadow-light);
-  cursor: pointer;
-}
-
-:deep(.el-input-group__append) {
-  padding: 0 !important;
-  padding-inline-start: 8px !important;
-  padding-inline-end: 4px !important;
-  background: var(--el-bg-color);
-  border-start-end-radius: 8px;
-  border-end-end-radius: 8px;
-}
-
-.domain-select {
-  width: clamp(100px, 34vw, 150px);
-  height: 36px;
-  padding-inline: 3px;
-  background: var(--el-bg-color);
-  color: var(--el-text-color-primary);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-:deep(.el-button+.el-button) {
-  margin: 0;
-}
-
-.register-turnstile {
-  margin-bottom: 18px;
-}
-
-.custom-style {
-  margin-bottom: 10px;
-}
-
-.custom-style .el-segmented {
-  --el-border-radius-base: 6px;
-  width: 180px;
-}
-
-
-#login-box {
-  background: linear-gradient(to bottom, #2980b9, #6dd5fa, #fff);
-  font: 100% Arial, sans-serif;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
-  display: grid;
-  grid-template-columns: 1fr;
-}
-
-
-#background-wrap {
-  height: 100%;
-  z-index: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #background-wrap .cloud { animation: none !important; }
-}
-
-@keyframes animateCloud {
-  0% {
-    margin-left: -500px;
-  }
-
-  100% {
-    margin-left: 100%;
-  }
-}
-
-.x1 {
-  animation: animateCloud 30s linear infinite;
-  transform: scale(0.65);
-}
-
-.x2 {
-  animation: animateCloud 15s linear infinite;
-  transform: scale(0.3);
-}
-
-.x3 {
-  animation: animateCloud 25s linear infinite;
-  transform: scale(0.5);
-}
-
-.x4 {
-  animation: animateCloud 13s linear infinite;
-  transform: scale(0.4);
-}
-
-.x5 {
-  animation: animateCloud 20s linear infinite;
-  transform: scale(0.55);
-}
-
-.cloud {
-  background: linear-gradient(to bottom, #fff 5%, #f1f1f1 100%);
-  border-radius: 100px;
-  box-shadow: 0 8px 5px rgba(0, 0, 0, 0.1);
-  height: 120px;
-  width: 350px;
-  position: relative;
-}
-
-.cloud:after,
-.cloud:before {
-  content: "";
-  position: absolute;
-  background: #fff;
-  z-index: -1;
-}
-
-.cloud:after {
-  border-radius: 100px;
-  height: 100px;
-  left: 50px;
-  top: -50px;
-  width: 100px;
-}
-
-.cloud:before {
-  border-radius: 200px;
-  height: 180px;
-  width: 180px;
-  right: 50px;
-  top: -90px;
-}
-
 </style>

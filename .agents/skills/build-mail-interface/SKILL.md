@@ -17,7 +17,7 @@ Implement a defined screen or visual system in the existing Vue app. Read `map-m
 
 - Use semantic buttons, links, inputs, headings, lists, and dialog behavior. All icon-only actions need an accessible name, visible focus, and a keyboard path.
 - Keep the primary action and recovery state clear at phone width. Support long labels, right-to-left Arabic, and left-to-right email addresses/codes.
-- Add user-facing strings through the existing localization system for all 15 supported languages. Keep placeholders and meaning aligned.
+- Add user-facing strings through the existing localization system for every selectable language. Keep placeholders and meaning aligned; validate generated translations and identify any component-level fallback honestly.
 - Represent loading, empty, error, offline, and locally saved data distinctly when the flow can reach them.
 - Preserve permission checks and the public mailbox's address-only access model. Do not add automatic local cleanup; respect existing attachment cache limits and browser storage failure states.
 - Follow existing data and security boundaries for message HTML, attachments, and authentication. Do not weaken them to achieve a visual effect.

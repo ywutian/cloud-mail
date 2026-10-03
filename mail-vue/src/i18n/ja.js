@@ -371,6 +371,8 @@ const ja = {
     "clientSecret": "クライアント シークレット",
     "notOwner": "基本メールアドレスはあなたのものではありません",
     "pwa": {
+        "shortName": "Cloud Mail",
+        "description": "メールの受信、送信、アカウント管理。",
         "appName": "Cloud Mail",
         "install": "ホーム画面に追加",
         "installHelp": "メールをホーム画面から専用ウィンドウで開けます。メールと添付ファイルの取得には引き続きインターネット接続が必要です。",
@@ -388,6 +390,8 @@ const ja = {
         "retry": "再試行"
     },
     "temporaryInbox": {
+        "shortName": "一時メール",
+        "description": "最近のメールと確認コードを受け取り、端末にコピーを保存できる一時受信箱。",
         "noActiveAddress": "使用中のアドレスはありません",
         "createAddress": "アドレスを作成",
         "localHistory": "この端末に保存",
@@ -451,6 +455,9 @@ const ja = {
         "copyFailed": "ブラウザがコピーをブロックしました。テキストを手動で選択してコピーします"
     },
     "languageAuto": "自動",
+    "languageSearch": "言語を検索",
+    "languageNoResults": "言語が見つかりません",
+    "languagePreview": "暫定訳",
     "loginLoading": "サインイン中…",
     "bindMailboxTitle": "メールアドレスを登録",
     "bindAction": "アドレスを連携",

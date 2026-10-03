@@ -270,6 +270,9 @@ const it = {
     "message": "Posta",
     "language": "Lingua",
     "languageAuto": "Automatico",
+    "languageSearch": "Cerca lingue",
+    "languageNoResults": "Nessuna lingua trovata",
+    "languagePreview": "Traduzione preliminare",
     "loginLoading": "Accesso in corso...",
     "bindMailboxTitle": "Registra un indirizzo email",
     "bindAction": "Associa indirizzo",
@@ -401,6 +404,8 @@ const it = {
     "clientSecret": "Segreto del cliente",
     "notOwner": "L'e-mail di base non ti appartiene",
     "pwa": {
+        "shortName": "Cloud Mail",
+        "description": "Ricevi e invia e-mail e gestisci gli account.",
         "appName": "Cloud Mail",
         "install": "Aggiungi alla schermata iniziale",
         "installHelp": "Apri la casella di posta in una finestra separata dalla schermata iniziale. La posta e gli allegati richiedono comunque una connessione Internet.",
@@ -418,6 +423,8 @@ const it = {
         "retry": "Riprova"
     },
     "temporaryInbox": {
+        "shortName": "Posta temp.",
+        "description": "Casella temporanea per e-mail recenti e codici di verifica, con copie salvate sul dispositivo.",
         "noActiveAddress": "Nessun indirizzo attivo",
         "createAddress": "Crea un indirizzo",
         "localHistory": "Salvato su questo dispositivo",

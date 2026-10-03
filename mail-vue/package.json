@@ -4,10 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --mode dev",
-    "remote": "vite --mode remote",
-    "build": "vite build --mode release",
-    "eo": "vite build --mode eo",
+    "dev": "node tools/generate-localized-manifests.mjs && vite --mode dev",
+    "remote": "node tools/generate-localized-manifests.mjs && vite --mode remote",
+    "build": "node tools/generate-localized-manifests.mjs && vite build --mode release",
+    "eo": "node tools/generate-localized-manifests.mjs && vite build --mode eo",
+    "check:manifests": "node tools/generate-localized-manifests.mjs --check",
     "preview": "vite preview",
     "test": "node --test test/*.test.js"
   },

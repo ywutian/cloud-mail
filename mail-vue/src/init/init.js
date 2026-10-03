@@ -5,7 +5,9 @@ import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import router from "@/router";
 import {websiteConfig} from "@/request/setting.js";
-import i18n, {getBrowserLanguage, resolveLanguage} from "@/i18n/index.js";
+import i18n, {getBrowserLanguage, loadLanguage, resolveLanguage} from "@/i18n/index.js";
+import {intlLanguage, languageDirection, manifestPath} from '@/i18n/languages.js'
+import {loadElementLocale} from '@/ui/element-locale.js'
 
 export async function init() {
     document.title = '\u200B'
@@ -17,10 +19,20 @@ export async function init() {
     const token = localStorage.getItem('token');
     if (!settingStore.lang) settingStore.lang = 'auto'
     const publicPage = window.location.hostname.startsWith('temp.') || window.location.pathname === '/find'
-    i18n.global.locale.value = resolveLanguage(
+    const initialLanguage = resolveLanguage(
         publicPage ? settingStore.publicMailboxLanguage : settingStore.lang,
         getBrowserLanguage(),
     )
+    let loadedLanguage = initialLanguage
+    try {
+        await Promise.all([loadLanguage(initialLanguage), loadElementLocale(initialLanguage)])
+    } catch {
+        loadedLanguage = 'en'
+    }
+    i18n.global.locale.value = loadedLanguage
+    document.documentElement.lang = intlLanguage(loadedLanguage)
+    document.documentElement.dir = languageDirection(loadedLanguage)
+    document.querySelector('link[rel="manifest"]')?.setAttribute('href', manifestPath(loadedLanguage, publicPage))
 
     if (publicPage) {
         document.title = i18n.global.t('temporaryInbox.title')

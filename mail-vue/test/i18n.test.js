@@ -34,11 +34,18 @@ import workerVi from '../../mail-worker/src/i18n/vi.js'
 import workerTr from '../../mail-worker/src/i18n/tr.js'
 import workerAr from '../../mail-worker/src/i18n/ar.js'
 import workerHi from '../../mail-worker/src/i18n/hi.js'
-import {getBrowserLanguage, intlLanguage, languages, manifestPath, normalizeLanguage, resolveLanguage} from '../src/i18n/languages.js'
+import expandedBackend from '../../mail-worker/src/i18n/expanded.js'
+import {getBrowserLanguage, intlLanguage, languageDirection, languages, manifestPath, normalizeLanguage, resolveLanguage} from '../src/i18n/languages.js'
 import {requestLanguage, t} from '../../mail-worker/src/i18n/i18n.js'
 
-const frontend = {en: frontEn, zh: frontZh, es: frontEs, fr: frontFr, ja: frontJa, ko: frontKo, de: frontDe, pt: frontPt, ru: frontRu, it: frontIt, id: frontId, vi: frontVi, tr: frontTr, ar: frontAr, hi: frontHi}
-const backend = {en: workerEn, zh: workerZh, es: workerEs, fr: workerFr, ja: workerJa, ko: workerKo, de: workerDe, pt: workerPt, ru: workerRu, it: workerIt, id: workerId, vi: workerVi, tr: workerTr, ar: workerAr, hi: workerHi}
+const expandedFrontend = Object.fromEntries(
+  languages.filter(language => language.coverage === 'preview').map(({code}) => [
+    code,
+    JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), `../src/i18n/locales/${code}.json`), 'utf8')),
+  ]),
+)
+const frontend = {...expandedFrontend, en: frontEn, zh: frontZh, es: frontEs, fr: frontFr, ja: frontJa, ko: frontKo, de: frontDe, pt: frontPt, ru: frontRu, it: frontIt, id: frontId, vi: frontVi, tr: frontTr, ar: frontAr, hi: frontHi}
+const backend = {...Object.fromEntries(languages.filter(language => language.coverage === 'preview').map(({code}) => [code, expandedBackend[code]])), en: workerEn, zh: workerZh, es: workerEs, fr: workerFr, ja: workerJa, ko: workerKo, de: workerDe, pt: workerPt, ru: workerRu, it: workerIt, id: workerId, vi: workerVi, tr: workerTr, ar: workerAr, hi: workerHi}
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../src')
 const workerRoot = resolve(root, '../../mail-worker/src')
 
@@ -102,12 +109,14 @@ test('browser preference and manual selection resolve all supported languages', 
       configurable: true,
       value: {languages: ['zh-TW', 'pt-PT', 'it-IT', 'ru-RU'], language: 'zh-TW'},
     })
-    assert.equal(getBrowserLanguage(), 'it')
-    assert.equal(resolveLanguage('auto'), 'it')
+    assert.equal(getBrowserLanguage(), 'zh-Hant')
+    assert.equal(resolveLanguage('auto'), 'zh-Hant')
     assert.equal(resolveLanguage('ja'), 'ja')
     assert.equal(normalizeLanguage('pt-BR'), 'pt')
-    assert.equal(normalizeLanguage('zh-Hant'), null)
-    assert.equal(normalizeLanguage('pt-PT'), null)
+    assert.equal(normalizeLanguage('zh-Hant'), 'zh-Hant')
+    assert.equal(normalizeLanguage('pt-PT'), 'pt')
+    assert.equal(normalizeLanguage('he-IL'), null)
+    assert.equal(normalizeLanguage('nl-NL'), null)
     assert.equal(normalizeLanguage('xx-XX'), null)
   } finally {
     if (previous) Object.defineProperty(globalThis, 'navigator', previous)
@@ -121,7 +130,7 @@ test('both home screen apps have a localized manifest for every language', () =>
       const path = resolve(root, '../public' + manifestPath(code, temporary))
       const manifest = JSON.parse(readFileSync(path, 'utf8'))
       assert.equal(manifest.lang, intlLanguage(code), path)
-      assert.equal(manifest.dir, code === 'ar' ? 'rtl' : 'ltr', path)
+      assert.equal(manifest.dir, languageDirection(code), path)
       assert.equal(manifest.id, temporary ? '/temporary-mail-app' : '/mail-app', path)
       assert.ok(manifest.name.trim() && manifest.description.trim(), path)
     }

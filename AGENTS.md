@@ -3,6 +3,7 @@
 - Do not add assistant, model, tool-brand, or generation-source attribution to user-facing or shareable material. This includes UI copy, documents, reports, filenames, branches, commits, and pull requests. Use neutral business names.
 - Before continuing development in this repository, read `/Users/yitianwu/.config/development/pr-workflow.md` and keep the user's open work in one pull request. Preserve Git history and existing evidence.
 - Public temporary mail remains available by address alone. The app does not automatically clear local history. Binary attachment caching is limited to 10 MiB per file and 100 MiB in total; browser storage pressure or clearing site data can remove local copies. Preserve the current permission and attachment boundaries.
+- Treat the language registry as the single source for language selection, browser matching, page direction, server messages, and home-screen metadata. A language offered in the picker must have a validated application dictionary; do not present an English fallback as a completed translation.
 
 ## UI design specialists
 

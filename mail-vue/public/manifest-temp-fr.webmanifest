@@ -1,6 +1,6 @@
 {
   "id": "/temporary-mail-app",
-  "name": "Boîte temporaire",
+  "name": "Boîte aux lettres temporaire",
   "short_name": "Boîte temp.",
   "description": "Boîte temporaire pour les messages récents et les codes de vérification, avec des copies enregistrées sur l’appareil.",
   "start_url": "/find",

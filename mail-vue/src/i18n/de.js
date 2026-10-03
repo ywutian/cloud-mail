@@ -371,6 +371,8 @@ const de = {
     "clientSecret": "Client-Geheimnis",
     "notOwner": "Die Basis-E-Mail gehört nicht Ihnen",
     "pwa": {
+        "shortName": "Cloud Mail",
+        "description": "E-Mails empfangen und senden sowie Konten verwalten.",
         "appName": "Cloud Mail",
         "install": "Zum Startbildschirm hinzufügen",
         "installHelp": "Öffnen Sie Ihr Postfach vom Startbildschirm aus in einem eigenen Fenster. Für E-Mails und Anhänge ist weiterhin eine Internetverbindung erforderlich.",
@@ -388,6 +390,8 @@ const de = {
         "retry": "Erneut versuchen"
     },
     "temporaryInbox": {
+        "shortName": "Temp. Postfach",
+        "description": "Temporäres Postfach für aktuelle E-Mails und Bestätigungscodes mit lokal gespeicherten Kopien.",
         "noActiveAddress": "Keine aktive Adresse",
         "createAddress": "Adresse erstellen",
         "localHistory": "Auf diesem Gerät gespeichert",
@@ -451,6 +455,9 @@ const de = {
         "copyFailed": "Ihr Browser hat das Kopieren blockiert. Wählen Sie den Text manuell aus und kopieren Sie ihn"
     },
     "languageAuto": "Automatisch",
+    "languageSearch": "Sprachen suchen",
+    "languageNoResults": "Keine Sprachen gefunden",
+    "languagePreview": "Vorläufige Übersetzung",
     "loginLoading": "Anmelden…",
     "bindMailboxTitle": "Registrieren Sie eine E-Mail-Adresse",
     "bindAction": "Adresse verknüpfen",

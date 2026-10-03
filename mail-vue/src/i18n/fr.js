@@ -371,6 +371,8 @@ const fr = {
     "clientSecret": "Secret client",
     "notOwner": "L'e-mail de base ne vous appartient pas",
     "pwa": {
+        "shortName": "Cloud Mail",
+        "description": "Messagerie, envoi d’e-mails et gestion des comptes.",
         "appName": "Cloud Mail",
         "install": "Ajouter à l’écran d’accueil",
         "installHelp": "Ouvrez votre boîte mail dans une fenêtre dédiée depuis l’écran d’accueil. Les messages et pièces jointes nécessitent toujours une connexion Internet.",
@@ -388,6 +390,8 @@ const fr = {
         "retry": "Réessayer"
     },
     "temporaryInbox": {
+        "shortName": "Boîte temp.",
+        "description": "Boîte temporaire pour les messages récents et les codes de vérification, avec des copies enregistrées sur l’appareil.",
         "noActiveAddress": "Aucune adresse active",
         "createAddress": "Créer une adresse",
         "localHistory": "Enregistré sur cet appareil",
@@ -451,6 +455,9 @@ const fr = {
         "copyFailed": "Votre navigateur a bloqué la copie. Sélectionnez et copiez le texte manuellement"
     },
     "languageAuto": "Automatique",
+    "languageSearch": "Rechercher des langues",
+    "languageNoResults": "Aucune langue trouvée",
+    "languagePreview": "Traduction provisoire",
     "loginLoading": "Connexion…",
     "bindMailboxTitle": "Enregistrer une adresse e-mail",
     "bindAction": "Associer l’adresse",

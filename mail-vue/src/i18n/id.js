@@ -270,6 +270,9 @@ const id = {
     "message": "Surat",
     "language": "Bahasa",
     "languageAuto": "Otomatis",
+    "languageSearch": "Cari bahasa",
+    "languageNoResults": "Bahasa tidak ditemukan",
+    "languagePreview": "Terjemahan awal",
     "loginLoading": "Masuk…",
     "bindMailboxTitle": "Daftarkan alamat email",
     "bindAction": "Hubungkan alamat",
@@ -401,6 +404,8 @@ const id = {
     "clientSecret": "Rahasia Klien",
     "notOwner": "Email dasar bukan milik Anda",
     "pwa": {
+        "shortName": "Cloud Mail",
+        "description": "Terima dan kirim email serta kelola akun.",
         "appName": "Cloud Mail",
         "install": "Tambahkan ke Layar Utama",
         "installHelp": "Buka kotak email Anda di jendela tersendiri dari Layar Utama. Email dan lampiran tetap memerlukan koneksi internet.",
@@ -418,6 +423,8 @@ const id = {
         "retry": "Coba lagi"
     },
     "temporaryInbox": {
+        "shortName": "Email Sementara",
+        "description": "Kotak masuk sementara untuk email terbaru dan kode verifikasi, dengan salinan tersimpan di perangkat.",
         "noActiveAddress": "Tidak ada alamat aktif",
         "createAddress": "Buat alamat",
         "localHistory": "Disimpan di perangkat ini",

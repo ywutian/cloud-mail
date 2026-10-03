@@ -3,60 +3,50 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="theme-color" content="#F1F1F1" id="theme-color-meta">
+  <meta name="theme-color" content="#f5f7fb" id="theme-color-meta">
   <meta name="description" content="Email inbox, sending and account management.">
   <title>Cloud Mail</title>
   <link rel="icon" href="/mail.png" type="image/png">
-  <link rel="manifest" id="app-manifest" href="/manifest.webmanifest">
+  <link rel="manifest" id="app-manifest">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   <script>
-    const temporaryApp = window.location.hostname.startsWith('temp.')
-    const publicPage = temporaryApp || window.location.pathname === '/find'
+    const temporaryApp = window.location.hostname.startsWith('temp.') || window.location.pathname === '/find'
     if (temporaryApp) document.documentElement.classList.add('temp-app')
-    const supportedLanguages = new Set(['zh', 'en', 'es', 'fr', 'ja', 'ko', 'de', 'pt', 'ru', 'it', 'id', 'vi', 'tr', 'ar', 'hi'])
-    const normalizeLanguage = value => {
-      if (typeof value !== 'string') return null
-      const parts = value.toLowerCase().replaceAll('_', '-').split('-')
-      if (parts[0] === 'zh' && parts.some(part => ['hant', 'tw', 'hk', 'mo'].includes(part))) return null
-      if (parts[0] === 'pt' && parts.includes('pt', 1)) return null
-      return supportedLanguages.has(parts[0]) ? parts[0] : null
-    }
-    let languageSettings
-    try { languageSettings = JSON.parse(localStorage.getItem('setting') || 'null') } catch (_) {}
-    const chosenLanguage = normalizeLanguage(publicPage ? languageSettings?.publicMailboxLanguage : languageSettings?.lang)
-    const preferredLanguages = navigator.languages?.length ? navigator.languages : [navigator.language]
-    const pageLanguage = chosenLanguage
-      || preferredLanguages.map(normalizeLanguage).find(Boolean)
-      || 'en'
-    const localeTags = {zh:'zh-CN',en:'en-US',es:'es-ES',fr:'fr-FR',ja:'ja-JP',ko:'ko-KR',de:'de-DE',pt:'pt-BR',ru:'ru-RU',it:'it-IT',id:'id-ID',vi:'vi-VN',tr:'tr-TR',ar:'ar-SA',hi:'hi-IN'}
-    document.documentElement.lang = localeTags[pageLanguage]
-    document.documentElement.dir = pageLanguage === 'ar' ? 'rtl' : 'ltr'
-    document.getElementById('app-manifest').href = `/manifest-${publicPage ? 'temp' : 'mail'}-${pageLanguage}.webmanifest`
     let uiStore
     try { uiStore = JSON.parse(localStorage.getItem('ui') || 'null') } catch (_) {}
     if (uiStore) {
       const root = document.documentElement
       root.classList.toggle('dark', Boolean(uiStore.dark));
       const metaTag = document.getElementById('theme-color-meta');
-      const isMobile =  !window.matchMedia("(pointer: fine) and (hover: hover)").matches;
-      metaTag.setAttribute('content', temporaryApp ? '#0a0e14' : (uiStore.dark ? (isMobile ? '#141414' : '#000000') : (isMobile ? '#FFFFFF' : '#F1F1F1')));
+      metaTag.setAttribute('content', temporaryApp ? '#0a0e14' : (uiStore.dark ? '#0d1420' : '#f5f7fb'));
     }
     if (temporaryApp && !uiStore) document.getElementById('theme-color-meta').setAttribute('content', '#0a0e14')
+  </script>
+  <script type="module">
+    import {getBrowserLanguage, resolveLanguage, intlLanguage, languageDirection, manifestPath} from '/src/i18n/languages.js'
+
+    const publicPage = window.location.hostname.startsWith('temp.') || window.location.pathname === '/find'
+    let settings
+    try { settings = JSON.parse(localStorage.getItem('setting') || 'null') } catch (_) {}
+    const selection = publicPage ? settings?.publicMailboxLanguage : settings?.lang
+    const language = resolveLanguage(selection, getBrowserLanguage())
+    document.documentElement.lang = intlLanguage(language)
+    document.documentElement.dir = languageDirection(language)
+    document.getElementById('app-manifest').href = manifestPath(language, publicPage)
   </script>
 </head>
 <style>
   html {
-    background: #FFFFFF;
+    background: #f5f7fb;
   }
   .dark {
-    background: #141414;
+    background: #0d1420;
   }
   .temp-app { background: #0a0e14; }
-  .temp-app #loading-first { background: #0a0e14; }
   #loading-first {
     position: fixed;
     left: 0;
@@ -67,8 +57,10 @@
     justify-content: center;
     align-items: center;
     z-index: 500;
-    background: var(--el-bg-color);
+    background: #f5f7fb;
   }
+  .dark #loading-first { background: #0d1420; }
+  .temp-app #loading-first { background: #0a0e14; }
 
   .loading-hide {
     pointer-events: none;
@@ -158,7 +150,7 @@
 <body>
 <div id="loading-first" >
   <div class="loading-icon">
-    <img class="loading-image" src="/app-icon-192.png" alt="Cloud Mail">
+    <img class="loading-image" src="/app-icon-192.png" alt="">
     <div class="loading-progress" aria-hidden="true"></div>
   </div>
 </div>

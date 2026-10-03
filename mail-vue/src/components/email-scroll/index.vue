@@ -1,5 +1,5 @@
 <template>
-  <div class="email-container">
+  <div ref="container" class="email-container">
     <div class="header-slot"><slot name="header"></slot></div>
     <div class="header-actions">
       <el-checkbox
@@ -58,6 +58,7 @@
                  @contextmenu="handleContextmenu($event, item)"
             >
               <button type="button" class="row-open-action"
+                      :data-email-id="item.emailId"
                       :aria-label="`${t('details')}: ${item.name || item.sendEmail || item.receiveEmail || ''}, ${item.subject || t('noSubject')}`"
                       @click="jumpDetails(item)"></button>
               <el-checkbox :class=" props.type === 'all-email' ? 'all-email-checkbox' : 'checkbox'"
@@ -87,8 +88,8 @@
                   </div>
                   <div v-else></div>
                   <span class="name">
-                    <span>
-                      <div class="unread" v-if="isMobile && (item.unread === EmailUnreadEnum.UNREAD && showUnread) "/>
+                    <span dir="auto">
+                      <div class="unread" v-if="isCompact && (item.unread === EmailUnreadEnum.UNREAD && showUnread) "/>
                       <slot name="name" :email="item"> {{ item.name }}</slot>
                     </span>
                     <span>
@@ -105,17 +106,17 @@
                 <div>
                   <div class="email-text">
                     <span class="email-subject" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread)  ? 'font-weight: bold' : ''">
-                      <div class="unread" v-if="!isMobile && (item.unread === EmailUnreadEnum.UNREAD && showUnread) "/>
+                      <div class="unread" v-if="!isCompact && (item.unread === EmailUnreadEnum.UNREAD && showUnread) "/>
                       <button v-if="item.code" type="button" class="code-tag"
                               :aria-label="`${t('copyCode')}: ${item.code}`"
                               @click.stop="copyCode(item.code)">[{{ t('codeLabel') }}{{ item.code }}]</button>
-                      <span class="subject-text">
+                      <span class="subject-text" dir="auto">
                         <slot name="subject" :email="item" >
                           {{ item.subject || '\u200B' }}
                         </slot>
                       </span>
                     </span>
-                    <span class="email-content">{{ item.text || '\u200B' }}</span>
+                    <span class="email-content" dir="auto">{{ item.text || '\u200B' }}</span>
                   </div>
                   <div class="user-info" v-if="showUserInfo">
                     <div class="user">
@@ -164,7 +165,7 @@
                        :showUserInfo="showUserInfo"
                        :type="type"/>
       <div class="empty" v-if="noLoading && emailList.length === 0 && !loading && !loadError">
-        <el-empty :image-size="isMobile ? 120 : null" :description="$t('noMessagesFound')"/>
+        <el-empty :image-size="isCompact ? 120 : null" :description="$t('noMessagesFound')"/>
       </div>
     </div>
     <el-dropdown
@@ -338,12 +339,14 @@ const total = ref(0);
 const checkAll = ref(false);
 const isIndeterminate = ref(false);
 const scroll = ref(null)
+const container = ref(null)
 const firstLoad = ref(true)
 let scrollTop = 0
 const latestEmail = ref(null)
 const scrollbarRef = ref(null)
 let reqLock = false
-let isMobile = ref(innerWidth < 1367)
+const isCompact = ref(true)
+let containerObserver
 let skeletonRows = 0
 const timePaddingRight = ref('');
 const keyCount = ref(0);
@@ -392,6 +395,14 @@ onActivated(() => {
 })
 
 onMounted(() => {
+  updateContainerMode()
+  if (typeof ResizeObserver !== 'undefined') {
+    containerObserver = new ResizeObserver(updateContainerMode)
+    containerObserver.observe(container.value)
+  } else {
+    window.addEventListener('resize', updateContainerMode)
+  }
+  window.addEventListener('wheel', closeDropdownOnWheel)
   timer = setInterval(() => {
     emailList.forEach(email => {
       email.formatCreateTime = fromNow(email.createTime);
@@ -400,13 +411,16 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  containerObserver?.disconnect()
+  window.removeEventListener('resize', updateContainerMode)
+  window.removeEventListener('wheel', closeDropdownOnWheel)
   clearInterval(timer)
 })
 
 getEmailList()
 
-window.onresize = () => {
-  isMobile.value = innerWidth < 1367
+function updateContainerMode() {
+  isCompact.value = (container.value?.getBoundingClientRect().width ?? window.innerWidth) <= 640
 }
 
 function onScroll(e) {
@@ -424,9 +438,9 @@ const list = computed(() => {
 
 const itemHeight = computed(() => {
     if (props.type === 'all-email') {
-      return isMobile.value ? 132 : 65;
+      return isCompact.value ? 132 : 65;
     } else  {
-      return isMobile.value ? 83 : 48;
+      return isCompact.value ? 83 : 48;
     }
 })
 
@@ -513,11 +527,11 @@ watch(() => emailStore.addStarEmailId, () => {
   })
 })
 
-window.addEventListener('wheel', (event) => {
+function closeDropdownOnWheel() {
   if (dropdownShow.value) {
-    dropdownRef.value.handleClose();
+    dropdownRef.value?.handleClose();
   }
-})
+}
 
 function openReply(email) {
   uiStore.writerRef.openReply(email)
@@ -936,6 +950,9 @@ function loadData() {
 
 .email-container {
   display: grid;
+  container-type: inline-size;
+  width: 100%;
+  min-width: 0;
   /* 三行：header slot（没传内容时高度为 0）、工具栏、列表 */
   grid-template-rows: auto auto 1fr;
   padding: 0;
@@ -1035,6 +1052,8 @@ function loadData() {
 
 :deep(.email-row) {
   display: flex;
+  width: 100%;
+  min-width: 0;
   padding: 8px 0;
   justify-content: space-between;
   box-shadow: var(--header-actions-border);
@@ -1057,7 +1076,7 @@ function loadData() {
     position: relative;
     z-index: 2;
   }
-  @media (max-width: 1366px) {
+  @container (max-width: 640px) {
     height: 83px;
   }
 
@@ -1067,18 +1086,19 @@ function loadData() {
   }
   &.all-email {
     height: 65px;
-    @media (max-width: 1366px) {
+    @container (max-width: 640px) {
       height: 132px;
     }
   }
   .user-info {
     display: flex;
+    min-width: 0;
     flex-wrap: wrap;
     column-gap: 10px;
     margin-top: 5px;
     margin-bottom: 2px;
     color: var(--email-scroll-content-color);
-    @media (max-width: 1366px) {
+    @container (max-width: 640px) {
       flex-direction: column;
     }
 
@@ -1091,7 +1111,7 @@ function loadData() {
       max-width: 300px;
       min-width: 0;
 
-      @media (max-width: 1223px) {
+      @container (max-width: 560px) {
         max-width: 280px;
       }
 
@@ -1109,6 +1129,7 @@ function loadData() {
 
   .checkbox {
     display: flex;
+    flex: 0 0 auto;
     padding-left: 15px;
     padding-right: 20px;
     justify-content: center;
@@ -1116,10 +1137,11 @@ function loadData() {
 
   .all-email-checkbox {
     display: flex;
+    flex: 0 0 auto;
     padding-left: 15px;
     padding-right: 20px;
     justify-content: center;
-    @media (min-width: 1367px) {
+    @container (min-width: 641px) {
       justify-content: start;
       height: 100%;
       align-self: start;
@@ -1128,34 +1150,38 @@ function loadData() {
   }
 
   .title-column {
-    @media (max-width: 1366px) {
-      grid-template-columns: 1fr !important;
+    @container (max-width: 640px) {
+      grid-template-columns: minmax(0, 1fr) !important;
       gap: 4px !important;
     }
   }
 
   .title {
-    flex: 1;
+    flex: 1 1 0%;
+    min-width: 0;
     display: grid;
-    grid-template-columns: 240px 1fr;
-    @media (max-width: 1366px) {
+    grid-template-columns: 240px minmax(0, 1fr);
+    @container (max-width: 640px) {
       padding-right: 15px;
     }
-    @media (max-width: 1366px) {
-      grid-template-columns: 1fr;
+    @container (max-width: 640px) {
+      grid-template-columns: minmax(0, 1fr);
       gap: 4px;
     }
+
+    > div { min-width: 0; }
 
     .email-sender {
       color: var(--el-text-color-primary);
       display: grid;
-      grid-template-columns: auto 1fr auto;
+      min-width: 0;
+      grid-template-columns: auto minmax(0, 1fr) auto;
 
       .email-status {
         display: flex;
         flex-direction: column;
         align-content: center;
-        @media (max-width: 1366px) {
+        @container (max-width: 640px) {
           flex-direction: row;
           gap: 5px;
         }
@@ -1163,16 +1189,17 @@ function loadData() {
 
       .name {
         display: grid;
+        min-width: 0;
         gap: 5px;
-        grid-template-columns: auto 1fr;
+        grid-template-columns: minmax(0, 1fr) auto;
 
         > span:last-child {
           display: flex;
           align-items: center;
         }
 
-        @media (min-width: 1366px) {
-          grid-template-columns: 1fr;
+        @container (min-width: 641px) {
+          grid-template-columns: minmax(0, 1fr);
           > span:last-child {
             display: none;
           }
@@ -1187,7 +1214,7 @@ function loadData() {
         .name-skeleton {
           width: 150px;
           height: 1rem;
-          @media (max-width: 767px) {
+          @container (max-width: 380px) {
             width: 130px;
           }
         }
@@ -1196,7 +1223,7 @@ function loadData() {
       .phone-time {
         font-weight: normal;
         font-size: 12px;
-        @media (min-width: 1367px) {
+        @container (min-width: 641px) {
           display: none;
         }
       }
@@ -1206,10 +1233,10 @@ function loadData() {
       .text-skeleton-one {
         width: 80%;
         height: 16px;
-        @media (max-width: 1366px) {
+        @container (max-width: 640px) {
           width: 40%;
         }
-        @media (max-width: 767px) {
+        @container (max-width: 380px) {
           width: 70%;
         }
       }
@@ -1217,10 +1244,10 @@ function loadData() {
       .text-skeleton-two {
         width: min(300px, 100%);
         height: 16px;
-        @media (min-width: 1367px) {
+        @container (min-width: 641px) {
           display: none;
         }
-        @media (max-width: 1366px) {
+        @container (max-width: 640px) {
           width: 100%;
         }
       }
@@ -1228,9 +1255,10 @@ function loadData() {
 
     .email-text {
       display: grid;
-      grid-template-columns: auto 1fr;
-      @media (max-width: 1366px) {
-        grid-template-columns: 1fr;
+      min-width: 0;
+      grid-template-columns: auto minmax(0, 1fr);
+      @container (max-width: 640px) {
+        grid-template-columns: minmax(0, 1fr);
       }
 
       .email-subject {
@@ -1240,7 +1268,7 @@ function loadData() {
         overflow: hidden;
         white-space: nowrap;
         min-width: 0;
-        @media (min-width: 1367px) {
+        @container (min-width: 641px) {
           padding-left: 5px;
         }
       }
@@ -1267,12 +1295,13 @@ function loadData() {
       }
 
       .email-content {
+        min-width: 0;
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
         padding-left: 10px;
         color: var(--email-scroll-content-color);
-        @media (max-width: 1366px) {
+        @container (max-width: 640px) {
           padding-left: 0;
           margin-top: 0;
         }
@@ -1282,19 +1311,20 @@ function loadData() {
 
 
   .email-right {
+    flex: 0 0 auto;
     text-align: right;
     font-size: 12px;
     white-space: nowrap;
     display: flex;
     padding-left: 15px;
     align-items: center;
-    @media (max-width: 1366px) {
+    @container (max-width: 640px) {
       display: none;
     }
   }
 
   .email-right-skeleton {
-    @media (max-width: 1366px) {
+    @container (max-width: 640px) {
       display: none;
     }
   }
@@ -1333,7 +1363,7 @@ function loadData() {
   cursor: pointer;
 }
 
-@media (max-width: 1366px) {
+@container (max-width: 640px) {
   .pc-star {
     display: none;
   }

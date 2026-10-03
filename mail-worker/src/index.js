@@ -6,6 +6,11 @@ import emailService from './service/email-service';
 import kvObjService from './service/kv-obj-service';
 import oauthService from './service/oauth-service';
 import analysisService from './service/analysis-service';
+const accountRoutes = new Set([
+	'/login', '/inbox', '/mail', '/settings', '/addresses', '/starred',
+	'/sent', '/drafts', '/all-users', '/role', '/system-settings',
+	'/invite-code', '/all-mail', '/analysis',
+]);
 export default {
 	 async fetch(req, env, ctx) {
 
@@ -24,9 +29,13 @@ export default {
 			return response;
 		}
 
-		// temp.* 是给别人的公开入口，进来直接到查码页，不给看登录页
-		if (url.hostname.startsWith('temp.') && url.pathname === '/') {
-			return Response.redirect(url.origin + '/find', 302)
+		if (url.hostname.startsWith('temp.')) {
+			if (url.pathname === '/') return Response.redirect(url.origin + '/find', 302)
+			const routePath = url.pathname.replace(/\/+$/, '') || '/';
+			if (['GET', 'HEAD'].includes(req.method) && accountRoutes.has(routePath)) {
+				url.hostname = url.hostname.replace(/^temp\./, 'box.')
+				return Response.redirect(url.toString(), 302)
+			}
 		}
 
 		if (url.pathname.startsWith('/api/')) {

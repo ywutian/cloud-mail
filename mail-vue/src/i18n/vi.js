@@ -270,6 +270,9 @@ const vi = {
   "message": "Thư",
   "language": "Ngôn ngữ",
   "languageAuto": "Tự động",
+  "languageSearch": "Tìm ngôn ngữ",
+  "languageNoResults": "Không tìm thấy ngôn ngữ",
+  "languagePreview": "Bản dịch sơ bộ",
   "loginLoading": "Đang đăng nhập…",
   "bindMailboxTitle": "Đăng ký một địa chỉ email",
   "bindAction": "Liên kết địa chỉ",
@@ -401,6 +404,8 @@ const vi = {
   "clientSecret": "Khóa bí mật ứng dụng",
   "notOwner": "Địa chỉ email chính không thuộc về bạn",
   "pwa": {
+    "shortName": "Cloud Mail",
+    "description": "Nhận và gửi email, quản lý tài khoản.",
     "appName": "Cloud Mail",
     "install": "Thêm vào màn hình chính",
     "installHelp": "Mở hộp thư của bạn trong cửa sổ riêng từ màn hình chính. Thư và tệp đính kèm vẫn yêu cầu kết nối Internet.",
@@ -418,6 +423,8 @@ const vi = {
     "retry": "Thử lại"
   },
   "temporaryInbox": {
+    "shortName": "Thư tạm",
+    "description": "Hộp thư tạm thời cho email gần đây và mã xác minh, lưu bản sao trên thiết bị.",
     "noActiveAddress": "Không có địa chỉ hoạt động",
     "createAddress": "Tạo một địa chỉ",
     "localHistory": "Đã lưu trên thiết bị này",

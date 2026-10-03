@@ -270,6 +270,9 @@ const en = {
     message: 'Mail',
     language: 'Language',
     languageAuto: 'Auto',
+    languageSearch: 'Search languages',
+    languageNoResults: 'No languages found',
+    "languagePreview": "Translation preview",
     loginLoading: 'Signing in…',
     bindMailboxTitle: 'Register an email address',
     bindAction: 'Bind address',
@@ -401,6 +404,8 @@ const en = {
     clientSecret: 'Client Secret',
     notOwner: 'Base email does not belong to you',
     pwa: {
+        "shortName": "Cloud Mail",
+        "description": "Email inbox, sending and account management.",
         appName: 'Cloud Mail',
         install: 'Add to Home Screen',
         installHelp: 'Open your mailbox in its own window from your home screen. Mail and attachments still require an internet connection.',
@@ -418,6 +423,8 @@ const en = {
         retry: 'Try again',
     },
     temporaryInbox: {
+        "shortName": "Temp Mail",
+        "description": "Temporary inbox for recent mail and verification codes, with local saved copies.",
         "noActiveAddress": "No active address",
         "createAddress": "Create an address",
         "localHistory": "Saved on this device",
