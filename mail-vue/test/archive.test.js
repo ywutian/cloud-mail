@@ -68,6 +68,7 @@ test('binary limits are enforced without discarding saved mail', async () => {
 test('manual clear removes every address and rejects captures started before it', async () => {
   const store = archive()
   const started = Date.now() - 1000
+  const previousRevision = (await store.startSession({idleDays: 30})).clearRevision
   await store.recordAddress('first@example.com', started)
   await store.recordAddress('second@example.com', started)
   await store.saveMessage('first@example.com', {emailId: 1, createTime: '2026-10-02 12:00:00'},
@@ -75,12 +76,20 @@ test('manual clear removes every address and rejects captures started before it'
   await store.saveBinary(store.mailKey('first@example.com', 1), 'inline', 'image', new Blob(['data']),
     {capturedAt: started})
 
-  await store.clear()
+  const currentRevision = await store.clear()
+  assert.notEqual(currentRevision, previousRevision)
   assert.deepEqual(await store.stats(), {addresses: 0, messages: 0, binaryBytes: 0})
   assert.equal(await store.recordAddress('first@example.com', started, {capturedAt: started}), false)
   assert.equal(await store.saveMessage('first@example.com', {emailId: 2}, {capturedAt: started}), false)
   assert.equal((await store.saveBinary(store.mailKey('first@example.com', 2), 'attachment', 1,
     new Blob(['late']), {capturedAt: started})).reason, 'cleared')
+  const afterClear = currentRevision + 1
+  assert.equal(await store.recordAddress('first@example.com', afterClear,
+    {capturedAt: afterClear, expectedClear: previousRevision}), false)
+  assert.equal(await store.saveMessage('first@example.com', {emailId: 3},
+    {capturedAt: afterClear, expectedClear: previousRevision}), false)
+  assert.equal((await store.saveBinary(store.mailKey('first@example.com', 3), 'attachment', 1,
+    new Blob(['late']), {capturedAt: afterClear, expectedClear: previousRevision})).reason, 'cleared')
   assert.deepEqual(await store.listAddresses(), [])
   await store.db.delete()
 })

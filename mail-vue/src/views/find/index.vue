@@ -255,6 +255,7 @@ const previewUrls = new Set()
 const captureRuns = new Map()
 const archiveChannel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('temporary-mail-archive')
 let archiveSession = 0
+let archiveClearRevision = null
 let localRequestId = 0
 let lastRetentionCheck = Date.now()
 let disposed = false
@@ -322,6 +323,7 @@ function attachmentUrlFor(emailId, mailbox, att, download = false) {
 async function attachmentBlob(att) {
   const capturedAt = Date.now()
   const session = archiveSession
+  const clearRevision = archiveClearRevision
   const mailbox = address.value
   const emailId = viewing.value?.emailId
   if (!mailbox || !emailId) throw new Error('No open message')
@@ -338,7 +340,8 @@ async function attachmentBlob(att) {
   if (!response.ok) throw new Error(t('temporaryInbox.attachmentUnavailable'))
   const blob = await response.blob()
   if (SAVE_BINARY_FILES && !archiveUnavailable.value && session === archiveSession) {
-    archive.saveBinary(key, 'attachment', att.attId, blob, {capturedAt}).then(result => {
+    archive.saveBinary(key, 'attachment', att.attId, blob,
+      {capturedAt, expectedClear: clearRevision}).then(result => {
       if (session === archiveSession && !result.saved && result.reason !== 'cleared') archiveWarning.value = 'temporaryInbox.storageLimit'
     }).catch(() => {
       if (session === archiveSession) archiveWarning.value = 'temporaryInbox.storageUnavailable'
@@ -411,18 +414,19 @@ async function cachedFullMail(mailbox, emailId) {
   return {...saved, inlineMedia}
 }
 
-async function cacheMedia(full, mailbox, capturedAt, session = archiveSession) {
+async function cacheMedia(full, mailbox, capturedAt, session = archiveSession,
+                          clearRevision = archiveClearRevision) {
   if (!SAVE_BINARY_FILES || archiveUnavailable.value) return
   const key = archive.mailKey(mailbox, full.emailId)
   for (const [mediaKey, source] of Object.entries(full.inlineMedia || {})) {
     if (session !== archiveSession) return
-    await cacheOneBinary(key, 'inline', mediaKey, source, capturedAt, session)
+    await cacheOneBinary(key, 'inline', mediaKey, source, capturedAt, session, clearRevision)
   }
   if (session === archiveSession) void refreshViewedInline(mailbox, full.emailId, session)
   for (const att of full.attList || []) {
     if (session !== archiveSession) return
     await cacheOneBinary(key, 'attachment', att.attId,
-      attachmentUrlFor(full.emailId, mailbox, att), capturedAt, session, Number(att.size))
+      attachmentUrlFor(full.emailId, mailbox, att), capturedAt, session, clearRevision, Number(att.size))
   }
 }
 
@@ -436,7 +440,7 @@ async function refreshViewedInline(mailbox, emailId, session) {
   viewing.value = saved
 }
 
-async function cacheOneBinary(key, kind, id, source, capturedAt, session, knownSize) {
+async function cacheOneBinary(key, kind, id, source, capturedAt, session, clearRevision, knownSize) {
   if (knownSize > MAX_ARCHIVE_FILE_BYTES) {
     if (session === archiveSession) archiveWarning.value = 'temporaryInbox.storageLimit'
     return
@@ -464,7 +468,8 @@ async function cacheOneBinary(key, kind, id, source, capturedAt, session, knownS
     return
   }
   try {
-    const result = await archive.saveBinary(key, kind, id, blob, {capturedAt})
+    const result = await archive.saveBinary(key, kind, id, blob,
+      {capturedAt, expectedClear: clearRevision})
     if (session === archiveSession && !result.saved && result.reason !== 'cleared') archiveWarning.value = 'temporaryInbox.storageLimit'
   } catch {
     if (session === archiveSession) archiveWarning.value = 'temporaryInbox.storageUnavailable'
@@ -476,6 +481,7 @@ async function openMail(m) {
   const requestedAddress = address.value
   const capturedAt = Date.now()
   const session = archiveSession
+  const clearRevision = archiveClearRevision
   closePreview()
   viewing.value = m
   viewLoading.value = true
@@ -507,8 +513,9 @@ async function openMail(m) {
   }
   if (!archiveUnavailable.value && session === archiveSession) {
     try {
-      await archive.saveMessage(requestedAddress, full, {full: true, capturedAt})
-      void cacheMedia(full, requestedAddress, capturedAt, session)
+      await archive.saveMessage(requestedAddress, full,
+        {full: true, capturedAt, expectedClear: clearRevision})
+      void cacheMedia(full, requestedAddress, capturedAt, session, clearRevision)
       void refreshLocalMessages()
       void refreshHistory()
       archiveChannel?.postMessage({type: 'updated'})
@@ -550,6 +557,7 @@ onMounted(async () => {
   try {
     const session = await archive.startSession({idleDays: AUTO_CLEAR_IDLE_DAYS})
     if (disposed) return
+    archiveClearRevision = session.clearRevision
     history.value = session.addresses
     if (session.expired) {
       removeSavedInbox()
@@ -610,11 +618,13 @@ async function onVisible() {
   lastRetentionCheck = Date.now()
   try {
     const session = await archive.startSession({idleDays: AUTO_CLEAR_IDLE_DAYS})
-    if (session.expired) {
+    const previousRevision = archiveClearRevision
+    archiveClearRevision = session.clearRevision
+    if (session.expired || (previousRevision !== null && previousRevision !== session.clearRevision)) {
       archiveSession += 1
       resetLocalState()
-      archiveWarning.value = 'temporaryInbox.autoCleared'
-      archiveChannel?.postMessage({type: 'cleared'})
+      archiveWarning.value = session.expired ? 'temporaryInbox.autoCleared' : 'temporaryInbox.localCleared'
+      if (session.expired) archiveChannel?.postMessage({type: 'cleared'})
     } else {
       history.value = session.addresses
     }
@@ -624,8 +634,10 @@ async function onVisible() {
 function onArchiveMessage(event) {
   if (event.data?.type === 'cleared') {
     archiveSession += 1
+    archiveClearRevision = null
     resetLocalState()
     archiveWarning.value = 'temporaryInbox.localCleared'
+    void onVisible()
   } else if (event.data?.type === 'updated') {
     void refreshHistory()
     void refreshLocalMessages()
@@ -695,12 +707,14 @@ async function selectAddress(next) {
   if (disposed) return
   const session = archiveSession
   const capturedAt = Date.now()
+  const clearRevision = archiveClearRevision
   address.value = next.toLowerCase()
   saveInbox()
   resetInbox()
   if (!archiveUnavailable.value) {
     try {
-      const saved = await archive.recordAddress(address.value, capturedAt, {capturedAt})
+      const saved = await archive.recordAddress(address.value, capturedAt,
+        {capturedAt, expectedClear: clearRevision})
       if (!saved || session !== archiveSession) return
       await refreshHistory()
       archiveChannel?.postMessage({type: 'updated'})
@@ -772,10 +786,12 @@ function captureRecent(recent, mailbox) {
 async function captureRecentBatch(recent, mailbox) {
   const capturedAt = Date.now()
   const session = archiveSession
+  const clearRevision = archiveClearRevision
   try {
     for (const mail of recent) {
       if (disposed || session !== archiveSession) return
-      await archive.saveMessage(mailbox, mail, {capturedAt})
+      if (!await archive.saveMessage(mailbox, mail,
+        {capturedAt, expectedClear: clearRevision})) return
     }
     if (address.value === mailbox) {
       await refreshHistory()
@@ -792,8 +808,9 @@ async function captureRecentBatch(recent, mailbox) {
         return (async () => {
           const full = await openMailContent(mail.emailId, mailbox)
           if (disposed || session !== archiveSession) return
-          const saved = await archive.saveMessage(mailbox, full, {full: true, capturedAt})
-          if (saved) void cacheMedia(full, mailbox, capturedAt, session)
+          const saved = await archive.saveMessage(mailbox, full,
+            {full: true, capturedAt, expectedClear: clearRevision})
+          if (saved) void cacheMedia(full, mailbox, capturedAt, session, clearRevision)
         })().catch(() => { /* 过期或网络中断时下次刷新再试 */ })
       })
       await Promise.all(jobs)
@@ -857,7 +874,7 @@ async function clearLocalHistory() {
   clearing.value = true
   archiveSession += 1
   try {
-    await archive.clear()
+    archiveClearRevision = await archive.clear()
     resetLocalState()
     showClearConfirm.value = false
     archiveWarning.value = 'temporaryInbox.localCleared'

@@ -40,11 +40,12 @@ export function createMailArchive({name = 'temporary-mail-archive-v1', indexedDB
       {key: 'lastActiveAt', value: now},
       {key: 'binaryBytes', value: 0},
     ])
+    return clearedAt
   }
 
   async function clear(now = Date.now()) {
-    await db.transaction('rw', db.meta, db.addresses, db.messages, db.binaries, async () => {
-      await clearInside(now)
+    return db.transaction('rw', db.meta, db.addresses, db.messages, db.binaries, async () => {
+      return clearInside(now)
     })
   }
 
@@ -53,9 +54,14 @@ export function createMailArchive({name = 'temporary-mail-archive-v1', indexedDB
       const lastActive = (await db.meta.get('lastActiveAt'))?.value || 0
       const expired = Number.isFinite(idleDays) && idleDays > 0
         && lastActive > 0 && now - lastActive >= idleDays * DAY_MS
-      if (expired) await clearInside(now)
-      else await db.meta.put({key: 'lastActiveAt', value: now})
-      return {expired, addresses: expired ? [] : await db.addresses.orderBy('lastUsedAt').reverse().toArray()}
+      let clearRevision
+      if (expired) clearRevision = await clearInside(now)
+      else {
+        clearRevision = await lastClear()
+        await db.meta.put({key: 'lastActiveAt', value: now})
+      }
+      return {expired, clearRevision,
+        addresses: expired ? [] : await db.addresses.orderBy('lastUsedAt').reverse().toArray()}
     })
   }
 
@@ -67,11 +73,12 @@ export function createMailArchive({name = 'temporary-mail-archive-v1', indexedDB
     return db.addresses.orderBy('lastUsedAt').reverse().toArray()
   }
 
-  async function recordAddress(value, now = Date.now(), {capturedAt = now} = {}) {
+  async function recordAddress(value, now = Date.now(), {capturedAt = now, expectedClear} = {}) {
     const address = normalizedAddress(value)
     if (!address) return false
     return db.transaction('rw', db.addresses, db.meta, async () => {
-      if (await lastClear() >= capturedAt) return false
+      const clearRevision = await lastClear()
+      if (clearRevision >= capturedAt || (expectedClear !== undefined && clearRevision !== expectedClear)) return false
       const existing = await db.addresses.get(address)
       await db.addresses.put({
         address,
@@ -84,12 +91,13 @@ export function createMailArchive({name = 'temporary-mail-archive-v1', indexedDB
     })
   }
 
-  async function saveMessage(value, mail, {full = false, capturedAt = Date.now()} = {}) {
+  async function saveMessage(value, mail, {full = false, capturedAt = Date.now(), expectedClear} = {}) {
     const address = normalizedAddress(value)
     if (!address || !Number.isSafeInteger(Number(mail?.emailId)) || Number(mail.emailId) <= 0) return false
     const key = mailKey(address, mail.emailId)
     return db.transaction('rw', db.meta, db.addresses, db.messages, async () => {
-      if (await lastClear() >= capturedAt) return false
+      const clearRevision = await lastClear()
+      if (clearRevision >= capturedAt || (expectedClear !== undefined && clearRevision !== expectedClear)) return false
       const previous = await db.messages.get(key)
       const now = Date.now()
       const record = full ? {
@@ -152,11 +160,14 @@ export function createMailArchive({name = 'temporary-mail-archive-v1', indexedDB
     return db.messages.where('address').equals(normalizedAddress(value)).count()
   }
 
-  async function saveBinary(messageKey, kind, id, blob, {capturedAt = Date.now()} = {}) {
+  async function saveBinary(messageKey, kind, id, blob, {capturedAt = Date.now(), expectedClear} = {}) {
     if (!(blob instanceof Blob) || blob.size > MAX_ARCHIVE_FILE_BYTES) return {saved: false, reason: 'fileLimit'}
     const key = binaryKey(messageKey, kind, id)
     return db.transaction('rw', db.meta, db.binaries, async () => {
-      if (await lastClear() >= capturedAt) return {saved: false, reason: 'cleared'}
+      const clearRevision = await lastClear()
+      if (clearRevision >= capturedAt || (expectedClear !== undefined && clearRevision !== expectedClear)) {
+        return {saved: false, reason: 'cleared'}
+      }
       const existing = await db.binaries.get(key)
       const used = (await db.meta.get('binaryBytes'))?.value || 0
       const next = used - (existing?.size || 0) + blob.size
