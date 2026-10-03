@@ -183,7 +183,7 @@ const en = {
     version: 'Version',
     community: 'Community',
     changeTitle: 'Change Title',
-    addResendTokenDesc: 'Input to add; leave empty to delete',
+    addResendTokenDesc: 'Enter a token to add it; leave the field blank to remove it',
     addOsDomain: 'Add Domain',
     domainDesc: 'Domain',
     addTurnstileSecret: 'Add turnstile secret',
