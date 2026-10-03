@@ -1,6 +1,7 @@
 const id = {
     kvNotBound: "Penyimpanan KV belum dikonfigurasi",
     dbNotBound: "Basis data belum dikonfigurasi",
+    dbNeedsUpdate: "Skema basis data sudah usang. Ikuti langkah pembaruan dalam dokumentasi.",
     serverError: "Kesalahan internal server",
     tempDomainMissing: "Domain kotak masuk sementara belum dikonfigurasi",
     tempCreateFailed: "Tidak dapat membuat alamat sementara. Coba lagi nanti.",
@@ -24,6 +25,7 @@ const id = {
     addAccountDisabled: "Fitur penambahan alamat email dinonaktifkan",
     regDisabled: "Pendaftaran dinonaktifkan",
     emptyEmail: "Alamat email tidak boleh kosong",
+    emptyAccountId: "ID kotak surat wajib diisi.",
     notEmail: "Alamat email tidak valid",
     notExistDomain: "Domain email tidak ada",
     isDelAccount: "Alamat email ini telah dihapus",

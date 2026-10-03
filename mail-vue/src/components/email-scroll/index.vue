@@ -116,7 +116,7 @@
                         </slot>
                       </span>
                     </span>
-                    <span class="email-content" dir="auto">{{ item.text || '\u200B' }}</span>
+                    <span class="email-content" dir="auto">{{ item.listText || item.text || '\u200B' }}</span>
                   </div>
                   <div class="user-info" v-if="showUserInfo">
                     <div class="user">
@@ -265,8 +265,11 @@ import {Icon} from "@iconify/vue";
 import skeletonBlock from "@/components/email-scroll/skeleton/index.vue"
 import {computed, onActivated, reactive, ref, watch, nextTick, onMounted, onUnmounted } from "vue";
 import {useEmailStore} from "@/store/email.js";
+import {useAccountStore} from "@/store/account.js";
 import {useUiStore} from "@/store/ui.js";
 import {useSettingStore} from "@/store/setting.js";
+import {emailList as loadEmailList} from "@/request/email.js";
+import {starList as loadStarList} from "@/request/star.js";
 import {sleep} from "@/utils/time-utils.js"
 import {fromNow} from "@/utils/day.js";
 import {useI18n} from "vue-i18n";
@@ -329,6 +332,7 @@ const {t, locale} = useI18n()
 const settingStore = useSettingStore()
 const uiStore = useUiStore();
 const emailStore = useEmailStore();
+const accountStore = useAccountStore();
 const loading = ref(false);
 const followLoading = ref(false);
 const noLoading = ref(false);
@@ -428,7 +432,7 @@ function onScroll(e) {
 }
 
 const { arrivedState } = useScroll(scrollbarRef, {
-  offset: { bottom: 1200 }
+  offset: { bottom: isMobile.value ? 2200 : 1500 }
 })
 
 
@@ -533,12 +537,60 @@ function closeDropdownOnWheel() {
   }
 }
 
-function openReply(email) {
-  uiStore.writerRef.openReply(email)
+const fullEmailRequests = new Map()
+
+async function loadFullEmail(email) {
+  const emailId = Number(email?.emailId)
+  if (!Number.isSafeInteger(emailId + 1) || emailId < 1) throw new Error('Invalid email ID')
+
+  const cached = emailStore.detailMap[emailId]
+  if (cached) return cached
+
+  let request = fullEmailRequests.get(emailId)
+  if (!request) {
+    request = (async () => {
+      const data = props.type === 'star'
+        ? await loadStarList(emailId + 1, 1, 1)
+        : await loadEmailList(
+          accountStore.currentAccountId,
+          accountStore.currentAccount?.allReceive,
+          emailId + 1,
+          0,
+          1,
+          props.type === 'send' ? 1 : 0,
+          1
+        )
+      const fullEmail = data?.list?.find(item => Number(item.emailId) === emailId)
+      if (!fullEmail) throw new Error('Email detail unavailable')
+      emailStore.applyFullList([fullEmail])
+      return emailStore.detailMap[emailId] || fullEmail
+    })()
+    fullEmailRequests.set(emailId, request)
+  }
+
+  try {
+    return await request
+  } finally {
+    if (fullEmailRequests.get(emailId) === request) fullEmailRequests.delete(emailId)
+  }
 }
 
-function openForward(email) {
-  uiStore.writerRef.openForward(email)
+async function openReply(email) {
+  try {
+    uiStore.writerRef.openReply(await loadFullEmail(email))
+  } catch (error) {
+    console.error('Could not load email for reply:', error)
+    ElMessage({ message: t('reqFailErrorMsg'), type: 'error', plain: true })
+  }
+}
+
+async function openForward(email) {
+  try {
+    uiStore.writerRef.openForward(await loadFullEmail(email))
+  } catch (error) {
+    console.error('Could not load email for forwarding:', error)
+    ElMessage({ message: t('reqFailErrorMsg'), type: 'error', plain: true })
+  }
 }
 
 function visibleChange(e) {

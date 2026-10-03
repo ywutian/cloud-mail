@@ -45,6 +45,19 @@ const dbInit = {
 		} catch (e) {
 			console.warn(`跳过字段：${e.message}`);
 		}
+
+		for (const statement of [
+			`ALTER TABLE setting ADD COLUMN webhook_url TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN webhook_status INTEGER NOT NULL DEFAULT 1;`,
+			`ALTER TABLE setting ADD COLUMN webhook_retry INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN webhook_secret TEXT NOT NULL DEFAULT '';`
+		]) {
+			try {
+				await c.env.db.prepare(statement).run();
+			} catch (error) {
+				if (!/duplicate column name/i.test(String(error?.message))) throw error;
+			}
+		}
 	},
 
 	async v3_2DB(c) {

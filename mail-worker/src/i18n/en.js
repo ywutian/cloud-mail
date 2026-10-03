@@ -1,6 +1,7 @@
 const en = {
     kvNotBound: 'KV storage is not configured',
     dbNotBound: 'Database is not configured',
+    dbNeedsUpdate: "Database schema is outdated. Follow the documented update steps.",
     serverError: 'Internal server error',
     tempDomainMissing: 'Temporary mailbox domain is not configured',
     tempCreateFailed: 'Could not create a temporary address. Try again later.',
@@ -24,6 +25,7 @@ const en = {
 	addAccountDisabled: 'Add Email Address feature is disabled',
 	regDisabled: 'Sign up is disabled',
 	emptyEmail: 'Email cannot be empty',
+	emptyAccountId: 'Mailbox ID is required',
 	notEmail: 'Invalid email',
 	notExistDomain: 'Email domain does not exist',
 	isDelAccount: 'This Email has been deleted',

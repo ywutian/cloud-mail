@@ -9,6 +9,7 @@ import BizError from '../error/biz-error';
 import {t} from '../i18n/i18n'
 import verifyRecordService from './verify-record-service';
 import userContext from '../security/user-context';
+import domainUtils from '../utils/domain-uitls';
 
 const settingService = {
 
@@ -67,10 +68,16 @@ const settingService = {
 
 	async get(c, showSiteKey = false) {
 
-		const [settingRow, recordList] = await Promise.all([
+		const [settingData, recordList] = await Promise.all([
 			await this.query(c),
 			verifyRecordService.selectListByIP(c)
 		]);
+		const settingRow = {
+			...settingData,
+			resendTokens: {...settingData.resendTokens},
+			webhookSecretConfigured: Boolean(settingData.webhookSecret)
+		};
+		delete settingRow.webhookSecret;
 
 
 		if (!showSiteKey) {
@@ -122,6 +129,10 @@ const settingService = {
 
 		if (Array.isArray(params.aiCodeFilter)) {
 			params.aiCodeFilter = params.aiCodeFilter + '';
+		}
+
+		if (params.webhookUrl !== undefined) {
+			params.webhookUrl = domainUtils.toOssDomain(params.webhookUrl) || '';
 		}
 
 		params.resendTokens = JSON.stringify(resendTokens);

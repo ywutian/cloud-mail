@@ -26,6 +26,10 @@ app.onError((err, c) => {
 		return c.json(result.fail(t(c, 'dbNotBound'),502));
 	}
 
+	if (err.message?.includes('D1_ERROR: no such column')) {
+		return c.json(result.fail(t(c, 'dbNeedsUpdate'),502));
+	}
+
 	return c.json(result.fail(err.name === 'BizError' ? err.message : t(c, 'serverError'),
 		err.name === 'BizError' ? err.code : 500));
 });

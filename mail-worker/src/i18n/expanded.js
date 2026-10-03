@@ -1,6 +1,7 @@
 const zhHant = {
   "kvNotBound": "KV 儲存空間未設定",
   "dbNotBound": "資料庫未設定",
+  "dbNeedsUpdate": "資料庫結構需要更新，請依照文件執行更新步驟。",
   "serverError": "伺服器內部錯誤",
   "tempDomainMissing": "臨時信箱網域未設定",
   "tempCreateFailed": "目前無法建立臨時信箱地址，請稍後再試",
@@ -24,6 +25,7 @@ const zhHant = {
   "addAccountDisabled": "新增信箱功能已停用",
   "regDisabled": "註冊功能已停用",
   "emptyEmail": "電子郵件地址不可為空",
+  "emptyAccountId": "缺少信箱識別碼",
   "notEmail": "電子郵件地址無效",
   "notExistDomain": "電子郵件網域不存在",
   "isDelAccount": "此信箱已被註銷",

@@ -1,6 +1,7 @@
 const zh = {
     kvNotBound: 'KV 存储未配置',
     dbNotBound: '数据库未配置',
+    dbNeedsUpdate: "数据库结构需要更新，请按文档执行更新步骤。",
     serverError: '服务器内部错误',
     tempDomainMissing: '临时邮箱域名未配置',
     tempCreateFailed: '暂时无法生成邮箱地址，请稍后重试',
@@ -24,6 +25,7 @@ const zh = {
 	addAccountDisabled: '添加邮箱功能已关闭',
 	regDisabled: '注册功能已关闭',
 	emptyEmail: '邮箱不能为空',
+	emptyAccountId: '缺少邮箱标识',
 	notEmail: '非法邮箱',
 	notExistDomain: '不存在的邮箱域名',
 	isDelAccount: '该邮箱已被注销',

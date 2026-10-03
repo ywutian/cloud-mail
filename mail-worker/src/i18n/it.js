@@ -1,6 +1,7 @@
 const it = {
     kvNotBound: "Archivio KV non configurato",
     dbNotBound: "Database non configurato",
+    dbNeedsUpdate: "Lo schema del database è obsoleto. Segui la procedura di aggiornamento nella documentazione.",
     serverError: "Errore interno del server",
     tempDomainMissing: "Dominio della casella temporanea non configurato",
     tempCreateFailed: "Impossibile creare un indirizzo temporaneo. Riprova più tardi.",
@@ -24,6 +25,7 @@ const it = {
     addAccountDisabled: "L'aggiunta di indirizzi email è disabilitata",
     regDisabled: "La registrazione è disabilitata",
     emptyEmail: "L'indirizzo email non può essere vuoto",
+    emptyAccountId: "È necessario l'ID della casella di posta.",
     notEmail: "Indirizzo email non valido",
     notExistDomain: "Il dominio dell'indirizzo email non esiste",
     isDelAccount: "Questo indirizzo email è stato eliminato",

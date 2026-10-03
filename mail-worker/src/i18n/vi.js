@@ -1,6 +1,7 @@
 const vi = {
     kvNotBound: "Chưa cấu hình kho lưu trữ KV",
     dbNotBound: "Chưa cấu hình cơ sở dữ liệu",
+    dbNeedsUpdate: "Lược đồ cơ sở dữ liệu đã cũ. Hãy làm theo các bước cập nhật trong tài liệu.",
     serverError: "Lỗi máy chủ nội bộ",
     tempDomainMissing: "Chưa cấu hình tên miền hộp thư tạm thời",
     tempCreateFailed: "Không thể tạo địa chỉ tạm thời. Vui lòng thử lại sau.",
@@ -24,6 +25,7 @@ const vi = {
     addAccountDisabled: "Tính năng thêm địa chỉ email đã bị tắt",
     regDisabled: "Tính năng đăng ký đã bị tắt",
     emptyEmail: "Địa chỉ email không được để trống",
+    emptyAccountId: "Cần có ID hộp thư.",
     notEmail: "Địa chỉ email không hợp lệ",
     notExistDomain: "Tên miền email không tồn tại",
     isDelAccount: "Địa chỉ email này đã bị xóa",

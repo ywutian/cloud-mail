@@ -1,6 +1,7 @@
 const tr = {
     kvNotBound: "KV depolaması yapılandırılmamış",
     dbNotBound: "Veritabanı yapılandırılmamış",
+    dbNeedsUpdate: "Veritabanı şeması güncel değil. Belgelerdeki güncelleme adımlarını izleyin.",
     serverError: "Sunucu iç hatası",
     tempDomainMissing: "Geçici posta kutusu alan adı yapılandırılmamış",
     tempCreateFailed: "Geçici adres oluşturulamadı. Daha sonra tekrar deneyin.",
@@ -24,6 +25,7 @@ const tr = {
     addAccountDisabled: "E-posta adresi ekleme özelliği devre dışı",
     regDisabled: "Kayıt olma özelliği devre dışı",
     emptyEmail: "E-posta adresi boş olamaz",
+    emptyAccountId: "Posta kutusu kimliği gereklidir.",
     notEmail: "Geçersiz e-posta adresi",
     notExistDomain: "E-posta alan adı mevcut değil",
     isDelAccount: "Bu e-posta adresi silinmiş",
