@@ -8,7 +8,7 @@
     </main>
     <router-view v-else />
     <div v-if="!startupFailed && (!online || updateAvailable)" class="app-status" role="status">
-      <span>{{ !online ? $t('pwa.offlineNotice') : $t('pwa.updateReady') }}</span>
+      <span>{{ !online ? $t(route.name === 'find' ? 'temporaryInbox.offlineHistoryOnly' : 'pwa.offlineNotice') : $t('pwa.updateReady') }}</span>
       <button v-if="online && updateAvailable" type="button" @click="applyUpdate">{{ $t('pwa.updateNow') }}</button>
       <button v-if="online && updateAvailable" type="button" @click="dismissUpdate">{{ $t('pwa.updateLater') }}</button>
     </div>

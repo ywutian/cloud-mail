@@ -18,6 +18,11 @@ export async function init() {
     if (!settingStore.lang) settingStore.lang = 'auto'
     i18n.global.locale.value = resolveLanguage(settingStore.lang, getBrowserLanguage())
 
+    if (window.location.hostname.startsWith('temp.') || (!token && window.location.pathname === '/find')) {
+        document.title = i18n.global.t('temporaryInbox.title')
+        return
+    }
+
     let setting = null;
 
     if (token) {

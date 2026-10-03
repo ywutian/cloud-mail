@@ -19,7 +19,8 @@
 
         <div class="tm-addr" @click="copyAddr">
           <span v-if="address">{{ address }}</span>
-          <span v-else class="tm-addr-skeleton"></span>
+          <span v-else-if="creating" class="tm-addr-skeleton"></span>
+          <span v-else class="tm-no-address">{{ t('temporaryInbox.noActiveAddress') }}</span>
         </div>
 
         <div class="tm-actions">
@@ -30,7 +31,7 @@
           <button class="tm-btn" :disabled="!address" @click="copyAccessLink">{{ t('temporaryInbox.copyLink') }}</button>
           <button class="tm-btn" :disabled="creating" @click="genAddr">
             <Icon icon="mingcute:refresh-2-line" width="17" height="17"/>
-            {{ t('temporaryInbox.newAddress') }}
+            {{ t(address ? 'temporaryInbox.newAddress' : 'temporaryInbox.createAddress') }}
           </button>
           <div class="tm-timer">
             <span class="tm-pulse" :class="loading ? 'is-busy' : ''"></span>
@@ -47,6 +48,28 @@
         <button class="tm-btn tm-btn-slim" @click="useManual">{{ t('temporaryInbox.search') }}</button>
       </div>
 
+      <section class="tm-history" aria-labelledby="tm-history-title">
+        <div class="tm-history-head">
+          <div>
+            <h2 id="tm-history-title">{{ t('temporaryInbox.localHistory') }}</h2>
+            <p>{{ t('temporaryInbox.localHistoryNote') }}</p>
+          </div>
+          <button v-if="history.length || address" type="button" class="tm-clear" @click="showClearConfirm = true">
+            {{ t('temporaryInbox.clearLocal') }}
+          </button>
+        </div>
+        <div v-if="history.length" class="tm-history-list">
+          <button v-for="item in history" :key="item.address" type="button"
+                  class="tm-history-item" :class="{'is-active': item.address === address}"
+                  @click="switchAddress(item.address)">
+            <span class="tm-history-address">{{ item.address }}</span>
+            <span class="tm-history-count">{{ t('temporaryInbox.savedCount', {count: item.messageCount || 0}) }}</span>
+          </button>
+        </div>
+        <p v-else class="tm-history-empty">{{ archiveUnavailable ? t('temporaryInbox.storageUnavailable') : t('temporaryInbox.noLocalHistory') }}</p>
+        <p v-if="archiveWarning" class="tm-history-warning" role="status">{{ t(archiveWarning) }}</p>
+      </section>
+
       <section class="tm-inbox">
         <div class="tm-inbox-head">
           <span>{{ t('temporaryInbox.inbox') }}</span>
@@ -58,6 +81,7 @@
             <div class="tm-mail-body">
               <div class="tm-mail-from">{{ m.sendName || m.sendEmail }}</div>
               <div class="tm-mail-subject">{{ m.subject || t('temporaryInbox.noSubject') }}</div>
+              <div v-if="m.localOnly" class="tm-mail-local">{{ t(m.complete ? 'temporaryInbox.savedLocally' : 'temporaryInbox.summaryOnly') }}</div>
             </div>
             <button v-if="m.code" class="tm-code" :title="t('temporaryInbox.clickToCopy')" @click.stop="copyCode(m.code)">
               {{ m.code }}
@@ -73,7 +97,11 @@
         </div>
       </section>
 
-      <p class="tm-foot">{{ t('temporaryInbox.retention') }}</p>
+      <button v-if="hasMoreLocal" class="tm-btn tm-load-more" type="button" @click="loadMoreLocal">
+        {{ t('temporaryInbox.loadOlder') }}
+      </button>
+
+      <p class="tm-foot">{{ t('temporaryInbox.retentionWithArchive') }}</p>
     </div>
 
     <div v-if="viewing" class="tm-modal" @click.self="closeMail">
@@ -146,6 +174,14 @@
       </div>
     </div>
     <el-image-viewer v-if="showPreview" :url-list="srcList" show-progress @close="closePreview"/>
+    <el-dialog v-model="showClearConfirm" :title="t('temporaryInbox.clearLocal')"
+               width="min(420px, calc(100vw - 32px))" append-to-body align-center>
+      <p>{{ t('temporaryInbox.clearConfirm') }}</p>
+      <template #footer>
+        <el-button @click="showClearConfirm = false">{{ t('temporaryInbox.cancel') }}</el-button>
+        <el-button type="danger" :loading="clearing" @click="clearLocalHistory">{{ t('temporaryInbox.clearLocal') }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -161,6 +197,7 @@ import {openCreateInbox, openDomains, openMailContent, openRecentMails} from "@/
 import {getExtName, formatBytes} from "@/utils/file-utils.js";
 import {getIconByName} from "@/utils/icon-utils.js";
 import {formatDetailDate} from "@/utils/day.js";
+import {mailArchive, MAX_ARCHIVE_FILE_BYTES} from '@/local-mail/archive.js'
 
 defineOptions({
   name: 'find'
@@ -168,6 +205,10 @@ defineOptions({
 
 const REFRESH_SEC = 8
 const ADDR_KEY = 'findAddress'
+const AUTO_CLEAR_IDLE_DAYS = 30
+const SAVE_BINARY_FILES = true
+const LOCAL_PAGE_SIZE = 100
+const archive = mailArchive()
 const {t} = useI18n()
 const settingStore = useSettingStore()
 const browserLang = getBrowserLanguage()
@@ -176,7 +217,22 @@ const publicLang = computed(() => resolveLanguage(settingStore.publicMailboxLang
 const address = ref('')
 const manual = ref('')
 const creating = ref(false)
-const mails = ref([])
+const liveMails = ref([])
+const archivedMails = ref([])
+const mails = computed(() => {
+  const combined = new Map(archivedMails.value.map(mail => [Number(mail.emailId), {...mail, localOnly: true}]))
+  for (const mail of liveMails.value) {
+    combined.set(Number(mail.emailId), {...combined.get(Number(mail.emailId)), ...mail, localOnly: false})
+  }
+  return [...combined.values()].sort((a, b) =>
+    String(b.createTime || '').localeCompare(String(a.createTime || '')) || Number(b.emailId) - Number(a.emailId))
+})
+const history = ref([])
+const hasMoreLocal = ref(false)
+const archiveUnavailable = ref(false)
+const archiveWarning = ref('')
+const showClearConfirm = ref(false)
+const clearing = ref(false)
 const loading = ref(false)
 const searched = ref(false)
 const inboxError = ref('')
@@ -196,6 +252,12 @@ let inboxRequestId = 0
 let viewRequestId = 0
 let previewRequestId = 0
 const previewUrls = new Set()
+const captureRuns = new Map()
+const archiveChannel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('temporary-mail-archive')
+let archiveSession = 0
+let localRequestId = 0
+let lastRetentionCheck = Date.now()
+let disposed = false
 
 // 邮件 HTML 在受限 iframe 内渲染，不允许脚本和同源访问。
 const viewHtml = computed(() => {
@@ -247,10 +309,10 @@ function statusMessage(message) {
   try { return JSON.parse(message).message || '' } catch { return String(message) }
 }
 
-function attachmentUrl(att, download = false) {
+function attachmentUrlFor(emailId, mailbox, att, download = false) {
   const params = new URLSearchParams({
-    emailId: String(viewing.value.emailId),
-    address: address.value,
+    emailId: String(emailId),
+    address: mailbox,
     attId: String(att.attId)
   })
   if (download) params.set('download', '1')
@@ -258,11 +320,31 @@ function attachmentUrl(att, download = false) {
 }
 
 async function attachmentBlob(att) {
-  const response = await fetch(attachmentUrl(att), {
+  const capturedAt = Date.now()
+  const session = archiveSession
+  const mailbox = address.value
+  const emailId = viewing.value?.emailId
+  if (!mailbox || !emailId) throw new Error('No open message')
+  const key = archive.mailKey(mailbox, emailId)
+  if (!archiveUnavailable.value) {
+    try {
+      const saved = await archive.getBinary(key, 'attachment', att.attId)
+      if (saved) return saved
+    } catch { archiveUnavailable.value = true }
+  }
+  const response = await fetch(attachmentUrlFor(emailId, mailbox, att), {
     cache: 'no-store'
   })
   if (!response.ok) throw new Error(t('temporaryInbox.attachmentUnavailable'))
-  return response.blob()
+  const blob = await response.blob()
+  if (SAVE_BINARY_FILES && !archiveUnavailable.value && session === archiveSession) {
+    archive.saveBinary(key, 'attachment', att.attId, blob, {capturedAt}).then(result => {
+      if (session === archiveSession && !result.saved && result.reason !== 'cleared') archiveWarning.value = 'temporaryInbox.storageLimit'
+    }).catch(() => {
+      if (session === archiveSession) archiveWarning.value = 'temporaryInbox.storageUnavailable'
+    })
+  }
+  return blob
 }
 
 async function downloadAttachment(att) {
@@ -309,24 +391,128 @@ async function showImage(att) {
   }
 }
 
+async function cachedFullMail(mailbox, emailId) {
+  if (archiveUnavailable.value) return null
+  const saved = await archive.getMessage(mailbox, emailId)
+  if (!saved?.complete) return null
+  const inlineMedia = {}
+  try {
+    for (const item of await archive.getInlineBinaries(archive.mailKey(mailbox, emailId))) {
+      inlineMedia[item.id] = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = () => reject(reader.error)
+        reader.readAsDataURL(item.blob)
+      })
+    }
+  } catch {
+    return {...saved, inlineMedia: {}}
+  }
+  return {...saved, inlineMedia}
+}
+
+async function cacheMedia(full, mailbox, capturedAt, session = archiveSession) {
+  if (!SAVE_BINARY_FILES || archiveUnavailable.value) return
+  const key = archive.mailKey(mailbox, full.emailId)
+  for (const [mediaKey, source] of Object.entries(full.inlineMedia || {})) {
+    if (session !== archiveSession) return
+    await cacheOneBinary(key, 'inline', mediaKey, source, capturedAt, session)
+  }
+  if (session === archiveSession) void refreshViewedInline(mailbox, full.emailId, session)
+  for (const att of full.attList || []) {
+    if (session !== archiveSession) return
+    await cacheOneBinary(key, 'attachment', att.attId,
+      attachmentUrlFor(full.emailId, mailbox, att), capturedAt, session, Number(att.size))
+  }
+}
+
+async function refreshViewedInline(mailbox, emailId, session) {
+  if (address.value !== mailbox || viewing.value?.emailId !== emailId || !viewing.value.complete) return
+  const requestId = viewRequestId
+  let saved
+  try { saved = await cachedFullMail(mailbox, emailId) } catch { return }
+  if (!saved) return
+  if (session !== archiveSession || requestId !== viewRequestId || address.value !== mailbox) return
+  viewing.value = saved
+}
+
+async function cacheOneBinary(key, kind, id, source, capturedAt, session, knownSize) {
+  if (knownSize > MAX_ARCHIVE_FILE_BYTES) {
+    if (session === archiveSession) archiveWarning.value = 'temporaryInbox.storageLimit'
+    return
+  }
+  try {
+    if (await archive.getBinary(key, kind, id)) return
+  } catch {
+    if (session === archiveSession) archiveWarning.value = 'temporaryInbox.storageUnavailable'
+    return
+  }
+  let blob
+  try {
+    const response = await fetch(source, {cache: 'no-store'})
+    if (!response.ok) return
+    const length = Number(response.headers.get('content-length'))
+    if (length > MAX_ARCHIVE_FILE_BYTES) {
+      if (session === archiveSession) archiveWarning.value = 'temporaryInbox.storageLimit'
+      return
+    }
+    blob = await response.blob()
+  } catch { return }
+  if (session !== archiveSession) return
+  if (blob.size > MAX_ARCHIVE_FILE_BYTES) {
+    archiveWarning.value = 'temporaryInbox.storageLimit'
+    return
+  }
+  try {
+    const result = await archive.saveBinary(key, kind, id, blob, {capturedAt})
+    if (session === archiveSession && !result.saved && result.reason !== 'cleared') archiveWarning.value = 'temporaryInbox.storageLimit'
+  } catch {
+    if (session === archiveSession) archiveWarning.value = 'temporaryInbox.storageUnavailable'
+  }
+}
+
 async function openMail(m) {
   const requestId = ++viewRequestId
   const requestedAddress = address.value
+  const capturedAt = Date.now()
+  const session = archiveSession
   closePreview()
   viewing.value = m
   viewLoading.value = true
   viewError.value = false
   try {
-    const full = await openMailContent(m.emailId, requestedAddress)
-    if (requestId === viewRequestId && viewing.value?.emailId === m.emailId && address.value === requestedAddress) {
-      viewing.value = full
+    const saved = await cachedFullMail(requestedAddress, m.emailId)
+    if (saved) {
+      if (requestId === viewRequestId && address.value === requestedAddress) {
+        viewing.value = saved
+        viewLoading.value = false
+        return
+      }
     }
+  } catch { archiveUnavailable.value = true }
+  if (requestId !== viewRequestId || address.value !== requestedAddress) return
+  let full
+  try {
+    full = await openMailContent(m.emailId, requestedAddress)
   } catch {
     if (requestId === viewRequestId && viewing.value?.emailId === m.emailId) {
       viewError.value = true
     }
   } finally {
     if (requestId === viewRequestId) viewLoading.value = false
+  }
+  if (!full) return
+  if (requestId === viewRequestId && viewing.value?.emailId === m.emailId && address.value === requestedAddress) {
+    viewing.value = full
+  }
+  if (!archiveUnavailable.value && session === archiveSession) {
+    try {
+      await archive.saveMessage(requestedAddress, full, {full: true, capturedAt})
+      void cacheMedia(full, requestedAddress, capturedAt, session)
+      void refreshLocalMessages()
+      void refreshHistory()
+      archiveChannel?.postMessage({type: 'updated'})
+    } catch { archiveWarning.value = 'temporaryInbox.storageUnavailable' }
   }
 }
 
@@ -347,9 +533,33 @@ function onEsc(e) {
 }
 
 onMounted(async () => {
+  window.addEventListener('keydown', onEsc)
+  document.addEventListener('visibilitychange', onVisible)
+  archiveChannel?.addEventListener('message', onArchiveMessage)
+  timer = setInterval(() => {
+    countdown.value -= 1
+    if (countdown.value <= 0) {
+      countdown.value = REFRESH_SEC
+      load()
+    }
+    if (!document.hidden && Date.now() - lastRetentionCheck >= 60 * 60 * 1000) void onVisible()
+  }, 1000)
+
+  const domainRequest = openDomains().then(result => { domains.value = result || [] })
+    .catch(() => { /* 历史记录仍可离线查看 */ })
   try {
-    domains.value = await openDomains() || []
-  } catch { /* 拿不到域名就只能手动输入地址 */ }
+    const session = await archive.startSession({idleDays: AUTO_CLEAR_IDLE_DAYS})
+    if (disposed) return
+    history.value = session.addresses
+    if (session.expired) {
+      removeSavedInbox()
+      archiveWarning.value = 'temporaryInbox.autoCleared'
+    }
+    navigator.storage?.persist?.().catch(() => {})
+  } catch {
+    archiveUnavailable.value = true
+  }
+  if (disposed) return
 
   let saved = null
   try {
@@ -364,31 +574,70 @@ onMounted(async () => {
     window.history.replaceState({}, '', window.location.pathname + window.location.search)
   }
 
-  if (saved && domains.value.some(d => saved.toLowerCase().endsWith('@' + d.toLowerCase()))) {
-    address.value = saved.toLowerCase()
-    saveInbox()
-    load()
-  } else {
-    await genAddr()
+  const normalized = String(saved || '').trim().toLowerCase()
+  if (normalized && history.value.some(item => item.address === normalized)) {
+    await selectAddress(normalized)
+    return
   }
-
-  window.addEventListener('keydown', onEsc)
-  // 一个定时器同时管倒计时和触发刷新，比两个各跑各的干净
-  timer = setInterval(() => {
-    countdown.value -= 1
-    if (countdown.value <= 0) {
-      countdown.value = REFRESH_SEC
-      load()
+  await domainRequest
+  if (disposed) return
+  if (normalized && domains.value.some(domain => normalized.endsWith('@' + domain.toLowerCase()))) {
+    if (sharedAddress) {
+      try { await openRecentMails(normalized) } catch { saved = null }
     }
-  }, 1000)
+    if (saved) {
+      await selectAddress(normalized)
+      return
+    }
+  }
+  if (history.value.length) await selectAddress(history.value[0].address)
+  else if (navigator.onLine) await genAddr()
 })
 
 onUnmounted(() => {
+  disposed = true
   if (timer) clearInterval(timer)
   if (copyTimer) clearTimeout(copyTimer)
   window.removeEventListener('keydown', onEsc)
+  document.removeEventListener('visibilitychange', onVisible)
+  archiveChannel?.removeEventListener('message', onArchiveMessage)
+  archiveChannel?.close()
   closePreview()
 })
+
+async function onVisible() {
+  if (document.hidden || archiveUnavailable.value) return
+  lastRetentionCheck = Date.now()
+  try {
+    const session = await archive.startSession({idleDays: AUTO_CLEAR_IDLE_DAYS})
+    if (session.expired) {
+      archiveSession += 1
+      resetLocalState()
+      archiveWarning.value = 'temporaryInbox.autoCleared'
+      archiveChannel?.postMessage({type: 'cleared'})
+    } else {
+      history.value = session.addresses
+    }
+  } catch { archiveUnavailable.value = true }
+}
+
+function onArchiveMessage(event) {
+  if (event.data?.type === 'cleared') {
+    archiveSession += 1
+    resetLocalState()
+    archiveWarning.value = 'temporaryInbox.localCleared'
+  } else if (event.data?.type === 'updated') {
+    void refreshHistory()
+    void refreshLocalMessages()
+  }
+}
+
+function removeSavedInbox() {
+  try {
+    localStorage.removeItem(ADDR_KEY)
+    localStorage.removeItem('findInbox')
+  } catch { /* 浏览器可能禁用本地存储 */ }
+}
 
 function saveInbox() {
   try {
@@ -397,14 +646,75 @@ function saveInbox() {
   } catch { /* 存不下就算了 */ }
 }
 
+async function refreshHistory() {
+  if (archiveUnavailable.value) return
+  const session = archiveSession
+  try {
+    const addresses = await archive.listAddresses()
+    if (session === archiveSession) history.value = addresses
+  }
+  catch { archiveUnavailable.value = true }
+}
+
+async function refreshLocalMessages() {
+  if (archiveUnavailable.value || !address.value) return
+  const requestedAddress = address.value
+  const requestId = ++localRequestId
+  const session = archiveSession
+  try {
+    const limit = Math.max(LOCAL_PAGE_SIZE, archivedMails.value.length)
+    const [rows, count] = await Promise.all([
+      archive.listMessages(requestedAddress, {limit}),
+      archive.countMessages(requestedAddress),
+    ])
+    if (requestId === localRequestId && session === archiveSession && address.value === requestedAddress) {
+      archivedMails.value = rows
+      hasMoreLocal.value = count > rows.length
+    }
+  } catch { archiveUnavailable.value = true }
+}
+
+async function loadMoreLocal() {
+  if (archiveUnavailable.value || !address.value) return
+  const requestedAddress = address.value
+  const offset = archivedMails.value.length
+  const requestId = ++localRequestId
+  const session = archiveSession
+  try {
+    const rows = await archive.listMessages(requestedAddress, {offset, limit: LOCAL_PAGE_SIZE})
+    if (requestId !== localRequestId || session !== archiveSession || requestedAddress !== address.value) return
+    archivedMails.value = [...archivedMails.value, ...rows]
+    const count = await archive.countMessages(requestedAddress)
+    if (requestId === localRequestId && session === archiveSession && requestedAddress === address.value) {
+      hasMoreLocal.value = count > archivedMails.value.length
+    }
+  } catch { archiveUnavailable.value = true }
+}
+
+async function selectAddress(next) {
+  if (disposed) return
+  const session = archiveSession
+  const capturedAt = Date.now()
+  address.value = next.toLowerCase()
+  saveInbox()
+  resetInbox()
+  if (!archiveUnavailable.value) {
+    try {
+      const saved = await archive.recordAddress(address.value, capturedAt, {capturedAt})
+      if (!saved || session !== archiveSession) return
+      await refreshHistory()
+      archiveChannel?.postMessage({type: 'updated'})
+    } catch { archiveUnavailable.value = true }
+  }
+}
+
 async function genAddr() {
   if (creating.value) return
   creating.value = true
   try {
     const inbox = await openCreateInbox()
-    address.value = inbox.address
-    saveInbox()
-    resetInbox()
+    if (disposed) return
+    await selectAddress(inbox.address)
   } catch {
     flash(t('temporaryInbox.createFailed'))
   } finally {
@@ -416,24 +726,29 @@ function resetInbox() {
   closeMail()
   inboxRequestId += 1
   loading.value = false
-  mails.value = []
+  localRequestId += 1
+  liveMails.value = []
+  archivedMails.value = []
+  hasMoreLocal.value = false
   searched.value = false
   inboxError.value = ''
   countdown.value = REFRESH_SEC
-  load()
+  void refreshLocalMessages()
+  void load()
 }
 
 async function load() {
-  if (!address.value || loading.value) return
+  if (disposed || !address.value || loading.value || !navigator.onLine) return
   const requestId = ++inboxRequestId
   const requestedAddress = address.value
   loading.value = true
   try {
     const result = await openRecentMails(requestedAddress)
-    if (requestId === inboxRequestId && address.value === requestedAddress) {
-      mails.value = result || []
+    if (!disposed && requestId === inboxRequestId && address.value === requestedAddress) {
+      liveMails.value = result || []
       searched.value = true
       inboxError.value = ''
+      void captureRecent(result || [], requestedAddress)
     }
   } catch (error) {
     if (requestId === inboxRequestId && error?.code === 403) {
@@ -444,9 +759,68 @@ async function load() {
   }
 }
 
+function captureRecent(recent, mailbox) {
+  if (archiveUnavailable.value || !recent.length) return
+  if (captureRuns.has(mailbox)) return captureRuns.get(mailbox)
+  const run = captureRecentBatch(recent, mailbox).finally(() => {
+    if (captureRuns.get(mailbox) === run) captureRuns.delete(mailbox)
+  })
+  captureRuns.set(mailbox, run)
+  return run
+}
+
+async function captureRecentBatch(recent, mailbox) {
+  const capturedAt = Date.now()
+  const session = archiveSession
+  try {
+    for (const mail of recent) {
+      if (disposed || session !== archiveSession) return
+      await archive.saveMessage(mailbox, mail, {capturedAt})
+    }
+    if (address.value === mailbox) {
+      await refreshHistory()
+      await refreshLocalMessages()
+    }
+    const pending = []
+    for (const mail of recent) {
+      if (disposed || session !== archiveSession) return
+      if (!(await archive.getMessage(mailbox, mail.emailId))?.complete) pending.push(mail)
+    }
+    for (let index = 0; index < pending.length; index += 2) {
+      if (disposed || session !== archiveSession) return
+      const jobs = pending.slice(index, index + 2).map(mail => {
+        return (async () => {
+          const full = await openMailContent(mail.emailId, mailbox)
+          if (disposed || session !== archiveSession) return
+          const saved = await archive.saveMessage(mailbox, full, {full: true, capturedAt})
+          if (saved) void cacheMedia(full, mailbox, capturedAt, session)
+        })().catch(() => { /* 过期或网络中断时下次刷新再试 */ })
+      })
+      await Promise.all(jobs)
+    }
+    if (!disposed && session === archiveSession) {
+      await refreshHistory()
+      if (address.value === mailbox) await refreshLocalMessages()
+      archiveChannel?.postMessage({type: 'updated'})
+    }
+  } catch { archiveWarning.value = 'temporaryInbox.storageUnavailable' }
+}
+
 async function useManual() {
   const addr = manual.value.trim().toLowerCase()
   if (!addr) return
+  if (history.value.some(item => item.address === addr)) {
+    await selectAddress(addr)
+    manual.value = ''
+    return
+  }
+  if (!navigator.onLine) {
+    flash(t('temporaryInbox.offlineHistoryOnly'))
+    return
+  }
+  if (!domains.value.length) {
+    try { domains.value = await openDomains() || [] } catch { /* 查询错误在下面处理 */ }
+  }
   if (!domains.value.some(d => addr.endsWith('@' + d))) {
     flash(t('temporaryInbox.ownDomainOnly'))
     return
@@ -457,9 +831,39 @@ async function useManual() {
     flash(t('temporaryInbox.invalidAddress'))
     return
   }
-  address.value = addr
-  saveInbox()
-  resetInbox()
+  await selectAddress(addr)
+  manual.value = ''
+}
+
+function resetLocalState() {
+  closeMail()
+  inboxRequestId += 1
+  localRequestId += 1
+  address.value = ''
+  manual.value = ''
+  loading.value = false
+  liveMails.value = []
+  archivedMails.value = []
+  history.value = []
+  hasMoreLocal.value = false
+  searched.value = false
+  inboxError.value = ''
+  countdown.value = REFRESH_SEC
+  removeSavedInbox()
+}
+
+async function clearLocalHistory() {
+  if (clearing.value) return
+  clearing.value = true
+  archiveSession += 1
+  try {
+    await archive.clear()
+    resetLocalState()
+    showClearConfirm.value = false
+    archiveWarning.value = 'temporaryInbox.localCleared'
+    archiveChannel?.postMessage({type: 'cleared'})
+  } catch { archiveWarning.value = 'temporaryInbox.clearFailed' }
+  finally { clearing.value = false }
 }
 
 async function copyAddr() {
@@ -600,6 +1004,8 @@ function fmt(t) {
   background-size: 200% 100%;
   animation: tm-shimmer 1.3s linear infinite;
 }
+
+.tm-no-address { font-size: 15px; color: var(--ink-3); font-family: inherit; }
 
 @keyframes tm-shimmer {
   to { background-position: -200% 0; }
@@ -750,6 +1156,52 @@ function fmt(t) {
   border-color: var(--accent);
 }
 
+/* ---------- local archive ---------- */
+
+.tm-history {
+  margin: 0 0 22px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.tm-history-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.tm-history-head h2 { font-size: 14px; font-weight: 600; color: var(--ink); }
+.tm-history-head p { margin-top: 5px; font-size: 12px; line-height: 1.5; color: var(--ink-3); }
+.tm-clear {
+  flex: 0 0 auto;
+  padding: 5px 0;
+  color: #fba4a4;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tm-clear:hover { text-decoration: underline; }
+.tm-clear:focus-visible, .tm-history-item:focus-visible, .tm-load-more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.tm-history-list { display: grid; gap: 7px; max-height: 206px; overflow-y: auto; margin-top: 14px; }
+.tm-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card-2);
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+}
+.tm-history-item:hover, .tm-history-item.is-active { border-color: var(--accent); color: var(--ink); }
+.tm-history-address { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--mono); }
+.tm-history-count { flex: 0 0 auto; font-size: 11px; color: var(--ink-3); }
+.tm-history-empty { margin-top: 14px; font-size: 12px; color: var(--ink-3); }
+.tm-history-warning { margin-top: 12px; font-size: 12px; line-height: 1.5; color: #fbbf7b; }
+
 /* ---------- inbox ---------- */
 
 .tm-inbox {
@@ -819,6 +1271,9 @@ function fmt(t) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.tm-mail-local { margin-top: 4px; color: var(--good); font-size: 11px; }
+.tm-load-more { display: flex; margin: 14px auto 0; }
 
 .tm-code {
   flex-shrink: 0;

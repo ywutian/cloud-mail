@@ -1,7 +1,10 @@
 <template>
   <button v-if="!installed" class="app-install-button" :class="{compact}" type="button" :title="t('pwa.install')"
           :aria-label="t('pwa.install')" @click="install">
-    <Icon icon="mingcute:add-circle-line" width="18" height="18" aria-hidden="true" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+      <path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+    </svg>
     <span class="app-install-label">{{ t('pwa.install') }}</span>
   </button>
   <el-dialog v-model="showHelp" :title="t('pwa.install')" width="min(420px, calc(100vw - 32px))"
@@ -19,7 +22,6 @@
 
 <script setup>
 import {ref} from 'vue'
-import {Icon} from '@iconify/vue'
 import {useI18n} from 'vue-i18n'
 import {installed, installPlatform, requestInstall} from '@/pwa/install.js'
 
@@ -61,7 +63,6 @@ async function install() {
 .app-install-help { display: grid; gap: 14px; line-height: 1.6; }
 .app-install-help img { border-radius: 12px; }
 @media (max-width: 480px) {
-  .app-install-button { width: 42px; padding: 0; }
-  .app-install-label { display: none; }
+  .app-install-button { padding: 0 9px; }
 }
 </style>

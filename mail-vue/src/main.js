@@ -16,8 +16,9 @@ const app = createApp(App).use(pinia)
 try {
     await init()
 } catch (_) {
-    startupFailed.value = true
-    document.title = i18n.global.t(window.location.hostname.startsWith('temp.') ? 'temporaryInbox.title' : 'pwa.appName')
+    const publicPage = window.location.hostname.startsWith('temp.') || window.location.pathname === '/find'
+    startupFailed.value = !publicPage
+    document.title = i18n.global.t(publicPage ? 'temporaryInbox.title' : 'pwa.appName')
 }
 app.use(router).use(i18n).directive('perm',perm)
 app.config.devtools = true;

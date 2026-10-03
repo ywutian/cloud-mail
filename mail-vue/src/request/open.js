@@ -6,13 +6,13 @@ export function openCreateInbox() {
 }
 
 export function openRecentMails(address) {
-    return http.get('/open/recentMails', {params: {address}, noMsg: true})
+    return http.get('/open/recentMails', {params: {address}, noMsg: true, timeout: 12000})
 }
 
 export function openMailContent(emailId, address) {
-    return http.get('/open/mailContent', {params: {emailId, address}, noMsg: true})
+    return http.get('/open/mailContent', {params: {emailId, address}, noMsg: true, timeout: 12000})
 }
 
 export function openDomains() {
-    return http.get('/open/domains', {noMsg: true})
+    return http.get('/open/domains', {noMsg: true, timeout: 12000})
 }
