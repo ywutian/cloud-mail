@@ -18,7 +18,7 @@
         <span class="form-desc" v-if="show === 'login'">{{ $t('loginTitle') }}</span>
         <span class="form-desc" v-else>{{ $t('regTitle') }}</span>
         <div v-show="show === 'login'">
-          <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="form.email"
+          <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="form.email" dir="ltr"
                     type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="submit">
             <template #append v-if="!hideLoginDomain">
               <div @click.stop="openSelect">
@@ -55,7 +55,7 @@
           </el-button>
         </div>
         <div v-show="show !== 'login'">
-          <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="registerForm.email" type="text" :placeholder="$t('emailAccount')"
+          <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="registerForm.email" dir="ltr" type="text" :placeholder="$t('emailAccount')"
                     autocomplete="off" @keyup.enter="submitRegister">
             <template #append v-if="!hideLoginDomain">
               <div @click.stop="openSelect">

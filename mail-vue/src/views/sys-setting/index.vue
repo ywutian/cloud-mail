@@ -29,9 +29,9 @@
                 <div>
                   <el-select
                       @change="change"
-                      :style="`width: ${ locale === 'en' ?  100 : 80 }px;`"
+                      class="setting-value-select"
                       v-model="setting.regKey"
-                      placeholder="Select"
+                      :placeholder="$t('select')"
                   >
                     <el-option
                         v-for="item in regKeyOptions"
@@ -156,9 +156,9 @@
                 <div>
                   <el-select
                       @change="change"
-                      :style="`width: ${ locale === 'en' ? 100 : 80 }px;`"
+                      class="setting-value-select"
                       v-model="setting.autoRefresh"
-                      placeholder="Select"
+                      :placeholder="$t('select')"
                   >
                     <el-option
                         v-for="item in authRefreshOptions"
@@ -317,10 +317,9 @@
                   </el-button>
                   <el-select
                       @change="change"
-                      :style="`width: ${ locale === 'en' ? 100 : 80 }px;`"
+                      class="setting-value-select bot-verify-select"
                       v-model="setting.registerVerify"
-                      placeholder="Select"
-                      class="bot-verify-select"
+                      :placeholder="$t('select')"
                   >
                     <el-option key="1" :value="0" :label="$t('enable')"/>
                     <el-option key="1" :value="1" :label="$t('disable')"/>
@@ -336,10 +335,9 @@
                   </el-button>
                   <el-select
                       @change="change"
-                      :style="`width: ${ locale === 'en' ? 100 : 80 }px;`"
+                      class="setting-value-select bot-verify-select"
                       v-model="setting.addEmailVerify"
-                      placeholder="Select"
-                      class="bot-verify-select"
+                      :placeholder="$t('select')"
                   >
                     <el-option key="1" :value="0" :label="$t('enable')"/>
                     <el-option key="1" :value="1" :label="$t('disable')"/>
@@ -348,7 +346,7 @@
                 </div>
               </div>
               <div class="setting-item">
-                <div><span>Site Key</span></div>
+                <div><span>{{ $t('siteKey') }}</span></div>
                 <div class="bot-verify">
                   <span>{{ setting.siteKey }}</span>
                   <el-button class="opt-button" size="small" type="primary" @click="turnstileShow = true">
@@ -357,7 +355,7 @@
                 </div>
               </div>
               <div class="setting-item">
-                <div><span>Secret Key</span></div>
+                <div><span>{{ $t('secretKey') }}</span></div>
                 <div class="bot-verify">
                   <span> {{ setting.secretKey }} </span>
                   <el-button class="opt-button" size="small" type="primary" @click="turnstileShow = true">
@@ -444,7 +442,7 @@
       </el-dialog>
       <el-dialog v-model="resendTokenFormShow" :title="$t('resendToken')" width="340" @closed="cleanResendTokenForm">
         <form @submit.prevent>
-          <el-select style="margin-bottom: 15px" v-model="resendTokenForm.domain" placeholder="Select">
+          <el-select style="margin-bottom: 15px" v-model="resendTokenForm.domain" :placeholder="$t('select')">
             <el-option
                 v-for="item in settingStore.domainList"
                 :key="item"
@@ -466,8 +464,8 @@
       <el-dialog v-model="turnstileShow" :title="$t('addTurnstileSecret')" width="340"
                  @closed="turnstileForm.secretKey = '';turnstileForm.siteKey = ''">
         <form @submit.prevent>
-          <el-input type="text" placeholder="Site Key" v-model="turnstileForm.siteKey" @keyup.enter="saveTurnstileKey"/>
-          <el-input type="text" style="margin-top: 15px" placeholder="Secret Key" v-model="turnstileForm.secretKey" @keyup.enter="saveTurnstileKey"/>
+          <el-input type="text" :placeholder="$t('siteKey')" v-model="turnstileForm.siteKey" @keyup.enter="saveTurnstileKey"/>
+          <el-input type="text" style="margin-top: 15px" :placeholder="$t('secretKey')" v-model="turnstileForm.secretKey" @keyup.enter="saveTurnstileKey"/>
           <el-button type="primary" :loading="settingLoading" @click="saveTurnstileKey">{{ $t('save') }}</el-button>
         </form>
       </el-dialog>
@@ -668,11 +666,11 @@
               <template #prefix>
                 <span style="margin-right: 10px">{{ $t('icon') }}</span>
               </template>
-              <el-option key="none" label="None" value="none"/>
-              <el-option key="primary" label="Primary" value="primary"/>
-              <el-option key="success" label="Success" value="success"/>
-              <el-option key="warning" label="Warning" value="warning"/>
-              <el-option key="info" label="Info" value="info"/>
+              <el-option key="none" :label="t('noticeTypeNone')" value="none"/>
+              <el-option key="primary" :label="t('noticeTypePrimary')" value="primary"/>
+              <el-option key="success" :label="t('noticeTypeSuccess')" value="success"/>
+              <el-option key="warning" :label="t('noticeTypeWarning')" value="warning"/>
+              <el-option key="info" :label="t('noticeTypeInfo')" value="info"/>
             </el-select>
             <el-select v-model="noticeForm.noticePosition">
               <template #prefix>
@@ -734,15 +732,15 @@
       </el-dialog>
       <el-dialog v-model="addS3Show" :title="t('s3Configuration')" width="340" @closed="resetAddS3Form">
         <form @submit.prevent>
-          <el-input class="dialog-input" type="text" placeholder="Bucket" v-model="s3.bucket" @keyup.enter="saveS3"/>
-          <el-input class="dialog-input" type="text" placeholder="Endpoint" v-model="s3.endpoint" @keyup.enter="saveS3"/>
-          <el-input class="dialog-input" type="text" placeholder="Region" v-model="s3.region" @keyup.enter="saveS3"/>
-          <el-input class="dialog-input" type="text" :placeholder="setting.s3AccessKey || 'Access Key'"
+          <el-input class="dialog-input" type="text" :placeholder="$t('bucket')" v-model="s3.bucket" @keyup.enter="saveS3"/>
+          <el-input class="dialog-input" type="text" :placeholder="$t('endpoint')" v-model="s3.endpoint" @keyup.enter="saveS3"/>
+          <el-input class="dialog-input" type="text" :placeholder="$t('region')" v-model="s3.region" @keyup.enter="saveS3"/>
+          <el-input class="dialog-input" type="text" :placeholder="setting.s3AccessKey || $t('accessKey')"
                     v-model="s3.s3AccessKey" @keyup.enter="saveS3"/>
-          <el-input style="margin-bottom: 10px" type="text" :placeholder="setting.s3SecretKey || 'Secret Key'" v-model="s3.s3SecretKey" @keyup.enter="saveS3"/>
+          <el-input style="margin-bottom: 10px" type="text" :placeholder="setting.s3SecretKey || $t('secretKey')" v-model="s3.s3SecretKey" @keyup.enter="saveS3"/>
           <div class="force-path-style">
             <div class="force-path-style-left">
-              <span>ForcePathStyle</span>
+              <span>{{ $t('forcePathStyle') }}</span>
               <el-tooltip effect="dark" :content="$t('forcePathStyleDesc')">
                 <Icon class="warning" icon="fe:warning" width="18" height="18"/>
               </el-tooltip>
@@ -851,7 +849,7 @@ defineOptions({
   name: 'sys-setting'
 })
 
-const {t, locale} = useI18n();
+const {t} = useI18n();
 const firstLoading = ref(true)
 const settingReady = ref(false)
 const backgroundImage = ref('')
@@ -971,10 +969,9 @@ const tgMsgFrom = ref('')
 const tgMsgTo = ref('')
 const tgMsgText = ref('')
 
-const tgMsgFromOption = [{label: t('show'), value: 'show'}, {label: t('hide'), value: 'hide'}, {label: t('onlyName'), value:'only-name'}]
-const tgMsgToOption = [{label: t('show'), value: 'show'}, {label: t('hide'), value: 'hide'}]
-const tgMsgTextOption = [{label: t('show'), value: 'show'}, {label: t('hide'), value: 'hide'}]
-const tgMsgLabelWidth = computed(() => locale.value === 'en' ? '120px' : '100px');
+const tgMsgFromOption = computed(() => [{label: t('show'), value: 'show'}, {label: t('hide'), value: 'hide'}, {label: t('onlyName'), value:'only-name'}])
+const tgMsgToOption = computed(() => [{label: t('show'), value: 'show'}, {label: t('hide'), value: 'hide'}])
+const tgMsgTextOption = computed(() => [{label: t('show'), value: 'show'}, {label: t('hide'), value: 'hide'}])
 
 getSettings()
 
@@ -1690,9 +1687,14 @@ function editSetting(settingForm, refreshStatus = true) {
   gap: 10px;
 }
 
+.setting-value-select {
+  width: clamp(115px, 18vw, 180px);
+  max-width: 100%;
+}
+
 .setting-item {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
   gap: 10px;
   font-weight: normal;
 
@@ -1700,6 +1702,8 @@ function editSetting(settingForm, refreshStatus = true) {
     display: flex;
     align-items: center;
     gap: 5px;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   > div:last-child {
@@ -1707,6 +1711,7 @@ function editSetting(settingForm, refreshStatus = true) {
     grid-template-columns: 1fr auto;
     justify-items: flex-end;
     font-weight: normal;
+    min-width: 0;
   }
 }
 
@@ -1916,7 +1921,8 @@ function editSetting(settingForm, refreshStatus = true) {
     align-items: center;
     justify-content: space-between;
     .el-select {
-      width: v-bind(tgMsgLabelWidth);
+      width: clamp(130px, 38vw, 200px);
+      max-width: 60%;
     }
   }
 }

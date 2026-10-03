@@ -16,10 +16,11 @@
 </template>
 <script setup>
 import { useI18n } from "vue-i18n";
-import { computed, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import {useSettingStore} from "@/store/setting.js";
 import {getBrowserLanguage, resolveLanguage} from "@/i18n/index.js";
+import {intlLanguage, mailDescription, manifestPath} from '@/i18n/languages.js';
 import en from 'element-plus/es/locale/lang/en';
 import es from 'element-plus/es/locale/lang/es';
 import fr from 'element-plus/es/locale/lang/fr';
@@ -28,25 +29,76 @@ import ko from 'element-plus/es/locale/lang/ko';
 import de from 'element-plus/es/locale/lang/de';
 import pt from 'element-plus/es/locale/lang/pt-br';
 import ru from 'element-plus/es/locale/lang/ru';
+import it from 'element-plus/es/locale/lang/it';
+import id from 'element-plus/es/locale/lang/id';
+import vi from 'element-plus/es/locale/lang/vi';
+import tr from 'element-plus/es/locale/lang/tr';
+import ar from 'element-plus/es/locale/lang/ar';
+import hi from 'element-plus/es/locale/lang/hi';
 import {setExtend} from '@/utils/day.js';
 import {startupFailed, online, updateAvailable, applyUpdate, dismissUpdate} from '@/pwa/status.js';
 function retryConnection() { window.location.reload() }
 const settingStore = useSettingStore()
 const route = useRoute()
-const browserLang = getBrowserLanguage()
-const effectiveLang = computed(() => route.name === 'find'
-  ? resolveLanguage(settingStore.publicMailboxLanguage, browserLang)
-  : resolveLanguage(settingStore.lang, browserLang))
+const browserLang = ref(getBrowserLanguage())
+const temporaryPage = computed(() => route.name === 'find'
+  || (!route.name && (window.location.hostname.startsWith('temp.') || window.location.pathname === '/find')))
+const effectiveLang = computed(() => temporaryPage.value
+  ? resolveLanguage(settingStore.publicMailboxLanguage, browserLang.value)
+  : resolveLanguage(settingStore.lang, browserLang.value))
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import('@/icons/index.js')
-const elementLocales = {zh: zhCn, en, es, fr, ja, ko, de, pt, ru}
+const elementLocales = {zh: zhCn, en, es, fr, ja, ko, de, pt, ru, it, id, vi, tr, ar, hi}
 const elementLocale = computed(() => elementLocales[effectiveLang.value] || en)
-const { locale } = useI18n()
-watch(effectiveLang, lang => {
+const { locale, t, te } = useI18n()
+
+function refreshBrowserLanguage() {
+  browserLang.value = getBrowserLanguage()
+}
+
+function onVisibilityChange() {
+  if (!document.hidden) refreshBrowserLanguage()
+}
+
+function onStorage(event) {
+  if (event.key !== 'setting' || !event.newValue) return
+  try {
+    const next = JSON.parse(event.newValue)
+    if (typeof next.lang === 'string' && next.lang !== settingStore.lang) settingStore.lang = next.lang
+    if (typeof next.publicMailboxLanguage === 'string' && next.publicMailboxLanguage !== settingStore.publicMailboxLanguage) {
+      settingStore.publicMailboxLanguage = next.publicMailboxLanguage
+    }
+  } catch { /* Ignore unrelated or malformed browser storage. */ }
+}
+
+onMounted(() => {
+  window.addEventListener('languagechange', refreshBrowserLanguage)
+  window.addEventListener('focus', refreshBrowserLanguage)
+  window.addEventListener('storage', onStorage)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('languagechange', refreshBrowserLanguage)
+  window.removeEventListener('focus', refreshBrowserLanguage)
+  window.removeEventListener('storage', onStorage)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+})
+
+watch([effectiveLang, () => route.name, () => route.meta.title, () => settingStore.settings.title], ([lang]) => {
   locale.value = lang
-  document.documentElement.lang = lang
+  document.documentElement.lang = intlLanguage(lang)
+  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr'
   setExtend(lang)
-}, { immediate: true })
+  const temporary = temporaryPage.value
+  const siteTitle = settingStore.settings.title || t('pwa.appName')
+  const routeTitle = route.meta.title
+  document.title = temporary
+    ? t('temporaryInbox.title')
+    : (typeof routeTitle === 'string' && te(routeTitle) ? `${t(routeTitle)} · ${siteTitle}` : siteTitle)
+  const description = document.querySelector('meta[name="description"]')
+  if (description) description.content = temporary ? t('temporaryInbox.tagline') : mailDescription(lang)
+  document.querySelector('link[rel="manifest"]')?.setAttribute('href', manifestPath(lang, temporary))
+}, { immediate: true, flush: 'sync' })
 </script>
 <style scoped>
 .app-connect-error {

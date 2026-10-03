@@ -10,8 +10,7 @@
         >
         </el-input>
       </div>
-      <el-select v-model="params.status" placeholder="Select" class="status-select"
-                 :style="`width: ${locale === 'en' ? 95 : 80 }px`">
+      <el-select v-model="params.status" :placeholder="$t('select')" class="status-select">
         <el-option :key="-1" :label="$t('all')" :value="-1"/>
         <el-option :key="0" :label="$t('active')" :value="0"/>
         <el-option :key="1" :label="$t('banned')" :value="1"/>
@@ -155,7 +154,7 @@
     <el-dialog class="dialog" v-model="setTypeShow" :title="$t('changePerm')" @closed="resetUserForm">
       <div class="dialog-box">
         <el-input disabled :model-value="$t('admin')" v-if="userForm.type === 0"/>
-        <el-select v-else v-model="userForm.type" placeholder="Select">
+        <el-select v-else v-model="userForm.type" :placeholder="$t('select')">
           <el-option v-for="item in roleList" :label="item.name" :value="item.roleId" :key="item.roleId"/>
         </el-select>
         <el-button :disabled="userForm.type === 0" class="btn" :loading="settingLoading" type="primary" @click="setType"
@@ -206,13 +205,13 @@
             <div class="email-row">{{ props.row.email }}</div>
           </template>
         </el-table-column>
-        <el-table-column property="address" :label="t('tabStatus')"  :width="locale === 'en' ? 75 : 65" >
+        <el-table-column property="address" :label="t('tabStatus')" min-width="105" >
           <template #default="props">
             <el-tag type="primary" disable-transitions v-if="props.row.isDel === 0">{{$t('active')}}</el-tag>
             <el-tag type="info" disable-transitions v-if="props.row.isDel === 1">{{$t('deleted')}}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column :label="t('action')" :width="locale === 'en' ? 75 : 65" >
+        <el-table-column :label="t('action')" min-width="105" >
           <template #default="props">
             <el-dropdown trigger="click">
               <el-button type="primary" size="small">{{t('action')}}</el-button>
@@ -377,7 +376,7 @@
 </template>
 
 <script setup>
-import {defineOptions, h, reactive, ref, watch} from 'vue'
+import {computed, defineOptions, h, reactive, ref, watch} from 'vue'
 import {
   userList,
   userDelete,
@@ -404,7 +403,7 @@ defineOptions({
   name: 'user'
 })
 
-const {t, locale} = useI18n();
+const {t} = useI18n();
 const roleStore = useRoleStore()
 const userStore = useUserStore()
 const settingStore = useSettingStore()
@@ -422,7 +421,7 @@ function oauthPlatform(row) {
   return null
 }
 const filteredValue = ['normal', 'del']
-const filters = [{text: t('active'), value: 'normal'}, {text: t('deleted'), value: 'del'}]
+const filters = computed(() => [{text: t('active'), value: 'normal'}, {text: t('deleted'), value: 'del'}])
 const preserveExpanded = ref(false)
 const emailWidth = ref(230)
 const expandWidth = ref(40)
@@ -1057,7 +1056,7 @@ function adjustWidth() {
   sendNumShow.value = width > 685
   typeShow.value = width > 767
   emailWidth.value = width > 480 ? 230 : null
-  settingWidth.value = width < 480 ? (locale.value === 'en' ? 85 : 75) : null
+  settingWidth.value = width < 480 ? 110 : null
   expandWidth.value = width < 480 ? 30 : 35
   pagerCount.value = width < 768 ? 7 : 11
   receiveWidth.value = width < 480 ? 90 : null
@@ -1222,6 +1221,7 @@ function adjustWidth() {
 }
 
 .status-select {
+  width: clamp(120px, 30vw, 190px);
   :deep(.el-select__wrapper) {
     min-height: 28px;
   }

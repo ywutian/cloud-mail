@@ -7,6 +7,7 @@ import emailTextTemplate from '../template/email-text';
 import emailHtmlTemplate from '../template/email-html';
 import domainUtils from "../utils/domain-uitls";
 import mediaService from './media-service';
+import {requestLanguage, t} from '../i18n/i18n.js';
 
 const VIEW_PREFIX = 'telegram-view:';
 const VIEW_TTL_SECONDS = 15 * 60;
@@ -26,12 +27,13 @@ const telegramService = {
 	async getEmailContent(c, params) {
 
 		const { token } = params
+		const language = requestLanguage(c);
 
 		if (!/^[A-Za-z0-9_-]{43}$/.test(String(token || ''))) {
-			return emailTextTemplate('Access denied')
+			return emailTextTemplate(t(c, 'telegramAccessDenied'), language)
 		}
 		const grant = await c.env.kv.get(await tokenKey(token), { type: 'json' });
-		if (!Number.isSafeInteger(grant?.emailId) || grant.emailId <= 0) return emailTextTemplate('Access denied');
+		if (!Number.isSafeInteger(grant?.emailId) || grant.emailId <= 0) return emailTextTemplate(t(c, 'telegramAccessDenied'), language);
 
 		const emailRow = await orm(c).select().from(email).where(eq(email.emailId, grant.emailId)).get();
 
@@ -49,7 +51,7 @@ const telegramService = {
 			}
 
 		} else {
-			return emailTextTemplate('The email does not exist')
+			return emailTextTemplate(t(c, 'telegramMailNotFound'), language)
 		}
 
 	},

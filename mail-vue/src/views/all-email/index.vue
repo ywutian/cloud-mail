@@ -44,7 +44,7 @@
             </div>
           </template>
         </el-input>
-        <el-select v-model="params.type" placeholder="Select" class="status-select" @change="typeSelectChange">
+        <el-select v-model="params.type" :placeholder="$t('select')" class="status-select" @change="typeSelectChange">
           <el-option key="1" :label="$t('all')" value="all"/>
           <el-option key="3" :label="$t('received')" value="receive"/>
           <el-option key="2" :label="$t('sent')" value="send"/>
@@ -75,7 +75,7 @@
                         size="default"
         />
         <div class="clear-button">
-          <el-select v-model="clearParams.type" style="width: 200px">
+          <el-select v-model="clearParams.type" class="match-type-select">
             <el-option key="eq" :label="t('equal')" value="eq"/>
             <el-option key="left" :label="t('leading')" value="left"/>
             <el-option key="include" :label="t('include')" value="include"/>
@@ -444,14 +444,19 @@ async function latest() {
   align-items: center;
   gap: 15px;
 
+  .match-type-select {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
   .el-button {
-    width: 100%;
+    flex-shrink: 0;
   }
 }
 
 .status-select {
   margin-bottom: 2px;
-  width: 102px;
+  width: clamp(130px, 32vw, 210px);
 
   :deep(.el-select__wrapper) {
     min-height: 28px;
@@ -480,33 +485,4 @@ async function latest() {
   cursor: pointer;
 }
 
-.clear {
-  @media (max-width: 419px) {
-    position: absolute;
-    top: 41px;
-    left: 242px;
-  }
-}
-
-:deep(.reload) {
-  @media (max-width: 419px) {
-    position: absolute;
-    top: 42px;
-    left: 208px;
-  }
-}
-
-:deep(.delete) {
-  @media (max-width: 456px) {
-    position: absolute;
-    top: 43px;
-    left: 294px;
-  }
-
-  @media (max-width: 419px) {
-    position: absolute;
-    top: 43px;
-    left: 282px;
-  }
-}
 </style>

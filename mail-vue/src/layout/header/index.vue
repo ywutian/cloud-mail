@@ -10,6 +10,15 @@
       </div>
     </div>
     <div class="toolbar">
+      <LanguageSelect v-model="settingStore.lang" class="header-language" />
+      <el-popover placement="bottom-end" trigger="click" :width="240">
+        <template #reference>
+          <button type="button" class="language-mobile icon-item" :title="t('language')" :aria-label="t('language')">
+            <Icon icon="mdi:translate" width="20" height="20" aria-hidden="true"/>
+          </button>
+        </template>
+        <LanguageSelect v-model="settingStore.lang" />
+      </el-popover>
       <AppInstallButton compact />
       <div v-if="uiStore.dark" class="sun-icon icon-item" @click="openDark($event)">
         <Icon icon="mingcute:sun-fill"/>
@@ -77,6 +86,7 @@
 import router from "@/router";
 import hanburger from '@/components/hamburger/index.vue'
 import AppInstallButton from '@/components/app-install-button/index.vue'
+import LanguageSelect from '@/components/language-select/index.vue'
 import {logout} from "@/request/login.js";
 import {Icon} from "@iconify/vue";
 import {useUiStore} from "@/store/ui.js";
@@ -409,6 +419,7 @@ function formatName(email) {
 .toolbar {
   display: flex;
   justify-content: end;
+  align-items: center;
   gap: 15px;
   @media (max-width: 767px) {
     gap: 10px;
@@ -423,6 +434,13 @@ function formatName(email) {
     align-items: center;
     justify-content: center;
     cursor: pointer;
+  }
+
+  .language-mobile { display: none; }
+
+  @media (max-width: 767px) {
+    .header-language { display: none; }
+    .language-mobile { display: flex; }
   }
 
   .icon-item:hover {

@@ -13,6 +13,12 @@ import frontKo from '../src/i18n/ko.js'
 import frontDe from '../src/i18n/de.js'
 import frontPt from '../src/i18n/pt.js'
 import frontRu from '../src/i18n/ru.js'
+import frontIt from '../src/i18n/it.js'
+import frontId from '../src/i18n/id.js'
+import frontVi from '../src/i18n/vi.js'
+import frontTr from '../src/i18n/tr.js'
+import frontAr from '../src/i18n/ar.js'
+import frontHi from '../src/i18n/hi.js'
 import workerEn from '../../mail-worker/src/i18n/en.js'
 import workerZh from '../../mail-worker/src/i18n/zh.js'
 import workerEs from '../../mail-worker/src/i18n/es.js'
@@ -22,11 +28,17 @@ import workerKo from '../../mail-worker/src/i18n/ko.js'
 import workerDe from '../../mail-worker/src/i18n/de.js'
 import workerPt from '../../mail-worker/src/i18n/pt.js'
 import workerRu from '../../mail-worker/src/i18n/ru.js'
-import {getBrowserLanguage, normalizeLanguage, resolveLanguage} from '../src/i18n/languages.js'
+import workerIt from '../../mail-worker/src/i18n/it.js'
+import workerId from '../../mail-worker/src/i18n/id.js'
+import workerVi from '../../mail-worker/src/i18n/vi.js'
+import workerTr from '../../mail-worker/src/i18n/tr.js'
+import workerAr from '../../mail-worker/src/i18n/ar.js'
+import workerHi from '../../mail-worker/src/i18n/hi.js'
+import {getBrowserLanguage, intlLanguage, languages, manifestPath, normalizeLanguage, resolveLanguage} from '../src/i18n/languages.js'
 import {requestLanguage, t} from '../../mail-worker/src/i18n/i18n.js'
 
-const frontend = {en: frontEn, zh: frontZh, es: frontEs, fr: frontFr, ja: frontJa, ko: frontKo, de: frontDe, pt: frontPt, ru: frontRu}
-const backend = {en: workerEn, zh: workerZh, es: workerEs, fr: workerFr, ja: workerJa, ko: workerKo, de: workerDe, pt: workerPt, ru: workerRu}
+const frontend = {en: frontEn, zh: frontZh, es: frontEs, fr: frontFr, ja: frontJa, ko: frontKo, de: frontDe, pt: frontPt, ru: frontRu, it: frontIt, id: frontId, vi: frontVi, tr: frontTr, ar: frontAr, hi: frontHi}
+const backend = {en: workerEn, zh: workerZh, es: workerEs, fr: workerFr, ja: workerJa, ko: workerKo, de: workerDe, pt: workerPt, ru: workerRu, it: workerIt, id: workerId, vi: workerVi, tr: workerTr, ar: workerAr, hi: workerHi}
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../src')
 const workerRoot = resolve(root, '../../mail-worker/src')
 
@@ -44,7 +56,9 @@ function files(path) {
     entry.isDirectory() ? files(resolve(path, entry.name)) : [resolve(path, entry.name)])
 }
 
-test('all nine languages have complete keys and matching placeholders', () => {
+test('all selectable languages have complete keys and matching placeholders', () => {
+  assert.deepEqual(Object.keys(frontend).sort(), languages.map(language => language.code).sort())
+  assert.deepEqual(Object.keys(backend).sort(), languages.map(language => language.code).sort())
   for (const [surface, locales] of Object.entries({frontend, backend})) {
     const reference = flatten(locales.en)
     for (const [language, tree] of Object.entries(locales)) {
@@ -86,12 +100,14 @@ test('browser preference and manual selection resolve all supported languages', 
   try {
     Object.defineProperty(globalThis, 'navigator', {
       configurable: true,
-      value: {languages: ['it-IT', 'ru-RU', 'en-US'], language: 'it-IT'},
+      value: {languages: ['zh-TW', 'pt-PT', 'it-IT', 'ru-RU'], language: 'zh-TW'},
     })
-    assert.equal(getBrowserLanguage(), 'ru')
-    assert.equal(resolveLanguage('auto'), 'ru')
+    assert.equal(getBrowserLanguage(), 'it')
+    assert.equal(resolveLanguage('auto'), 'it')
     assert.equal(resolveLanguage('ja'), 'ja')
     assert.equal(normalizeLanguage('pt-BR'), 'pt')
+    assert.equal(normalizeLanguage('zh-Hant'), null)
+    assert.equal(normalizeLanguage('pt-PT'), null)
     assert.equal(normalizeLanguage('xx-XX'), null)
   } finally {
     if (previous) Object.defineProperty(globalThis, 'navigator', previous)
@@ -99,11 +115,24 @@ test('browser preference and manual selection resolve all supported languages', 
   }
 })
 
+test('both home screen apps have a localized manifest for every language', () => {
+  for (const {code} of languages) {
+    for (const temporary of [false, true]) {
+      const path = resolve(root, '../public' + manifestPath(code, temporary))
+      const manifest = JSON.parse(readFileSync(path, 'utf8'))
+      assert.equal(manifest.lang, intlLanguage(code), path)
+      assert.equal(manifest.dir, code === 'ar' ? 'rtl' : 'ltr', path)
+      assert.equal(manifest.id, temporary ? '/temporary-mail-app' : '/mail-app', path)
+      assert.ok(manifest.name.trim() && manifest.description.trim(), path)
+    }
+  }
+})
+
 test('server translations stay bound to each request', async () => {
   const context = value => ({req: {header: () => value}})
   const spanish = context('es-ES,ru;q=0.7')
   const russian = context('ru-RU,es;q=0.7')
-  assert.equal(requestLanguage(context('it-IT,fr-FR;q=0.9,ru;q=0.8')), 'fr')
+  assert.equal(requestLanguage(context('nl-NL,fr-FR;q=0.9,ru;q=0.8')), 'fr')
   assert.equal(requestLanguage(context('de;q=0,ja;q=0.8')), 'ja')
   const results = await Promise.all(Array.from({length: 20}, (_, index) =>
     Promise.resolve().then(() => t(index % 2 ? russian : spanish, 'IncorrectPwd'))))

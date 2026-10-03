@@ -1,9 +1,10 @@
-export default function emailTextTemplate(text) {
+export default function emailTextTemplate(text, language) {
 	text = String(text).replace(/[&<>"']/g, char => ({
 		'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 	})[char]);
+	const langAttribute = /^[a-z]{2,8}$/i.test(language || '') ? ` lang='${language}'` : '';
 	return `<!DOCTYPE html>
-<html lang='en' >
+<html${langAttribute}>
 <head>
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>

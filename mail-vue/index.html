@@ -4,10 +4,10 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <meta name="theme-color" content="#F1F1F1" id="theme-color-meta">
-  <meta name="description" content="Cloud Mail 是一个 Serverless 响应式邮箱服务，支持邮件发送，可部署到 Cloudflare 平台，降低服务器成本。Cloud Mail is a serverless responsive email service that supports email sending and can be deployed on Cloudflare to reduce server costs.">
+  <meta name="description" content="Email inbox, sending and account management.">
   <title>Cloud Mail</title>
   <link rel="icon" href="/mail.png" type="image/png">
-  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="manifest" id="app-manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -15,7 +15,27 @@
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   <script>
     const temporaryApp = window.location.hostname.startsWith('temp.')
+    const publicPage = temporaryApp || window.location.pathname === '/find'
     if (temporaryApp) document.documentElement.classList.add('temp-app')
+    const supportedLanguages = new Set(['zh', 'en', 'es', 'fr', 'ja', 'ko', 'de', 'pt', 'ru', 'it', 'id', 'vi', 'tr', 'ar', 'hi'])
+    const normalizeLanguage = value => {
+      if (typeof value !== 'string') return null
+      const parts = value.toLowerCase().replaceAll('_', '-').split('-')
+      if (parts[0] === 'zh' && parts.some(part => ['hant', 'tw', 'hk', 'mo'].includes(part))) return null
+      if (parts[0] === 'pt' && parts.includes('pt', 1)) return null
+      return supportedLanguages.has(parts[0]) ? parts[0] : null
+    }
+    let languageSettings
+    try { languageSettings = JSON.parse(localStorage.getItem('setting') || 'null') } catch (_) {}
+    const chosenLanguage = normalizeLanguage(publicPage ? languageSettings?.publicMailboxLanguage : languageSettings?.lang)
+    const preferredLanguages = navigator.languages?.length ? navigator.languages : [navigator.language]
+    const pageLanguage = chosenLanguage
+      || preferredLanguages.map(normalizeLanguage).find(Boolean)
+      || 'en'
+    const localeTags = {zh:'zh-CN',en:'en-US',es:'es-ES',fr:'fr-FR',ja:'ja-JP',ko:'ko-KR',de:'de-DE',pt:'pt-BR',ru:'ru-RU',it:'it-IT',id:'id-ID',vi:'vi-VN',tr:'tr-TR',ar:'ar-SA',hi:'hi-IN'}
+    document.documentElement.lang = localeTags[pageLanguage]
+    document.documentElement.dir = pageLanguage === 'ar' ? 'rtl' : 'ltr'
+    document.getElementById('app-manifest').href = `/manifest-${publicPage ? 'temp' : 'mail'}-${pageLanguage}.webmanifest`
     let uiStore
     try { uiStore = JSON.parse(localStorage.getItem('ui') || 'null') } catch (_) {}
     if (uiStore) {

@@ -300,7 +300,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['jump', 'refresh-before', 'delete-draft', 'right-search'])
-const {t} = useI18n()
+const {t, locale} = useI18n()
 const settingStore = useSettingStore()
 const uiStore = useUiStore();
 const emailStore = useEmailStore();
@@ -407,6 +407,10 @@ const itemHeight = computed(() => {
 
 watch(emailList, () => {
   updateHasScrollbar();
+})
+
+watch(locale, () => {
+  handleList(emailList)
 })
 
 watch(scrollbarRef, () => {

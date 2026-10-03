@@ -18,7 +18,7 @@
         <div class="tm-card-label">{{ t('temporaryInbox.yourAddress') }}</div>
 
         <div class="tm-addr" @click="copyAddr">
-          <span v-if="address">{{ address }}</span>
+          <span v-if="address" dir="ltr">{{ address }}</span>
           <span v-else-if="creating" class="tm-addr-skeleton"></span>
           <span v-else class="tm-no-address">{{ t('temporaryInbox.noActiveAddress') }}</span>
         </div>
@@ -43,7 +43,7 @@
 
       <div class="tm-manual">
         <Icon class="tm-manual-icon" icon="iconoir:search" width="16" height="16"/>
-        <input v-model="manual" :placeholder="t('temporaryInbox.searchPlaceholder')" spellcheck="false"
+        <input v-model="manual" :placeholder="t('temporaryInbox.searchPlaceholder')" spellcheck="false" dir="auto"
                @keyup.enter="useManual"/>
         <button class="tm-btn tm-btn-slim" @click="useManual">{{ t('temporaryInbox.search') }}</button>
       </div>
@@ -62,7 +62,7 @@
           <button v-for="item in history" :key="item.address" type="button"
                   class="tm-history-item" :class="{'is-active': item.address === address}"
                   @click="switchAddress(item.address)">
-            <span class="tm-history-address">{{ item.address }}</span>
+            <span class="tm-history-address" dir="ltr">{{ item.address }}</span>
             <span class="tm-history-count">{{ t('temporaryInbox.savedCount', {count: item.messageCount || 0}) }}</span>
           </button>
         </div>
@@ -119,11 +119,11 @@
           <div class="tm-view-info-row">
             <span class="tm-view-info-label">{{ t('temporaryInbox.sender') }}</span>
             <span class="tm-view-name">{{ viewing.sendName || viewing.sendEmail }}</span>
-            <span v-if="viewing.sendName && viewing.sendEmail" class="tm-view-addr">&lt;{{ viewing.sendEmail }}&gt;</span>
+            <span v-if="viewing.sendName && viewing.sendEmail" class="tm-view-addr" dir="ltr">&lt;{{ viewing.sendEmail }}&gt;</span>
           </div>
           <div class="tm-view-info-row">
             <span class="tm-view-info-label">{{ t('temporaryInbox.recipient') }}</span>
-            <span>{{ formatRecipients(viewing) }}</span>
+            <span dir="ltr">{{ formatRecipients(viewing) }}</span>
           </div>
           <time class="tm-view-date">{{ formatDetailDate(viewing.createTime, publicLang) }}</time>
           <el-alert v-if="viewing.status === 3" :closable="false" :title="statusMessage(viewing.message)"
@@ -192,11 +192,11 @@ import LanguageSelect from '@/components/language-select/index.vue'
 import AppInstallButton from '@/components/app-install-button/index.vue'
 import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
-import {getBrowserLanguage, resolveLanguage} from "@/i18n/index.js";
 import {openCreateInbox, openDomains, openMailContent, openRecentMails} from "@/request/open.js";
 import {getExtName, formatBytes} from "@/utils/file-utils.js";
 import {getIconByName} from "@/utils/icon-utils.js";
-import {formatDetailDate} from "@/utils/day.js";
+import {formatDetailDate, tzDayjs} from "@/utils/day.js";
+import {intlLanguage} from '@/i18n/languages.js'
 import {mailArchive, MAX_ARCHIVE_FILE_BYTES} from '@/local-mail/archive.js'
 
 defineOptions({
@@ -208,10 +208,9 @@ const ADDR_KEY = 'findAddress'
 const SAVE_BINARY_FILES = true
 const LOCAL_PAGE_SIZE = 100
 const archive = mailArchive()
-const {t} = useI18n()
+const {t, locale} = useI18n()
 const settingStore = useSettingStore()
-const browserLang = getBrowserLanguage()
-const publicLang = computed(() => resolveLanguage(settingStore.publicMailboxLanguage, browserLang))
+const publicLang = computed(() => locale.value)
 
 const address = ref('')
 const manual = ref('')
@@ -908,8 +907,21 @@ function flash(msg) {
   alert(msg)
 }
 
-function fmt(t) {
-  return t ? String(t).slice(11, 16) : ''
+function fmt(value) {
+  if (!value) return ''
+  const date = tzDayjs(value).toDate()
+  if (Number.isNaN(date.getTime())) return ''
+  const now = new Date()
+  const today = date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate()
+  return new Intl.DateTimeFormat(intlLanguage(publicLang.value), {
+    ...(today ? {} : {
+      month: 'short', day: 'numeric',
+      ...(date.getFullYear() === now.getFullYear() ? {} : {year: 'numeric'}),
+    }),
+    hour: 'numeric', minute: '2-digit',
+  }).format(date)
 }
 </script>
 
@@ -1086,7 +1098,7 @@ function fmt(t) {
   display: flex;
   align-items: center;
   gap: 7px;
-  margin-left: auto;
+  margin-inline-start: auto;
   font-size: 12.5px;
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
@@ -1204,11 +1216,12 @@ function fmt(t) {
   border-radius: 8px;
   background: var(--card-2);
   color: var(--ink-2);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .tm-history-item:hover, .tm-history-item.is-active { border-color: var(--accent); color: var(--ink); }
 .tm-history-address { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--mono); }
+.tm:dir(rtl) .tm-mail-arrow { transform: scaleX(-1); }
 .tm-history-count { flex: 0 0 auto; font-size: 11px; color: var(--ink-3); }
 .tm-history-empty { margin-top: 14px; font-size: 12px; color: var(--ink-3); }
 .tm-history-warning { margin-top: 12px; font-size: 12px; line-height: 1.5; color: #fbbf7b; }
@@ -1419,7 +1432,8 @@ function fmt(t) {
 
 .tm-view-date {
   display: block;
-  margin: 4px 0 0 54px;
+  margin: 4px 0 0;
+  margin-inline-start: 54px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1464,7 +1478,7 @@ function fmt(t) {
 }
 
 .tm-view-code-hint {
-  margin-left: auto;
+  margin-inline-start: auto;
   font-size: 12px;
   color: var(--ink-3);
 }
@@ -1552,7 +1566,7 @@ function fmt(t) {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-left: 4px;
+  padding-inline-start: 4px;
 }
 
 .tm-attachment-actions button,
@@ -1585,13 +1599,20 @@ function fmt(t) {
 
   .tm-timer {
     width: 100%;
-    margin-left: 0;
+    margin-inline-start: 0;
     order: 3;
   }
 
   .tm-code {
     font-size: 16px;
     padding: 6px 10px;
+  }
+
+  .tm-mail-time {
+    max-width: 90px;
+    text-align: end;
+    white-space: normal;
+    line-height: 1.3;
   }
 
   /* 手机上弹窗贴边铺满，别再留一圈边距挤内容 */

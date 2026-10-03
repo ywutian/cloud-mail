@@ -11,7 +11,7 @@
              append-to-body align-center>
     <div class="app-install-help">
       <img src="/app-icon-192.png" alt="" width="56" height="56" />
-      <p>{{ t('pwa.installHelp') }}</p>
+      <p>{{ installHelp }}</p>
       <p>{{ t(`pwa.install${platform}`) }}</p>
     </div>
     <template #footer>
@@ -21,14 +21,19 @@
 </template>
 
 <script setup>
-import {ref} from 'vue'
+import {computed, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useRoute} from 'vue-router'
 import {installed, installPlatform, requestInstall} from '@/pwa/install.js'
 
 defineProps({compact: {type: Boolean, default: false}})
 const {t} = useI18n()
+const route = useRoute()
 const showHelp = ref(false)
 const platform = installPlatform()
+const installHelp = computed(() => route.name === 'find'
+  ? t('pwa.installHelpTemporary')
+  : t('pwa.installHelp'))
 
 async function install() {
   try {
@@ -47,7 +52,7 @@ async function install() {
   justify-content: center;
   gap: 6px;
   flex: 0 0 auto;
-  min-height: 42px;
+  min-height: 44px;
   padding: 0 11px;
   border: 1px solid var(--language-control-border, var(--el-border-color));
   border-radius: 9px;
@@ -63,6 +68,7 @@ async function install() {
 .app-install-help { display: grid; gap: 14px; line-height: 1.6; }
 .app-install-help img { border-radius: 12px; }
 @media (max-width: 480px) {
-  .app-install-button { padding: 0 9px; }
+  .app-install-button:not(.compact) { width: 44px; padding: 0; }
+  .app-install-button:not(.compact) .app-install-label { display: none; }
 }
 </style>

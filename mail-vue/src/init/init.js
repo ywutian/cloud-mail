@@ -16,9 +16,13 @@ export async function init() {
 
     const token = localStorage.getItem('token');
     if (!settingStore.lang) settingStore.lang = 'auto'
-    i18n.global.locale.value = resolveLanguage(settingStore.lang, getBrowserLanguage())
+    const publicPage = window.location.hostname.startsWith('temp.') || window.location.pathname === '/find'
+    i18n.global.locale.value = resolveLanguage(
+        publicPage ? settingStore.publicMailboxLanguage : settingStore.lang,
+        getBrowserLanguage(),
+    )
 
-    if (window.location.hostname.startsWith('temp.') || (!token && window.location.pathname === '/find')) {
+    if (publicPage) {
         document.title = i18n.global.t('temporaryInbox.title')
         return
     }

@@ -119,8 +119,8 @@
                 <el-input-number v-if="form.sendType === 'day' || form.sendType === 'count'" v-model="form.sendCount" controls-position="right" :min="0" :max="99999" size="small"
                                  :placeholder="$t('total')">
                 </el-input-number>
-                  <el-select v-model="form.sendType" placeholder="Select" size="small"
-                             :style="`width: ${ locale === 'zh' ? 65 : 85 }px;margin-left: 5px;`">
+                  <el-select v-model="form.sendType" :placeholder="$t('select')" size="small"
+                             class="send-type-select">
                     <el-option :label="$t('total')" value="count"/>
                     <el-option :label="$t('daily')" value="day"/>
                     <el-option :label="$t('internal')" value="internal"/>
@@ -158,7 +158,7 @@ defineOptions({
 })
 
 const {domainList} = useSettingStore();
-const {t, locale} = useI18n();
+const {t} = useI18n();
 const userStore = useUserStore();
 const roleStore = useRoleStore();
 const roleFormShow = ref(false)
@@ -401,7 +401,7 @@ function getRoleList() {
 
 function adjustWidth() {
   desShow.value = window.innerWidth > 767
-  settingWidth.value = window.innerWidth < 480 ? (locale.value === 'en' ? 85 : 75) : null
+  settingWidth.value = window.innerWidth < 480 ? 110 : null
   sortWidth.value = window.innerWidth < 480 ? 75 : null
   roleWidth.value = window.innerWidth < 480 ? 180 : 200
 }
@@ -428,6 +428,11 @@ window.onresize = () => {
 
 .send-num {
   margin-left: 10px;
+
+  .send-type-select {
+    width: clamp(110px, 24vw, 170px);
+    margin-left: 5px;
+  }
 
   .el-input-number {
     width: 95px;

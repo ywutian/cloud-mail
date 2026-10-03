@@ -12,7 +12,7 @@
 </template>
 
 <script setup>
-import {computed} from 'vue'
+import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
 import {Icon} from '@iconify/vue'
 import {useI18n} from 'vue-i18n'
 import {languages, getBrowserLanguage} from '@/i18n/languages.js'
@@ -20,7 +20,27 @@ import {languages, getBrowserLanguage} from '@/i18n/languages.js'
 defineProps({modelValue: {type: String, default: 'auto'}})
 const emit = defineEmits(['update:modelValue'])
 const {t} = useI18n()
-const browserLanguageName = computed(() => languages.find(language => language.code === getBrowserLanguage())?.name || 'English')
+const browserLanguage = ref(getBrowserLanguage())
+const browserLanguageName = computed(() => languages.find(language => language.code === browserLanguage.value)?.name || 'English')
+
+function refreshBrowserLanguage() {
+  browserLanguage.value = getBrowserLanguage()
+}
+
+function onVisibilityChange() {
+  if (!document.hidden) refreshBrowserLanguage()
+}
+
+onMounted(() => {
+  window.addEventListener('languagechange', refreshBrowserLanguage)
+  window.addEventListener('focus', refreshBrowserLanguage)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('languagechange', refreshBrowserLanguage)
+  window.removeEventListener('focus', refreshBrowserLanguage)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+})
 </script>
 
 <style scoped>
@@ -28,7 +48,8 @@ const browserLanguageName = computed(() => languages.find(language => language.c
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 42px;
+  min-height: 44px;
+  min-width: 0;
   max-width: 100%;
   padding: 0 10px;
   border: 1px solid var(--language-control-border, var(--el-border-color));
@@ -43,9 +64,10 @@ const browserLanguageName = computed(() => languages.find(language => language.c
 }
 
 .language-picker select {
+  flex: 1 1 auto;
   min-width: 0;
   max-width: 180px;
-  height: 40px;
+  height: 42px;
   border: 0;
   outline: 0;
   appearance: none;
@@ -59,5 +81,10 @@ const browserLanguageName = computed(() => languages.find(language => language.c
 .language-picker option {
   color: #17202b;
   background: #fff;
+}
+
+@media (max-width: 480px) {
+  .language-picker { flex: 1 1 auto; }
+  .language-picker select { width: 100%; }
 }
 </style>

@@ -7,6 +7,9 @@
 /manifest.webmanifest
   Cache-Control: public, max-age=300
   Content-Type: application/manifest+json
+/manifest-*.webmanifest
+  Cache-Control: public, max-age=300
+  Content-Type: application/manifest+json
 /sw.js
   Cache-Control: no-cache, no-store, must-revalidate
 /index.html

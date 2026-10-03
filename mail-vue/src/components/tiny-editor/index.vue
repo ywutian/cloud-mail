@@ -10,7 +10,6 @@ import {ref, onMounted, onBeforeUnmount, watch, nextTick, shallowRef, defineEmit
 import loading from "@/components/loading/index.vue";
 import {useI18n} from 'vue-i18n'
 import {useUiStore} from '@/store/ui.js'
-import {useSettingStore} from '@/store/setting.js'
 
 defineExpose({
   clearEditor,
@@ -37,13 +36,15 @@ const isInitialized = ref(false);
 const editorRef = ref(null);
 const showLoading = ref(false);
 const uiStore = useUiStore();
-const settingStore = useSettingStore();
+let scriptPromise;
+let initialization = 0;
 
 onMounted(() => {
   initTinyMCE();
 });
 
 onBeforeUnmount(() => {
+  initialization++;
   destroyEditor();
 });
 
@@ -53,17 +54,30 @@ watch(() => props.defValue, (newValue) => {
   }
 });
 
-watch(() => [uiStore.dark, settingStore.lang], () => {
+watch(() => [uiStore.dark, locale.value], () => {
+  const content = editor.value?.getContent() ?? props.defValue;
   destroyEditor();
-  initEditor();
+  initTinyMCE(content);
 });
 
 const language = computed(() => {
-  if (locale.value === 'zh') {
-    return 'zh_CN'
-  }
-
-  return 'en'
+  const packs = {
+    zh: 'zh_CN',
+    es: 'es',
+    fr: 'fr_FR',
+    ja: 'ja',
+    ko: 'ko_KR',
+    de: 'de',
+    pt: 'pt_BR',
+    ru: 'ru',
+    it: 'it',
+    id: 'id',
+    vi: 'vi',
+    tr: 'tr',
+    ar: 'ar',
+    hi: 'hi',
+  };
+  return packs[locale.value] || 'en';
 })
 
 function clearEditor() {
@@ -72,20 +86,32 @@ function clearEditor() {
   }
 }
 
-function initTinyMCE() {
-  if (window.tinymce) {
-    initEditor();
-  } else {
+async function initTinyMCE(content = props.defValue) {
+  const currentInitialization = ++initialization;
+  if (!window.tinymce) {
     showLoading.value = true;
-    const script = document.createElement('script');
-    script.src = '/tinymce/tinymce.min.js';
-    script.onload = () => initEditor();
-    document.head.appendChild(script);
-    showLoading.value = false;
+    scriptPromise ??= new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = '/tinymce/tinymce.min.js';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    try {
+      await scriptPromise;
+    } catch {
+      scriptPromise = undefined;
+      showLoading.value = false;
+      return;
+    }
   }
+  if (currentInitialization !== initialization) return;
+  showLoading.value = false;
+  await nextTick();
+  if (currentInitialization === initialization) initEditor(content);
 }
 
-function initEditor() {
+function initEditor(content = props.defValue) {
   window.tinymce.init({
     selector: `#${props.editorId}`,
     statusbar: false,
@@ -100,12 +126,14 @@ function initEditor() {
          --scrollbar-track-color: ${uiStore.dark ? '#141414' : '#FFFFFF'};
          --scrollbar-thumb-color: ${uiStore.dark ? '#8D9095' : '#A8ABB2'};
     }`,
-    plugins: 'link image advlist lists  emoticons fullscreen  table preview code',
-    toolbar: 'bold emoticons forecolor backcolor italic fontsize | alignleft aligncenter alignright alignjustify | outdent indent |  bullist numlist | link image  | table code preview fullscreen',
+    plugins: 'link image advlist lists emoticons fullscreen table preview code directionality',
+    toolbar: `bold emoticons forecolor backcolor italic fontsize | alignleft aligncenter alignright alignjustify | outdent indent | bullist numlist | link image | table code preview fullscreen${locale.value === 'ar' ? ' | ltr rtl' : ''}`,
     toolbar_mode: 'scrolling',
     font_size_formats: '8px 10px 12px 14px 16px 18px 24px 36px',
     emoticons_search: false,
     language: language.value,
+    language_url: language.value === 'en' ? undefined : `/tinymce/langs/${language.value}.js`,
+    directionality: locale.value === 'ar' ? 'rtl' : 'ltr',
     language_load: true,
     menubar: false,
     license_key: 'gpl',
@@ -113,7 +141,7 @@ function initEditor() {
     setup: (ed) => {
       editor.value = ed;
       ed.on('init', () => {
-        ed.setContent(props.defValue);
+        ed.setContent(content);
         isInitialized.value = true;
       });
       ed.on('input change', () => {
