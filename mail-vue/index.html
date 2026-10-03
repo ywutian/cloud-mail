@@ -20,7 +20,7 @@
     try { uiStore = JSON.parse(localStorage.getItem('ui') || 'null') } catch (_) {}
     if (uiStore) {
       const root = document.documentElement
-      root.setAttribute('class', uiStore.dark ? 'dark' : '');
+      root.classList.toggle('dark', Boolean(uiStore.dark));
       const metaTag = document.getElementById('theme-color-meta');
       const isMobile =  !window.matchMedia("(pointer: fine) and (hover: hover)").matches;
       metaTag.setAttribute('content', temporaryApp ? '#0a0e14' : (uiStore.dark ? (isMobile ? '#141414' : '#000000') : (isMobile ? '#FFFFFF' : '#F1F1F1')));
