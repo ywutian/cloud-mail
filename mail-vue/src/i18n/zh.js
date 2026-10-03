@@ -1,5 +1,10 @@
 const zh = {
     inbox: '收件箱',
+    "refreshMail": "刷新邮件",
+    "backToList": "返回邮件列表",
+    "toggleNavigation": "显示或隐藏导航",
+    "enableDarkMode": "开启深色模式",
+    "enableLightMode": "开启浅色模式",
     drafts: '草稿箱',
     sent: '已发送',
     starred: '星标邮件',

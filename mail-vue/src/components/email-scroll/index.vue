@@ -6,29 +6,41 @@
           v-model="checkAll"
           :indeterminate="isIndeterminate"
           :disabled="!emailList.length || loading"
+          :aria-label="`${t('select')} ${t('all')}`"
           @change="handleCheckAllChange"
       >
       </el-checkbox>
       <div class="header-left" :style="'padding-left:' + actionLeft">
 
         <slot name="first"></slot>
-        <Icon class="icon reload" icon="ion:reload" width="18" height="18" @click="refresh"/>
-        <Icon v-perm="'email:delete'" class="icon delete" icon="uiw:delete" width="16" height="16"
-              v-if="getSelectedMailsIds().length > 0"
-              @click="handleDelete"/>
-        <Icon v-perm="'email:delete'" class="icon delete" icon="fluent:mail-read-20-regular" width="21" height="21"
-              v-if="getSelectedMailsIds().length > 0 && showUnread"
-              @click="handleRead"/>
+        <button type="button" class="icon-button reload" :aria-label="t('refreshMail')" :title="t('refreshMail')" @click="refresh">
+          <Icon icon="ion:reload" width="18" height="18"/>
+        </button>
+        <button v-if="getSelectedMailsIds().length > 0" v-perm="'email:delete'" type="button"
+                class="icon-button delete" :aria-label="t('delete')" :title="t('delete')" @click="handleDelete">
+          <Icon icon="uiw:delete" width="16" height="16"/>
+        </button>
+        <button v-if="getSelectedMailsIds().length > 0 && showUnread" v-perm="'email:delete'" type="button"
+                class="icon-button" :aria-label="t('markAsRead')" :title="t('markAsRead')" @click="handleRead">
+          <Icon icon="fluent:mail-read-20-regular" width="21" height="21"/>
+        </button>
       </div>
 
       <div class="header-right">
         <span class="email-count" v-if="total">{{ $t('emailCount', {total: total}) }}</span>
-        <Icon v-if="showAccountIcon" class="more-icon icon" width="16" height="16" icon="akar-icons:dot-grid-fill"
-              @click="changeAccountShow"/>
+        <button v-if="showAccountIcon" type="button" class="icon-button more-icon"
+                :aria-label="`${t(accountShow ? 'hide' : 'show')} ${t('account')}`"
+                :aria-expanded="accountShow" @click="changeAccountShow">
+          <Icon width="16" height="16" icon="akar-icons:dot-grid-fill"/>
+        </button>
       </div>
     </div>
 
     <div ref="scroll" class="scroll">
+      <div v-if="loadError" class="load-error" :class="{'load-error-inline': emailList.length > 0}" role="alert">
+        <span>{{ t('reqFailErrorMsg') }}</span>
+        <button type="button" @click="refreshList">{{ t('pwa.retry') }}</button>
+      </div>
       <UseVirtualList ref="scrollbarRef"
                         @scroll="onScroll"
                         :list="list"
@@ -41,19 +53,24 @@
           <template #default="{ data: item, index }" >
             <div :class="['email-row', props.type, { 'right-checked': item.rightChecked }]"
                  :data-checked="item.checked"
-                 @click="jumpDetails(item)"
                  v-if="!item.expand"
                  :key="item.emailId"
                  @contextmenu="handleContextmenu($event, item)"
             >
+              <button type="button" class="row-open-action"
+                      :aria-label="`${t('details')}: ${item.name || item.sendEmail || item.receiveEmail || ''}, ${item.subject || t('noSubject')}`"
+                      @click="jumpDetails(item)"></button>
               <el-checkbox :class=" props.type === 'all-email' ? 'all-email-checkbox' : 'checkbox'"
                            v-model="item.checked"
                            :disabled="!item.checked && isSelectMax"
+                           :aria-label="`${t('select')}: ${item.subject || t('noSubject')}`"
                            @click.stop></el-checkbox>
-              <div @click.stop="starChange(item)" class="pc-star" v-if="showStar">
+              <button v-if="showStar" type="button" class="pc-star" :aria-label="t('star')"
+                      :aria-pressed="!!item.isStar" :disabled="!allowStar && !item.isStar"
+                      @click.stop="starChange(item)">
                 <Icon v-if="item.isStar" icon="fluent-color:star-16" width="20" height="20"/>
                 <Icon v-else icon="solar:star-line-duotone" width="18" height="18"/>
-              </div>
+              </button>
               <div v-if="!showStar"></div>
               <div class="title" :class="accountShow ? 'title-column' : 'title-column'">
 
@@ -75,7 +92,12 @@
                       <slot name="name" :email="item"> {{ item.name }}</slot>
                     </span>
                     <span>
-                      <Icon v-if="item.isStar" icon="fluent-color:star-16" width="18" height="18"/>
+                      <button v-if="showStar" type="button" class="mobile-star" :aria-label="t('star')"
+                              :aria-pressed="!!item.isStar" :disabled="!allowStar && !item.isStar"
+                              @click.stop="starChange(item)">
+                        <Icon v-if="item.isStar" icon="fluent-color:star-16" width="18" height="18"/>
+                        <Icon v-else icon="solar:star-line-duotone" width="18" height="18"/>
+                      </button>
                     </span>
                   </span>
                   <span class="phone-time">{{ item.formatCreateTime }}</span>
@@ -84,7 +106,9 @@
                   <div class="email-text">
                     <span class="email-subject" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread)  ? 'font-weight: bold' : ''">
                       <div class="unread" v-if="!isMobile && (item.unread === EmailUnreadEnum.UNREAD && showUnread) "/>
-                      <span v-if="item.code" class="code-tag" @click.stop="copyCode(item.code)">[{{ t('codeLabel') }}{{ item.code }}]</span>
+                      <button v-if="item.code" type="button" class="code-tag"
+                              :aria-label="`${t('copyCode')}: ${item.code}`"
+                              @click.stop="copyCode(item.code)">[{{ t('codeLabel') }}{{ item.code }}]</button>
                       <span class="subject-text">
                         <slot name="subject" :email="item" >
                           {{ item.subject || '\u200B' }}
@@ -139,7 +163,7 @@
                        :showStatus="showStatus"
                        :showUserInfo="showUserInfo"
                        :type="type"/>
-      <div class="empty" v-if="noLoading && emailList.length === 0 && !loading">
+      <div class="empty" v-if="noLoading && emailList.length === 0 && !loading && !loadError">
         <el-empty :image-size="isMobile ? 120 : null" :description="$t('noMessagesFound')"/>
       </div>
     </div>
@@ -307,6 +331,7 @@ const emailStore = useEmailStore();
 const loading = ref(false);
 const followLoading = ref(false);
 const noLoading = ref(false);
+const loadError = ref(false);
 const emailList = reactive([])
 const expandList = reactive([])
 const total = ref(0);
@@ -449,7 +474,7 @@ watch(noLoading, (isNoLoading) => {
 
 // 监听是否到达底部
 watch(() => arrivedState.bottom, (isBottom) => {
-  if (isBottom && !loading.value) {
+  if (isBottom && !loading.value && !loadError.value) {
     loadData();
   }
 });
@@ -825,13 +850,14 @@ function getEmailList(refresh = false) {
   }
   let start = Date.now();
 
-  props.getEmailList(emailId, queryParam.size).then(async data => {
+  Promise.resolve().then(() => props.getEmailList(emailId, queryParam.size)).then(async data => {
     let end = Date.now();
     let duration = end - start;
     if (duration < 300 && !emailId) {
         await sleep(300 - duration)
     }
     firstLoad.value = false
+    loadError.value = false
 
     let list = data.list.map(item => ({
       ...item,
@@ -853,6 +879,12 @@ function getEmailList(refresh = false) {
     followLoading.value = data.list.length >= queryParam.size;
 
     total.value = data.total;
+  }).catch(error => {
+    console.error('Could not load emails:', error)
+    firstLoad.value = false
+    loadError.value = true
+    noLoading.value = false
+    followLoading.value = false
   }).finally(() => {
     loading.value = false
     reqLock = false
@@ -917,6 +949,37 @@ function loadData() {
   margin: 0;
   height: 100%;
   overflow: hidden;
+  position: relative;
+
+  .load-error {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 20px;
+    text-align: center;
+    background: var(--el-bg-color);
+    color: var(--el-text-color-primary);
+
+    button {
+      padding: 7px 14px;
+      border: 1px solid var(--el-color-primary);
+      border-radius: 6px;
+      color: var(--el-color-primary);
+      cursor: pointer;
+    }
+
+    &.load-error-inline {
+      inset: 0 0 auto;
+      min-height: 60px;
+      flex-direction: row;
+      box-shadow: var(--header-actions-border);
+    }
+  }
 
   .virtual {
     will-change: scroll-position;
@@ -980,6 +1043,20 @@ function loadData() {
   position: relative;
   transition: background 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
   height: 48px;
+
+  .row-open-action {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    cursor: pointer;
+  }
+
+  .checkbox, .all-email-checkbox, .pc-star, .mobile-star, .code-tag {
+    position: relative;
+    z-index: 2;
+  }
   @media (max-width: 1366px) {
     height: 83px;
   }
@@ -1179,6 +1256,7 @@ function loadData() {
         white-space: nowrap;
         text-overflow: ellipsis;
         cursor: pointer;
+        text-align: start;
       }
 
       .subject-text {
@@ -1244,6 +1322,15 @@ function loadData() {
 .pc-star {
   display: flex;
   width: 40px;
+  align-items: center;
+  justify-content: flex-start;
+  cursor: pointer;
+}
+
+.mobile-star {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 }
 
 @media (max-width: 1366px) {
@@ -1301,15 +1388,28 @@ function loadData() {
     }
   }
 
-  .icon {
-    font-size: 18px;
+  .icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    min-height: 30px;
     cursor: pointer;
+    color: inherit;
   }
 
   .more-icon {
-    margin-top: 8px;
     margin-left: 15px;
   }
+}
+
+.icon-button:focus-visible,
+.load-error button:focus-visible,
+:deep(.email-row button:focus-visible),
+:deep(.email-row .el-checkbox:focus-within) {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: -2px;
+  border-radius: 4px;
 }
 
 .del-status {

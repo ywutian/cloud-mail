@@ -1,5 +1,10 @@
 const ru = {
     "inbox": "Входящие",
+    "refreshMail": "Обновить письма",
+    "backToList": "Вернуться к списку писем",
+    "toggleNavigation": "Показать или скрыть навигацию",
+    "enableDarkMode": "Включить тёмную тему",
+    "enableLightMode": "Включить светлую тему",
     "drafts": "Черновики",
     "sent": "Отправленные",
     "starred": "Помечено",

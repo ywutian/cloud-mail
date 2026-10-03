@@ -1,18 +1,27 @@
 <template>
   <div class="reg-key">
     <div class="header-actions">
-      <Icon class="icon" icon="ion:add-outline" width="23" height="23" @click="openAdd"/>
+      <button type="button" class="icon-button" :aria-label="t('addRegKey')" :title="t('addRegKey')" @click="openAdd">
+        <Icon icon="ion:add-outline" width="23" height="23"/>
+      </button>
       <div class="search">
         <el-input
             v-model="params.code"
             class="search-input"
             :placeholder="$t('searchRegKeyDesc')"
+            @keyup.enter="search"
         >
         </el-input>
       </div>
-      <Icon class="icon" icon="iconoir:search" @click="search" width="20" height="20"/>
-      <Icon class="icon" icon="ion:reload" width="18" height="18" @click="refresh"/>
-      <Icon class="icon" icon="fluent:broom-sparkle-16-regular" width="22" height="22" @click="clearNotUse"/>
+      <button type="button" class="icon-button" :aria-label="t('temporaryInbox.search')" :title="t('temporaryInbox.search')" @click="search">
+        <Icon icon="iconoir:search" width="20" height="20"/>
+      </button>
+      <button type="button" class="icon-button" :aria-label="t('pwa.retry')" :title="t('pwa.retry')" @click="refresh">
+        <Icon icon="ion:reload" width="18" height="18"/>
+      </button>
+      <button type="button" class="icon-button" :aria-label="t('clear')" :title="t('clear')" @click="clearNotUse">
+        <Icon icon="fluent:broom-sparkle-16-regular" width="22" height="22"/>
+      </button>
     </div>
 
     <el-scrollbar class="scrollbar">
@@ -20,11 +29,12 @@
         <loading/>
       </div>
       <div class="code-box">
-        <div class="code-item" v-for="item in regKeyData">
+        <div class="code-item" v-for="item in regKeyData" :key="item.regKeyId">
           <div class="code-info">
             <div class="info-left">
               <div class="info-left-item">
-                <span class="code" @click="copyCode(item.code)">{{ item.code }}</span>
+                <button type="button" class="code" :aria-label="`${t('copyCode')}: ${item.code}`"
+                        @click="copyCode(item.code)">{{ item.code }}</button>
               </div>
               <div class="info-left-item">
                 <div>{{ $t('remainingUses') }}：</div>
@@ -43,7 +53,9 @@
             </div>
             <div class="info-right">
               <el-dropdown class="setting">
-                <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"/>
+                <button type="button" class="icon-button" :aria-label="`${t('manage')}: ${item.code}`">
+                  <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"/>
+                </button>
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item @click="copyCode(item.code)">{{ $t('copy') }}</el-dropdown-item>
@@ -56,7 +68,11 @@
           </div>
         </div>
       </div>
-      <div class="empty" v-if="regKeyData.length === 0">
+      <div v-if="regKeyError" class="list-error" role="alert">
+        <span>{{ t('reqFailErrorMsg') }}</span>
+        <button type="button" @click="getList(true)">{{ t('pwa.retry') }}</button>
+      </div>
+      <div class="empty" v-if="regKeyData.length === 0 && !regKeyError">
         <el-empty v-if="!regKeyFirst" :image-size="isMobile ? 120 : null" :description="$t('noCodeFound')"/>
       </div>
     </el-scrollbar>
@@ -64,7 +80,9 @@
       <div class="container">
         <el-input v-model="addForm.code" :placeholder="$t('regKey')" @keyup.enter="submit">
           <template #suffix>
-            <Icon @click.stop="genCode" class="gen-code" icon="bitcoin-icons:refresh-filled" width="24" height="24"/>
+            <button type="button" class="gen-code" :aria-label="t('generateRandom')" :title="t('generateRandom')" @click.stop="genCode">
+              <Icon icon="bitcoin-icons:refresh-filled" width="24" height="24"/>
+            </button>
           </template>
         </el-input>
         <el-select v-model="addForm.roleId" :placeholder="$t('roleDesc')">
@@ -124,6 +142,7 @@ const addLoading = ref(false)
 const showAdd = ref(false)
 const regKeyLoading = ref(true)
 const regKeyFirst = ref(true)
+const regKeyError = ref(false)
 const showRegKeyHistory = ref(false)
 const historyList = reactive([])
 const emailColumnWidth = ref(0)
@@ -219,13 +238,19 @@ function getList(showLoading = false) {
   if (showLoading) {
     regKeyLoading.value = true
   }
-  regKeyList(params).then(list => {
+  return regKeyList(params).then(list => {
     regKeyData.length = 0
     regKeyData.push(...list)
-    regKeyLoading.value = false
+    regKeyError.value = false
     setTimeout(() => {
       regKeyFirst.value = false
     },200)
+  }).catch(error => {
+    console.error('Could not load invite codes:', error)
+    regKeyError.value = true
+    regKeyFirst.value = false
+  }).finally(() => {
+    regKeyLoading.value = false
   })
 }
 
@@ -283,7 +308,7 @@ function submit() {
 
   if (!addForm.code) {
     ElMessage({
-      message: $('emptyRegKeyMsg'),
+      message: t('emptyRegKeyMsg'),
       type: "error",
       plain: true
     })
@@ -366,6 +391,50 @@ function openAdd() {
   overflow: hidden;
 }
 
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  min-height: 30px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.icon-button:focus-visible,
+.code:focus-visible,
+.gen-code:focus-visible,
+.list-error button:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.list-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 24px 16px;
+  color: var(--el-text-color-primary);
+  text-align: center;
+
+  button {
+    padding: 7px 14px;
+    border: 1px solid var(--el-color-primary);
+    border-radius: 6px;
+    color: var(--el-color-primary);
+    cursor: pointer;
+  }
+}
+
+.gen-code {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
 .scrollbar {
   height: calc(100% - 48px);
   position: relative;
@@ -405,6 +474,7 @@ function openAdd() {
               overflow: hidden;
               text-overflow: ellipsis;
               cursor: pointer;
+              text-align: start;
             }
           }
 

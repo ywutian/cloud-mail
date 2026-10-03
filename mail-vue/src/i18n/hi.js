@@ -1,5 +1,10 @@
 export default {
   "inbox": "इनबॉक्स",
+  "refreshMail": "ईमेल ताज़ा करें",
+  "backToList": "ईमेल सूची पर वापस जाएँ",
+  "toggleNavigation": "नेविगेशन दिखाएँ या छिपाएँ",
+  "enableDarkMode": "डार्क मोड चालू करें",
+  "enableLightMode": "लाइट मोड चालू करें",
   "drafts": "ड्राफ्ट",
   "sent": "भेजा गया",
   "starred": "तारांकित",

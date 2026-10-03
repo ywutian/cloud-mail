@@ -1,14 +1,18 @@
 <template>
   <div class="header" :class="!hasPerm('email:send') ? 'not-send' : ''">
     <div class="header-btn">
-      <hanburger @click="changeAside"></hanburger>
+      <button type="button" class="menu-toggle" :aria-label="t('toggleNavigation')"
+              :aria-expanded="uiStore.asideShow" aria-controls="mail-sidebar" @click="changeAside">
+        <hanburger :is-active="uiStore.asideShow" />
+      </button>
       <span class="breadcrumb-item">{{ $t(route.meta.title) }}</span>
     </div>
-    <div v-perm="'email:send'" class="writer-box" @click="openSend">
+    <button v-perm="'email:send'" type="button" class="writer-box" :aria-label="t('sendEmail')"
+            :title="t('sendEmail')" @click="openSend">
       <div class="writer">
-        <Icon icon="material-symbols:edit-outline-sharp" width="22" height="22"/>
+        <Icon icon="material-symbols:edit-outline-sharp" width="22" height="22" aria-hidden="true"/>
       </div>
-    </div>
+    </button>
     <div class="toolbar">
       <LanguageSelect v-model="settingStore.lang" class="header-language" />
       <el-popover placement="bottom-end" trigger="click" :width="240">
@@ -20,22 +24,26 @@
         <LanguageSelect v-model="settingStore.lang" />
       </el-popover>
       <AppInstallButton compact />
-      <div v-if="uiStore.dark" class="sun-icon icon-item" @click="openDark($event)">
-        <Icon icon="mingcute:sun-fill"/>
-      </div>
-      <div v-else class="dark-icon icon-item" @click="openDark($event)">
-        <Icon icon="solar:moon-linear"/>
-      </div>
-      <div class="notice icon-item" @click="openNotice">
-        <Icon icon="streamline-plump:announcement-megaphone"/>
-      </div>
+      <button v-if="uiStore.dark" type="button" class="sun-icon icon-item"
+              :aria-label="t('enableLightMode')" :title="t('enableLightMode')" @click="openDark($event)">
+        <Icon icon="mingcute:sun-fill" aria-hidden="true"/>
+      </button>
+      <button v-else type="button" class="dark-icon icon-item"
+              :aria-label="t('enableDarkMode')" :title="t('enableDarkMode')" @click="openDark($event)">
+        <Icon icon="solar:moon-linear" aria-hidden="true"/>
+      </button>
+      <button type="button" class="notice icon-item" :aria-label="t('noticeTitle')"
+              :title="t('noticeTitle')" @click="openNotice">
+        <Icon icon="streamline-plump:announcement-megaphone" aria-hidden="true"/>
+      </button>
       <el-dropdown ref="userinfoRef" @visible-change="e => userInfoShow = e" :teleported="false" popper-class="detail-dropdown">
-        <div class="avatar" @click="userInfoHide" >
+        <button type="button" class="avatar" :aria-label="t('profile')" aria-haspopup="menu"
+                :aria-expanded="userInfoShow" @click="userInfoHide" >
           <div class="avatar-text">
             <div>{{ formatName(userStore.user.email) }}</div>
           </div>
-          <Icon class="setting-icon" icon="mingcute:down-small-fill" width="24" height="24"/>
-        </div>
+          <Icon class="setting-icon" icon="mingcute:down-small-fill" width="24" height="24" aria-hidden="true"/>
+        </button>
         <template #dropdown>
           <div class="user-details">
             <div class="details-avatar">
@@ -44,9 +52,10 @@
             <div class="user-name">
               {{ userStore.user.name }}
             </div>
-            <div class="detail-email" @click="copyEmail(userStore.user.email)">
-              {{ userStore.user.email }}
-            </div>
+            <button type="button" class="detail-email" :aria-label="`${t('copy')}: ${userStore.user.email}`"
+                    :title="t('copy')" @click="copyEmail(userStore.user.email)">
+              <span dir="ltr">{{ userStore.user.email }}</span>
+            </button>
             <div class="detail-user-type">
               <el-tag>{{ userStore.user.role.name }}</el-tag>
             </div>
@@ -202,7 +211,7 @@ function openDark(e) {
   const nextIsDark = !uiStore.dark
   const root = document.documentElement
 
-  if (!document.startViewTransition) {
+  if (!document.startViewTransition || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     switchDark(nextIsDark, root);
     return
   }
@@ -329,6 +338,9 @@ function formatName(email) {
     text-align: center;
     color: var(--regular-text-color);
     cursor: pointer;
+    background: transparent;
+    border: 0;
+    font: inherit;
   }
 
   .logout {
@@ -379,14 +391,18 @@ function formatName(email) {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: 5px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
 
   .writer {
     width: 34px;
     height: 34px;
     border-radius: 50%;
     color: #ffffff;
-    background: linear-gradient(135deg, #1890ff, #3a80dd);
+    background: var(--el-color-primary);
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
@@ -407,6 +423,32 @@ function formatName(email) {
   min-width: 0;
 }
 
+.menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--el-text-color-primary);
+  cursor: pointer;
+}
+
+.menu-toggle:hover,
+.writer-box:hover {
+  background: var(--base-fill);
+}
+
+.menu-toggle :deep(div) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0 !important;
+}
+
 .breadcrumb-item {
   font-weight: bold;
   font-size: 14px;
@@ -420,16 +462,16 @@ function formatName(email) {
   display: flex;
   justify-content: end;
   align-items: center;
-  gap: 15px;
+  gap: 8px;
   @media (max-width: 767px) {
-    gap: 10px;
+    gap: 2px;
   }
 
   .icon-item {
     align-self: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 4px;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -449,7 +491,6 @@ function formatName(email) {
 
   .notice {
     font-size: 22px;
-    margin-right: 4px;
   }
 
   .dark-icon {
@@ -463,6 +504,10 @@ function formatName(email) {
   .avatar {
     display: flex;
     align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
     cursor: pointer;
 
     .avatar-text {
@@ -487,7 +532,16 @@ function formatName(email) {
 
 }
 
-.el-tooltip__trigger:first-child:focus-visible {
-  outline: unset;
+.toolbar :deep(.app-install-button.compact) {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+}
+
+@media (max-width: 480px) {
+  .header { gap: 0; }
+  .breadcrumb-item { display: none; }
+  .toolbar { gap: 0; }
+  .toolbar .avatar .setting-icon { display: none; }
 }
 </style>

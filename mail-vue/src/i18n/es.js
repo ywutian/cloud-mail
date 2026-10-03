@@ -1,5 +1,10 @@
 const es = {
     "inbox": "Bandeja de entrada",
+    "refreshMail": "Actualizar correos",
+    "backToList": "Volver a la lista de correos",
+    "toggleNavigation": "Mostrar u ocultar la navegación",
+    "enableDarkMode": "Activar modo oscuro",
+    "enableLightMode": "Activar modo claro",
     "drafts": "Borradores",
     "sent": "Enviados",
     "starred": "Destacado",

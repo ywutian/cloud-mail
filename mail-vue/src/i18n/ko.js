@@ -1,5 +1,10 @@
 const ko = {
     "inbox": "받은편지함",
+    "refreshMail": "메일 새로고침",
+    "backToList": "메일 목록으로 돌아가기",
+    "toggleNavigation": "탐색 메뉴 표시 전환",
+    "enableDarkMode": "다크 모드 켜기",
+    "enableLightMode": "라이트 모드 켜기",
     "drafts": "초안",
     "sent": "보낸편지함",
     "starred": "별표 표시됨",

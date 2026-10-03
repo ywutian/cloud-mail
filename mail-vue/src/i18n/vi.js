@@ -1,5 +1,10 @@
 const vi = {
   "inbox": "Hộp thư đến",
+  "refreshMail": "Làm mới thư",
+  "backToList": "Quay lại danh sách thư",
+  "toggleNavigation": "Hiện hoặc ẩn điều hướng",
+  "enableDarkMode": "Bật chế độ tối",
+  "enableLightMode": "Bật chế độ sáng",
   "drafts": "Bản nháp",
   "sent": "Đã gửi",
   "starred": "Được gắn dấu sao",

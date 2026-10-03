@@ -1,5 +1,10 @@
 const en = {
     inbox: 'Inbox',
+    "refreshMail": "Refresh mail",
+    "backToList": "Back to message list",
+    "toggleNavigation": "Show or hide navigation",
+    "enableDarkMode": "Switch to dark mode",
+    "enableLightMode": "Switch to light mode",
     drafts: 'Drafts',
     sent: 'Sent',
     starred: 'Starred',

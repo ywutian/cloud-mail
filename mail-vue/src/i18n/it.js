@@ -1,5 +1,10 @@
 const it = {
     "inbox": "Posta in arrivo",
+    "refreshMail": "Aggiorna email",
+    "backToList": "Torna all'elenco dei messaggi",
+    "toggleNavigation": "Mostra o nascondi la navigazione",
+    "enableDarkMode": "Attiva modalità scura",
+    "enableLightMode": "Attiva modalità chiara",
     "drafts": "Bozze",
     "sent": "Inviato",
     "starred": "Preferiti",

@@ -1,5 +1,10 @@
 const de = {
     "inbox": "Posteingang",
+    "refreshMail": "E-Mails aktualisieren",
+    "backToList": "Zurück zur Nachrichtenliste",
+    "toggleNavigation": "Navigation ein- oder ausblenden",
+    "enableDarkMode": "Dunkelmodus aktivieren",
+    "enableLightMode": "Hellmodus aktivieren",
     "drafts": "Entwürfe",
     "sent": "Gesendet",
     "starred": "Mit einem Stern versehen",

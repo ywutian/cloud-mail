@@ -1,5 +1,10 @@
 const id = {
     "inbox": "Kotak masuk",
+    "refreshMail": "Segarkan email",
+    "backToList": "Kembali ke daftar email",
+    "toggleNavigation": "Tampilkan atau sembunyikan navigasi",
+    "enableDarkMode": "Aktifkan mode gelap",
+    "enableLightMode": "Aktifkan mode terang",
     "drafts": "Draf",
     "sent": "Terkirim",
     "starred": "Berbintang",

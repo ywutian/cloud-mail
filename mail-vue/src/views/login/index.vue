@@ -14,36 +14,21 @@
           <LanguageSelect v-model="settingStore.lang" class="login-language" />
           <AppInstallButton />
         </div>
-        <span class="form-title">{{ settingStore.settings.title }}</span>
-        <span class="form-desc" v-if="show === 'login'">{{ $t('loginTitle') }}</span>
-        <span class="form-desc" v-else>{{ $t('regTitle') }}</span>
+        <h1 class="form-title">{{ settingStore.settings.title }}</h1>
+        <p class="form-desc" v-if="show === 'login'">{{ $t('loginTitle') }}</p>
+        <p class="form-desc" v-else>{{ $t('regTitle') }}</p>
         <div v-show="show === 'login'">
-          <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="form.email" dir="ltr"
+          <label class="field-label" for="login-email">{{ $t('emailAccount') }}</label>
+          <el-input id="login-email" :class="!hideLoginDomain ? 'email-input' : ''" v-model="form.email" dir="ltr"
                     type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="submit">
             <template #append v-if="!hideLoginDomain">
-              <div @click.stop="openSelect">
-                <el-select
-                    v-if="show === 'login'"
-                    ref="mySelect"
-                    v-model="suffix"
-                    :placeholder="$t('select')"
-                    class="select"
-                >
-                  <el-option
-                      v-for="item in domainList"
-                      :key="item"
-                      :label="item"
-                      :value="item"
-                  />
-                </el-select>
-                <div style="color: var(--el-text-color-primary)">
-                  <span>{{ suffix }}</span>
-                  <Icon class="setting-icon" icon="mingcute:down-small-fill" width="20" height="20"/>
-                </div>
-              </div>
+              <select v-model="suffix" class="domain-select" dir="ltr" :aria-label="t('domain')" :title="suffix">
+                <option v-for="item in domainList" :key="item" :value="item">{{ item }}</option>
+              </select>
             </template>
           </el-input>
-          <el-input v-model="form.password" :placeholder="$t('password')" type="password" autocomplete="off" @keyup.enter="submit">
+          <label class="field-label" for="login-password">{{ $t('password') }}</label>
+          <el-input id="login-password" v-model="form.password" :placeholder="$t('password')" type="password" autocomplete="off" @keyup.enter="submit">
           </el-input>
           <el-button class="btn" type="primary" @click="submit" :loading="loginLoading"
           >{{ $t('loginBtn') }}
@@ -55,37 +40,25 @@
           </el-button>
         </div>
         <div v-show="show !== 'login'">
-          <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="registerForm.email" dir="ltr" type="text" :placeholder="$t('emailAccount')"
+          <label class="field-label" for="register-email">{{ $t('emailAccount') }}</label>
+          <el-input id="register-email" :class="!hideLoginDomain ? 'email-input' : ''" v-model="registerForm.email" dir="ltr" type="text" :placeholder="$t('emailAccount')"
                     autocomplete="off" @keyup.enter="submitRegister">
             <template #append v-if="!hideLoginDomain">
-              <div @click.stop="openSelect">
-                <el-select
-                    v-if="show !== 'login'"
-                    ref="mySelect"
-                    v-model="suffix"
-                    :placeholder="$t('select')"
-                    class="select"
-                >
-                  <el-option
-                      v-for="item in domainList"
-                      :key="item"
-                      :label="item"
-                      :value="item"
-                  />
-                </el-select>
-                <div>
-                  <span>{{ suffix }}</span>
-                  <Icon class="setting-icon" icon="mingcute:down-small-fill" width="20" height="20"/>
-                </div>
-              </div>
+              <select v-model="suffix" class="domain-select" dir="ltr" :aria-label="t('domain')" :title="suffix">
+                <option v-for="item in domainList" :key="item" :value="item">{{ item }}</option>
+              </select>
             </template>
           </el-input>
-          <el-input v-model="registerForm.password" :placeholder="$t('password')" type="password" autocomplete="off" @keyup.enter="submitRegister"/>
-          <el-input v-model="registerForm.confirmPassword" :placeholder="$t('confirmPwd')" type="password"
+          <label class="field-label" for="register-password">{{ $t('password') }}</label>
+          <el-input id="register-password" v-model="registerForm.password" :placeholder="$t('password')" type="password" autocomplete="off" @keyup.enter="submitRegister"/>
+          <label class="field-label" for="register-confirm-password">{{ $t('confirmPwd') }}</label>
+          <el-input id="register-confirm-password" v-model="registerForm.confirmPassword" :placeholder="$t('confirmPwd')" type="password"
                     autocomplete="off" @keyup.enter="submitRegister"/>
-          <el-input v-if="settingStore.settings.regKey === 0" v-model="registerForm.code" :placeholder="$t('regKey')"
+          <label v-if="settingStore.settings.regKey === 0" class="field-label" for="register-invite-code">{{ $t('regKey') }}</label>
+          <el-input v-if="settingStore.settings.regKey === 0" id="register-invite-code" v-model="registerForm.code" :placeholder="$t('regKey')"
                     type="text" autocomplete="off" @keyup.enter="submitRegister"/>
-          <el-input v-if="settingStore.settings.regKey === 2" v-model="registerForm.code"
+          <label v-if="settingStore.settings.regKey === 2" class="field-label" for="register-invite-code">{{ $t('regKeyOptional') }}</label>
+          <el-input v-if="settingStore.settings.regKey === 2" id="register-invite-code" v-model="registerForm.code"
                     :placeholder="$t('regKeyOptional')" type="text" autocomplete="off" @keyup.enter="submitRegister"/>
           <div v-show="verifyShow"
                class="register-turnstile"
@@ -107,48 +80,38 @@
           </el-button>
         </div>
         <template v-if="settingStore.settings.register === 0">
-          <div class="switch" @click="show = 'register'" v-if="show === 'login'">{{ $t('noAccount') }}
-            <span>{{ $t('regSwitch') }}</span></div>
-          <div class="switch" @click="show = 'login'" v-else>{{ $t('hasAccount') }} <span>{{ $t('loginSwitch') }}</span>
-          </div>
+          <p class="switch" v-if="show === 'login'">{{ $t('noAccount') }}
+            <button type="button" class="switch-action" @click="show = 'register'">{{ $t('regSwitch') }}</button>
+          </p>
+          <p class="switch" v-else>{{ $t('hasAccount') }}
+            <button type="button" class="switch-action" @click="show = 'login'">{{ $t('loginSwitch') }}</button>
+          </p>
         </template>
       </div>
     </div>
     <el-dialog class="bind-dialog" v-model="showBindForm" :title="t('bindMailboxTitle')" >
       <div class="bind-container">
-        <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="bindForm.email" type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="bind">
+        <label class="field-label" for="bind-email">{{ $t('emailAccount') }}</label>
+        <el-input id="bind-email" :class="!hideLoginDomain ? 'email-input' : ''" v-model="bindForm.email" dir="ltr" type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="bind">
           <template #append v-if="!hideLoginDomain">
-            <div @click.stop="openSelect">
-              <el-select
-                  ref="mySelect"
-                  v-model="suffix"
-                  :placeholder="$t('select')"
-                  class="select"
-              >
-                <el-option
-                    v-for="item in domainList"
-                    :key="item"
-                    :label="item"
-                    :value="item"
-                />
-              </el-select>
-              <div>
-                <span>{{ suffix }}</span>
-                <Icon class="setting-icon" icon="mingcute:down-small-fill" width="20" height="20"/>
-              </div>
-            </div>
+            <select v-model="suffix" class="domain-select" dir="ltr" :aria-label="t('domain')" :title="suffix">
+              <option v-for="item in domainList" :key="item" :value="item">{{ item }}</option>
+            </select>
           </template>
         </el-input>
-        <el-input v-if="settingStore.settings.regKey === 0" v-model="bindForm.code" :placeholder="$t('regKey')"
+        <label v-if="settingStore.settings.regKey === 0" class="field-label" for="bind-invite-code">{{ $t('regKey') }}</label>
+        <el-input v-if="settingStore.settings.regKey === 0" id="bind-invite-code" v-model="bindForm.code" :placeholder="$t('regKey')"
                   type="text" autocomplete="off" @keyup.enter="bind"/>
-        <el-input v-if="settingStore.settings.regKey === 2" v-model="bindForm.code"
+        <label v-if="settingStore.settings.regKey === 2" class="field-label" for="bind-invite-code">{{ $t('regKeyOptional') }}</label>
+        <el-input v-if="settingStore.settings.regKey === 2" id="bind-invite-code" v-model="bindForm.code"
                   :placeholder="$t('regKeyOptional')" type="text" autocomplete="off" @keyup.enter="bind"/>
         <el-button class="btn" type="primary" @click="bind" :loading="bindLoading"
         >{{ t('bindAction') }}
         </el-button>
       </div>
     </el-dialog>
-    <a v-show="settingStore.settings.projectLink" class="github" href="https://github.com/maillab/cloud-mail">
+    <a v-show="settingStore.settings.projectLink" class="github" href="https://github.com/maillab/cloud-mail"
+       aria-label="GitHub" title="GitHub">
       <Icon icon="mingcute:github-line" color="#1890ff" width="20" height="20" />
     </a>
   </div>
@@ -216,7 +179,6 @@ const form = reactive({
   password: '',
 
 });
-const mySelect = ref()
 const suffix = ref('')
 const registerForm = reactive({
   email: '',
@@ -278,10 +240,6 @@ const background = computed(() => {
     'background-position': 'center'
   } : ''
 })
-
-const openSelect = () => {
-  mySelect.value.toggleMenu()
-}
 
 const getFullEmail = (email) => {
   return hideLoginDomain.value ? email : email + suffix.value
@@ -648,14 +606,21 @@ function submitRegister() {
 
 .form-wrapper {
   position: fixed;
+  top: 0;
+  bottom: 0;
   right: 0;
-  height: 100%;
+  height: 100dvh;
   z-index: 10;
   display: flex;
   align-items: center;
+  align-items: safe center;
   justify-content: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   @media (max-width: 767px) {
     width: 100%;
+    padding-block: 16px;
   }
 }
 
@@ -667,7 +632,7 @@ function submitRegister() {
   flex-direction: column;
   justify-content: center;
   width: 450px;
-  height: 100%;
+  min-height: 100%;
   border-left: 1px solid var(--login-border);
   box-shadow: var(--el-box-shadow-light);
 
@@ -687,7 +652,7 @@ function submitRegister() {
     border: 1px solid var(--login-border);
     padding: 20px 18px;
     border-radius: 6px;
-    height: fit-content;
+    min-height: 0;
     width: 100%;
     margin-right: 18px;
     margin-left: 18px;
@@ -708,16 +673,13 @@ function submitRegister() {
   .form-title {
     font-weight: bold;
     font-size: 22px !important;
+    line-height: 1.3;
   }
 
   .switch {
     margin-top: 20px;
     text-align: center;
-
-    span {
-      color: var(--login-switch-color);
-      cursor: pointer;
-    }
+    line-height: 1.6;
   }
 
   :deep(.el-input__wrapper) {
@@ -726,14 +688,17 @@ function submitRegister() {
   }
 
   .email-input :deep(.el-input__wrapper) {
-    border-radius: 6px 0 0 6px;
+    border-start-start-radius: 6px;
+    border-end-start-radius: 6px;
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
     background: var(--el-bg-color);
   }
 
   .el-input {
     height: 38px;
     width: 100%;
-    margin-bottom: 18px;
+    margin-bottom: 14px;
 
     :deep(.el-input__inner) {
       height: 36px;
@@ -741,8 +706,27 @@ function submitRegister() {
   }
 }
 
-:deep(.el-select-dropdown__item) {
-  padding: 0 10px;
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--el-text-color-regular);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.switch-action {
+  color: var(--login-switch-color);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.switch-action:hover {
+  text-decoration: underline;
+}
+
+@media (max-height: 700px) {
+  .form-wrapper { align-items: flex-start; }
 }
 
 :deep(.bind-dialog) {
@@ -757,12 +741,9 @@ function submitRegister() {
 .bind-container {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 15px;
-}
+  gap: 0;
 
-.setting-icon {
-  position: relative;
-  top: 6px;
+  .el-input { margin-bottom: 15px; }
 }
 
 .github {
@@ -784,10 +765,21 @@ function submitRegister() {
 
 :deep(.el-input-group__append) {
   padding: 0 !important;
-  padding-left: 8px !important;
-  padding-right: 4px !important;
+  padding-inline-start: 8px !important;
+  padding-inline-end: 4px !important;
   background: var(--el-bg-color);
-  border-radius: 0 8px 8px 0;
+  border-start-end-radius: 8px;
+  border-end-end-radius: 8px;
+}
+
+.domain-select {
+  width: clamp(100px, 34vw, 150px);
+  height: 36px;
+  padding-inline: 3px;
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
+  font-size: 13px;
+  cursor: pointer;
 }
 
 :deep(.el-button+.el-button) {
@@ -796,15 +788,6 @@ function submitRegister() {
 
 .register-turnstile {
   margin-bottom: 18px;
-}
-
-.select {
-  position: absolute;
-  right: 30px;
-  width: 100px;
-  opacity: 0;
-  pointer-events: none;
-  visibility: hidden;
 }
 
 .custom-style {
@@ -832,6 +815,10 @@ function submitRegister() {
 #background-wrap {
   height: 100%;
   z-index: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #background-wrap .cloud { animation: none !important; }
 }
 
 @keyframes animateCloud {

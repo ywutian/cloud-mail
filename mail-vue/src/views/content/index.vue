@@ -1,14 +1,25 @@
 <template>
   <div class="box">
     <div class="header-actions">
-      <Icon class="icon" icon="material-symbols-light:arrow-back-ios-new" width="20" height="20" @click="handleBack"/>
-      <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16" @click="handleDelete"/>
-      <span class="star" v-if="emailStore.contentData.showStar">
-        <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
-        <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18"/>
-      </span>
-      <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openReply" icon="la:reply" width="21" height="21" />
-      <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openForward" icon="iconoir:arrow-up-right" width="20" height="20" />
+      <button type="button" class="icon-button" :aria-label="t('backToList')" :title="t('backToList')" @click="handleBack">
+        <Icon icon="material-symbols-light:arrow-back-ios-new" width="20" height="20"/>
+      </button>
+      <button v-perm="'email:delete'" type="button" class="icon-button" :aria-label="t('delete')" :title="t('delete')" @click="handleDelete">
+        <Icon icon="uiw:delete" width="16" height="16"/>
+      </button>
+      <button v-if="emailStore.contentData.showStar" type="button" class="icon-button star"
+              :aria-label="t('star')" :aria-pressed="!!email.isStar" :title="t('star')" @click="changeStar">
+        <Icon v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
+        <Icon v-else icon="solar:star-line-duotone" width="18" height="18"/>
+      </button>
+      <button v-if="emailStore.contentData.showReply" v-perm="'email:send'" type="button" class="icon-button"
+              :aria-label="t('reply')" :title="t('reply')" @click="openReply">
+        <Icon icon="la:reply" width="21" height="21"/>
+      </button>
+      <button v-if="emailStore.contentData.showReply" v-perm="'email:send'" type="button" class="icon-button"
+              :aria-label="t('forward')" :title="t('forward')" @click="openForward">
+        <Icon icon="iconoir:arrow-up-right" width="20" height="20"/>
+      </button>
     </div>
     <div></div>
     <el-scrollbar class="scrollbar">
@@ -35,7 +46,7 @@
             <el-alert v-if="email.status === 5" :closable="false" :title="$t('delayed')" class="email-msg" type="warning" show-icon />
           </div>
           <el-scrollbar class="htm-scrollbar" :class="!email.attList?.length ? 'bottom-distance' : ''">
-            <iframe class="mail-frame" :srcdoc="frameHtml" v-if="email.content"
+            <iframe class="mail-frame" :title="t('emailText')" :srcdoc="frameHtml" v-if="email.content"
                     sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"/>
             <pre v-else class="email-text" >{{email.text}}</pre>
           </el-scrollbar>
@@ -47,18 +58,28 @@
             <div class="att-box">
 
               <div class="att-item" v-for="att in email.attList" :key="att.attId">
-                <div class="att-icon" @click="showImage(att)">
+                <component :is="isImage(att.filename) ? 'button' : 'div'" class="att-icon"
+                           :type="isImage(att.filename) ? 'button' : undefined"
+                           :aria-label="isImage(att.filename) ? `${t('preview')}: ${att.filename}` : undefined"
+                           @click="showImage(att)">
                   <Icon v-bind="getIconByName(att.filename)" />
-                </div>
-                <div class="att-name" @click="showImage(att)">
+                </component>
+                <component :is="isImage(att.filename) ? 'button' : 'div'" class="att-name"
+                           :type="isImage(att.filename) ? 'button' : undefined"
+                           :aria-label="isImage(att.filename) ? `${t('preview')}: ${att.filename}` : undefined"
+                           @click="showImage(att)">
                   {{ att.filename }}
-                </div>
+                </component>
                 <div class="att-size">{{ formatBytes(att.size) }}</div>
                 <div class="opt-icon att-icon">
-                  <Icon v-if="isImage(att.filename)" icon="hugeicons:view" width="22" height="22" @click="showImage(att)"/>
-                  <a href="#" @click.prevent="downloadAttachment(att)">
+                  <button v-if="isImage(att.filename)" type="button" :aria-label="`${t('preview')}: ${att.filename}`"
+                          :title="t('preview')" @click="showImage(att)">
+                    <Icon icon="hugeicons:view" width="22" height="22"/>
+                  </button>
+                  <button type="button" :aria-label="`${t('temporaryInbox.download')}: ${att.filename}`"
+                          :title="t('temporaryInbox.download')" @click="downloadAttachment(att)">
                     <Icon icon="system-uicons:push-down" width="22" height="22"/>
-                  </a>
+                  </button>
                 </div>
               </div>
             </div>
@@ -70,12 +91,12 @@
         v-if="showPreview"
         :url-list="srcList"
         show-progress
-        @close="closePreview"
+        @close="() => closePreview()"
     />
   </div>
 </template>
 <script setup>
-import {computed, reactive, ref, watch, onMounted, onUnmounted} from "vue";
+import {computed, reactive, ref, watch, onMounted, onUnmounted, nextTick} from "vue";
 import {useRouter} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
 import {emailContentMedia, emailDelete, emailRead} from "@/request/email.js";
@@ -175,14 +196,14 @@ watch(
 
 onMounted(() => {
   tryMarkRead()
-  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keydown', handleKeyDown, true);
 })
 
 onUnmounted(() => {
   emailStore.contentData.showUnread = false;
   readRequesting = false
-  window.removeEventListener('keydown', handleKeyDown);
-  closePreview()
+  window.removeEventListener('keydown', handleKeyDown, true);
+  closePreview(false)
 })
 
 function handleKeyDown(event) {
@@ -236,16 +257,26 @@ async function downloadAttachment(att) {
   }
 }
 
-function closePreview() {
+let previewOpener = null
+
+function closePreview(restoreFocus = true) {
   showPreview.value = false
   srcList.length = 0
   for (const url of previewUrls) URL.revokeObjectURL(url)
   previewUrls.clear()
+  const opener = previewOpener
+  previewOpener = null
+  if (restoreFocus && opener?.isConnected) {
+    nextTick(() => {
+      if (opener.isConnected) opener.focus()
+    })
+  }
 }
 
 async function showImage(att) {
   if (!isImage(att.filename)) return
-  closePreview()
+  closePreview(false)
+  previewOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null
   try {
     const blob = await attachmentBlob(att)
     const url = URL.createObjectURL(blob)
@@ -347,9 +378,22 @@ const handleDelete = () => {
     justify-content: center;
     min-width: 21px;
   }
-  .icon {
+  .icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    min-height: 30px;
+    color: inherit;
     cursor: pointer;
   }
+}
+
+.icon-button:focus-visible,
+.att-item button:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 
@@ -406,7 +450,7 @@ const handleDelete = () => {
       }
 
       .att-item {
-        cursor: pointer;
+        cursor: default;
         div {
           align-self: center;
         }
@@ -420,6 +464,11 @@ const handleDelete = () => {
           display: grid;
         }
 
+        button {
+          color: inherit;
+          cursor: pointer;
+        }
+
         .att-size {
           color: var(--secondary-text-color);
         }
@@ -431,6 +480,7 @@ const handleDelete = () => {
           overflow: hidden;
           text-overflow: ellipsis;
           word-break: break-all;
+          text-align: start;
         }
 
         .att-image {
@@ -446,7 +496,7 @@ const handleDelete = () => {
           display: flex;
           gap: 8px;
           cursor: pointer;
-          a {
+          button {
             color: var(--secondary-text-color);
             align-items: center;
             display: flex;

@@ -1,5 +1,10 @@
 const fr = {
     "inbox": "Boîte de réception",
+    "refreshMail": "Actualiser les e-mails",
+    "backToList": "Retour à la liste des messages",
+    "toggleNavigation": "Afficher ou masquer la navigation",
+    "enableDarkMode": "Activer le mode sombre",
+    "enableLightMode": "Activer le mode clair",
     "drafts": "Brouillons",
     "sent": "Envoyés",
     "starred": "Favoris",

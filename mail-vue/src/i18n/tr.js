@@ -1,5 +1,10 @@
 const tr = {
   "inbox": "Gelen kutusu",
+  "refreshMail": "E-postaları yenile",
+  "backToList": "E-posta listesine dön",
+  "toggleNavigation": "Gezinmeyi göster veya gizle",
+  "enableDarkMode": "Koyu modu aç",
+  "enableLightMode": "Açık modu aç",
   "drafts": "Taslaklar",
   "sent": "Gönderildi",
   "starred": "Yıldızlı",

@@ -1,6 +1,6 @@
 <template>
   <div class="tm">
-    <div class="tm-shell">
+    <div class="tm-shell" :inert="Boolean(viewing)">
 
       <header class="tm-head">
         <div class="tm-language">
@@ -17,23 +17,28 @@
       <section class="tm-card">
         <div class="tm-card-label">{{ t('temporaryInbox.yourAddress') }}</div>
 
-        <div class="tm-addr" @click="copyAddr">
-          <span v-if="address" dir="ltr">{{ address }}</span>
+        <div class="tm-addr">
+          <button v-if="address" type="button" class="tm-address-copy" dir="ltr"
+                  :aria-label="`${t('temporaryInbox.copyAddress')}: ${address}`" @click="copyAddr">{{ address }}</button>
           <span v-else-if="creating" class="tm-addr-skeleton"></span>
           <span v-else class="tm-no-address">{{ t('temporaryInbox.noActiveAddress') }}</span>
         </div>
 
         <div class="tm-actions">
-          <button class="tm-btn tm-btn-primary" :disabled="!address" @click="copyAddr">
+          <button v-if="!address" type="button" class="tm-btn tm-btn-primary" :disabled="creating" @click="genAddr">
+            <Icon icon="mingcute:refresh-2-line" width="17" height="17"/>
+            {{ t('temporaryInbox.createAddress') }}
+          </button>
+          <button v-if="address" type="button" class="tm-btn tm-btn-primary" @click="copyAddr">
             <Icon :icon="copied ? 'fluent:checkmark-24-filled' : 'fluent:copy-24-regular'" width="17" height="17"/>
             {{ copied ? t('temporaryInbox.copied') : t('temporaryInbox.copyAddress') }}
           </button>
-          <button class="tm-btn" :disabled="!address" @click="copyAccessLink">{{ t('temporaryInbox.copyLink') }}</button>
-          <button class="tm-btn" :disabled="creating" @click="genAddr">
+          <button v-if="address" type="button" class="tm-btn" @click="copyAccessLink">{{ t('temporaryInbox.copyLink') }}</button>
+          <button v-if="address" type="button" class="tm-btn" :disabled="creating" @click="genAddr">
             <Icon icon="mingcute:refresh-2-line" width="17" height="17"/>
-            {{ t(address ? 'temporaryInbox.newAddress' : 'temporaryInbox.createAddress') }}
+            {{ t('temporaryInbox.newAddress') }}
           </button>
-          <div class="tm-timer">
+          <div v-if="address && !connectionNotice" class="tm-timer">
             <span class="tm-pulse" :class="loading ? 'is-busy' : ''"></span>
             {{ loading ? t('temporaryInbox.checking') : t('temporaryInbox.refreshIn', { seconds: countdown }) }}
           </div>
@@ -41,18 +46,27 @@
         <p class="tm-access-note">{{ t('temporaryInbox.accessNote') }}</p>
       </section>
 
-      <div class="tm-manual">
-        <Icon class="tm-manual-icon" icon="iconoir:search" width="16" height="16"/>
-        <input v-model="manual" :placeholder="t('temporaryInbox.searchPlaceholder')" spellcheck="false" dir="auto"
-               @keyup.enter="useManual"/>
-        <button class="tm-btn tm-btn-slim" @click="useManual">{{ t('temporaryInbox.search') }}</button>
+      <div v-if="connectionNotice" class="tm-connection" :class="isOnline ? 'is-failed' : 'is-offline'"
+           role="status" aria-live="polite" aria-atomic="true">
+        <Icon :icon="isOnline ? 'mingcute:warning-line' : 'mingcute:wifi-off-line'" width="19" height="19" aria-hidden="true"/>
+        <span>{{ t(connectionNotice) }}</span>
+        <button v-if="isOnline && address" type="button" class="tm-btn tm-btn-slim"
+                :disabled="loading" @click="retryLoad">{{ t('pwa.retry') }}</button>
       </div>
 
-      <section class="tm-history" aria-labelledby="tm-history-title">
+      <div class="tm-manual">
+        <Icon class="tm-manual-icon" icon="iconoir:search" width="16" height="16"/>
+        <input v-model="manual" :placeholder="t('temporaryInbox.searchPlaceholder')"
+               :aria-label="t('temporaryInbox.searchPlaceholder')" spellcheck="false" dir="auto"
+               @keyup.enter="useManual"/>
+        <button type="button" class="tm-btn tm-btn-slim" @click="useManual">{{ t('temporaryInbox.search') }}</button>
+      </div>
+
+      <section class="tm-history" :class="{'is-empty': !history.length}" aria-labelledby="tm-history-title">
         <div class="tm-history-head">
           <div>
             <h2 id="tm-history-title">{{ t('temporaryInbox.localHistory') }}</h2>
-            <p>{{ t('temporaryInbox.localHistoryNote') }}</p>
+            <p v-if="history.length">{{ t('temporaryInbox.localHistoryNote') }}</p>
           </div>
           <button v-if="history.length || address" type="button" class="tm-clear" @click="showClearConfirm = true">
             {{ t('temporaryInbox.clearLocal') }}
@@ -77,13 +91,17 @@
         </div>
 
         <transition-group name="tm-fade" tag="div">
-          <article v-for="m in mails" :key="m.emailId" class="tm-mail" @click="openMail(m)">
+          <article v-for="m in mails" :key="m.emailId" class="tm-mail">
+            <button type="button" class="tm-mail-open"
+                    :aria-label="`${m.sendName || m.sendEmail} — ${m.subject || t('temporaryInbox.noSubject')}`"
+                    @click="openMail(m, $event)"></button>
             <div class="tm-mail-body">
               <div class="tm-mail-from">{{ m.sendName || m.sendEmail }}</div>
               <div class="tm-mail-subject">{{ m.subject || t('temporaryInbox.noSubject') }}</div>
               <div v-if="m.localOnly" class="tm-mail-local">{{ t(m.complete ? 'temporaryInbox.savedLocally' : 'temporaryInbox.summaryOnly') }}</div>
             </div>
-            <button v-if="m.code" class="tm-code" :title="t('temporaryInbox.clickToCopy')" @click.stop="copyCode(m.code)">
+            <button v-if="m.code" type="button" class="tm-code" :title="t('temporaryInbox.clickToCopy')"
+                    :aria-label="`${t('temporaryInbox.clickToCopy')}: ${m.code}`" @click="copyCode(m.code)">
               {{ m.code }}
             </button>
             <time class="tm-mail-time">{{ fmt(m.createTime) }}</time>
@@ -93,7 +111,7 @@
 
         <div v-if="!mails.length" class="tm-empty">
           <Icon icon="fluent:mail-inbox-24-regular" width="34" height="34"/>
-          <p>{{ inboxError ? t(inboxError) : (searched ? t('temporaryInbox.noRecentMail') : t('temporaryInbox.waitingForMail')) }}</p>
+          <p>{{ connectionNotice ? t('temporaryInbox.savedCount', {count: 0}) : (inboxError ? t(inboxError) : (searched ? t('temporaryInbox.noRecentMail') : t('temporaryInbox.waitingForMail'))) }}</p>
         </div>
       </section>
 
@@ -104,13 +122,15 @@
       <p class="tm-foot">{{ t('temporaryInbox.retentionWithArchive') }}</p>
     </div>
 
-    <div v-if="viewing" class="tm-modal" @click.self="closeMail">
-      <div class="tm-view">
+    <div v-if="viewing" class="tm-modal" role="presentation" @click.self="closeMail">
+      <div ref="viewDialog" class="tm-view" role="dialog" aria-modal="true"
+           aria-labelledby="tm-view-subject" tabindex="-1" @keydown="onDialogKeydown">
         <header class="tm-view-head">
           <div class="tm-view-meta">
-            <div class="tm-view-subject">{{ viewing.subject || t('temporaryInbox.noSubject') }}</div>
+            <div id="tm-view-subject" class="tm-view-subject">{{ viewing.subject || t('temporaryInbox.noSubject') }}</div>
           </div>
-          <button class="tm-view-close" :title="t('temporaryInbox.close')" @click="closeMail">
+          <button ref="viewCloseButton" type="button" class="tm-view-close"
+                  :title="t('temporaryInbox.close')" :aria-label="t('temporaryInbox.close')" @click="closeMail">
             <Icon icon="mingcute:close-line" width="18" height="18"/>
           </button>
         </header>
@@ -136,7 +156,8 @@
 
         <div v-if="viewing.code" class="tm-view-code">
           <span class="tm-view-code-label">{{ t('temporaryInbox.verificationCode') }}</span>
-          <button class="tm-code" :title="t('temporaryInbox.clickToCopy')" @click="copyCode(viewing.code)">
+          <button type="button" class="tm-code" :title="t('temporaryInbox.clickToCopy')"
+                  :aria-label="`${t('temporaryInbox.clickToCopy')}: ${viewing.code}`" @click="copyCode(viewing.code)">
             {{ viewing.code }}
           </button>
           <span class="tm-view-code-hint">{{ copied ? t('temporaryInbox.copied') : t('temporaryInbox.clickToCopy') }}</span>
@@ -154,17 +175,23 @@
               <span>{{ viewing.attList.length === 1 ? t('temporaryInbox.oneAttachment') : t('temporaryInbox.attachmentCount', { count: viewing.attList.length }) }}</span>
             </div>
             <div v-for="att in viewing.attList" :key="att.attId" class="tm-attachment">
-              <div class="tm-attachment-icon" :class="{ 'is-previewable': isImage(att.filename) }" @click="showImage(att)">
-                <Icon v-bind="getIconByName(att.filename)"/>
+              <button v-if="isImage(att.filename)" type="button" class="tm-attachment-file"
+                      :aria-label="`${t('temporaryInbox.preview')}: ${att.filename}`" @click="showImage(att)">
+                <span class="tm-attachment-icon"><Icon v-bind="getIconByName(att.filename)"/></span>
+                <span class="tm-attachment-name" :title="att.filename">{{ att.filename }}</span>
+              </button>
+              <div v-else class="tm-attachment-file">
+                <span class="tm-attachment-icon"><Icon v-bind="getIconByName(att.filename)"/></span>
+                <span class="tm-attachment-name" :title="att.filename">{{ att.filename }}</span>
               </div>
-              <div class="tm-attachment-name" :class="{ 'is-previewable': isImage(att.filename) }"
-                   :title="att.filename" @click="showImage(att)">{{ att.filename }}</div>
               <div class="tm-attachment-size">{{ formatBytes(att.size) }}</div>
               <div class="tm-attachment-actions">
-                <button v-if="isImage(att.filename)" type="button" :title="t('temporaryInbox.preview')" @click="showImage(att)">
+                <button v-if="isImage(att.filename)" type="button" :title="t('temporaryInbox.preview')"
+                        :aria-label="`${t('temporaryInbox.preview')}: ${att.filename}`" @click="showImage(att)">
                   <Icon icon="hugeicons:view" width="22" height="22"/>
                 </button>
-                <button type="button" :title="t('temporaryInbox.download')" @click="downloadAttachment(att)">
+                <button type="button" :title="t('temporaryInbox.download')"
+                        :aria-label="`${t('temporaryInbox.download')}: ${att.filename}`" @click="downloadAttachment(att)">
                   <Icon icon="system-uicons:push-down" width="22" height="22"/>
                 </button>
               </div>
@@ -186,7 +213,7 @@
 </template>
 
 <script setup>
-import {computed, defineOptions, onMounted, onUnmounted, ref} from "vue";
+import {computed, defineOptions, nextTick, onMounted, onUnmounted, ref} from "vue";
 import {Icon} from "@iconify/vue";
 import LanguageSelect from '@/components/language-select/index.vue'
 import AppInstallButton from '@/components/app-install-button/index.vue'
@@ -215,12 +242,15 @@ const publicLang = computed(() => locale.value)
 const address = ref('')
 const manual = ref('')
 const creating = ref(false)
+const isOnline = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
 const liveMails = ref([])
 const archivedMails = ref([])
 const mails = computed(() => {
   const combined = new Map(archivedMails.value.map(mail => [Number(mail.emailId), {...mail, localOnly: true}]))
-  for (const mail of liveMails.value) {
-    combined.set(Number(mail.emailId), {...combined.get(Number(mail.emailId)), ...mail, localOnly: false})
+  if (isOnline.value) {
+    for (const mail of liveMails.value) {
+      combined.set(Number(mail.emailId), {...combined.get(Number(mail.emailId)), ...mail, localOnly: false})
+    }
   }
   return [...combined.values()].sort((a, b) =>
     String(b.createTime || '').localeCompare(String(a.createTime || '')) || Number(b.emailId) - Number(a.emailId))
@@ -234,6 +264,9 @@ const clearing = ref(false)
 const loading = ref(false)
 const searched = ref(false)
 const inboxError = ref('')
+const connectionNotice = computed(() => !isOnline.value
+  ? 'temporaryInbox.offlineHistoryOnly'
+  : inboxError.value === 'reqFailErrorMsg' ? 'reqFailErrorMsg' : '')
 const copied = ref(false)
 const countdown = ref(REFRESH_SEC)
 const domains = ref([])
@@ -241,6 +274,8 @@ const domains = ref([])
 const viewing = ref(null)
 const viewLoading = ref(false)
 const viewError = ref(false)
+const viewDialog = ref(null)
+const viewCloseButton = ref(null)
 const showPreview = ref(false)
 const srcList = ref([])
 
@@ -257,6 +292,8 @@ let archiveClearRevision = null
 let localRequestId = 0
 let lastHistorySync = Date.now()
 let disposed = false
+let returnFocusElement = null
+let previewReturnFocusElement = null
 
 // 邮件 HTML 在受限 iframe 内渲染，不允许脚本和同源访问。
 const viewHtml = computed(() => {
@@ -369,16 +406,27 @@ function isImage(filename) {
 }
 
 function closePreview() {
+  const wasOpen = showPreview.value
+  const previewOpener = previewReturnFocusElement
+  previewReturnFocusElement = null
   previewRequestId += 1
   showPreview.value = false
   srcList.value = []
   for (const url of previewUrls) URL.revokeObjectURL(url)
   previewUrls.clear()
+  if (wasOpen && viewing.value) {
+    void nextTick(() => {
+      if (!viewing.value) return
+      if (previewOpener?.isConnected) previewOpener.focus()
+      else viewCloseButton.value?.focus()
+    })
+  }
 }
 
 async function showImage(att) {
   if (!isImage(att.filename)) return
   closePreview()
+  previewReturnFocusElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
   const requestId = previewRequestId
   try {
     const blob = await attachmentBlob(att)
@@ -474,16 +522,24 @@ async function cacheOneBinary(key, kind, id, source, capturedAt, session, clearR
   }
 }
 
-async function openMail(m) {
+async function openMail(m, event) {
   const requestId = ++viewRequestId
   const requestedAddress = address.value
   const capturedAt = Date.now()
   const session = archiveSession
   const clearRevision = archiveClearRevision
+  returnFocusElement = event?.currentTarget instanceof HTMLElement
+    ? event.currentTarget
+    : document.activeElement instanceof HTMLElement ? document.activeElement : null
   closePreview()
   viewing.value = m
   viewLoading.value = true
   viewError.value = false
+  void nextTick(() => {
+    if (requestId === viewRequestId && viewing.value?.emailId === m.emailId) {
+      viewCloseButton.value?.focus()
+    }
+  })
   try {
     const saved = await cachedFullMail(requestedAddress, m.emailId)
     if (saved) {
@@ -495,6 +551,10 @@ async function openMail(m) {
     }
   } catch { archiveUnavailable.value = true }
   if (requestId !== viewRequestId || address.value !== requestedAddress) return
+  if (!isOnline.value) {
+    viewLoading.value = false
+    return
+  }
   let full
   try {
     full = await openMailContent(m.emailId, requestedAddress)
@@ -522,30 +582,89 @@ async function openMail(m) {
 }
 
 function closeMail() {
+  const wasOpen = Boolean(viewing.value)
+  const opener = returnFocusElement
+  returnFocusElement = null
   viewRequestId += 1
   closePreview()
   viewing.value = null
   viewError.value = false
+  if (wasOpen) {
+    void nextTick(() => {
+      if (viewing.value) return
+      if (opener?.isConnected) opener.focus()
+      else document.querySelector('.tm-manual input')?.focus()
+    })
+  }
+}
+
+function onDialogKeydown(event) {
+  if (event.key !== 'Tab' || showPreview.value || !viewDialog.value) return
+  const focusable = [...viewDialog.value.querySelectorAll(
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])'
+  )].filter(element => element.getClientRects().length > 0)
+  if (!focusable.length) {
+    event.preventDefault()
+    viewDialog.value.focus()
+    return
+  }
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  if (event.shiftKey && (document.activeElement === first || document.activeElement === viewDialog.value)) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
+function onDocumentFocusIn(event) {
+  if (!viewing.value || showPreview.value || showClearConfirm.value || viewDialog.value?.contains(event.target)) return
+  viewCloseButton.value?.focus()
 }
 
 function onEsc(e) {
   if (e.key !== 'Escape') return
   if (showPreview.value) {
+    e.preventDefault()
+    e.stopImmediatePropagation()
     closePreview()
   } else if (viewing.value) {
+    e.preventDefault()
     closeMail()
   }
 }
 
+function onConnectionLost() {
+  isOnline.value = false
+  inboxRequestId += 1
+  loading.value = false
+  countdown.value = REFRESH_SEC
+  void refreshLocalMessages()
+}
+
+function onConnectionRestored() {
+  isOnline.value = true
+  countdown.value = REFRESH_SEC
+  void load()
+}
+
 onMounted(async () => {
-  window.addEventListener('keydown', onEsc)
+  isOnline.value = navigator.onLine
+  window.addEventListener('keydown', onEsc, true)
+  window.addEventListener('online', onConnectionRestored)
+  window.addEventListener('offline', onConnectionLost)
+  document.addEventListener('focusin', onDocumentFocusIn)
   document.addEventListener('visibilitychange', onVisible)
   archiveChannel?.addEventListener('message', onArchiveMessage)
   timer = setInterval(() => {
-    countdown.value -= 1
-    if (countdown.value <= 0) {
-      countdown.value = REFRESH_SEC
-      load()
+    if (isOnline.value) {
+      countdown.value -= 1
+      if (countdown.value <= 0) {
+        countdown.value = REFRESH_SEC
+        load()
+      }
     }
     if (!document.hidden && Date.now() - lastHistorySync >= 60 * 60 * 1000) void onVisible()
   }, 1000)
@@ -593,14 +712,17 @@ onMounted(async () => {
     }
   }
   if (history.value.length) await selectAddress(history.value[0].address)
-  else if (navigator.onLine) await genAddr()
+  else if (isOnline.value) await genAddr()
 })
 
 onUnmounted(() => {
   disposed = true
   if (timer) clearInterval(timer)
   if (copyTimer) clearTimeout(copyTimer)
-  window.removeEventListener('keydown', onEsc)
+  window.removeEventListener('keydown', onEsc, true)
+  window.removeEventListener('online', onConnectionRestored)
+  window.removeEventListener('offline', onConnectionLost)
+  document.removeEventListener('focusin', onDocumentFocusIn)
   document.removeEventListener('visibilitychange', onVisible)
   archiveChannel?.removeEventListener('message', onArchiveMessage)
   archiveChannel?.close()
@@ -745,7 +867,7 @@ function resetInbox() {
 }
 
 async function load() {
-  if (disposed || !address.value || loading.value || !navigator.onLine) return
+  if (disposed || !address.value || loading.value || !isOnline.value) return
   const requestId = ++inboxRequestId
   const requestedAddress = address.value
   loading.value = true
@@ -758,12 +880,17 @@ async function load() {
       void captureRecent(result || [], requestedAddress)
     }
   } catch (error) {
-    if (requestId === inboxRequestId && error?.code === 403) {
-      inboxError.value = 'temporaryInbox.registeredAddress'
+    if (!disposed && requestId === inboxRequestId && address.value === requestedAddress) {
+      inboxError.value = error?.code === 403 ? 'temporaryInbox.registeredAddress' : 'reqFailErrorMsg'
     }
   } finally {
     if (requestId === inboxRequestId) loading.value = false
   }
+}
+
+function retryLoad() {
+  countdown.value = REFRESH_SEC
+  void load()
 }
 
 function captureRecent(recent, mailbox) {
@@ -824,7 +951,7 @@ async function useManual() {
     manual.value = ''
     return
   }
-  if (!navigator.onLine) {
+  if (!isOnline.value) {
     flash(t('temporaryInbox.offlineHistoryOnly'))
     return
   }
@@ -932,9 +1059,9 @@ function fmt(value) {
   --card-2: #1b232e;
   --line: #232d3a;
   --ink: #e9eef4;
-  --ink-2: #93a1b2;
-  --ink-3: #5f6d7e;
-  --accent: #3b82f6;
+  --ink-2: #c4cfdb;
+  --ink-3: #a9b9cc;
+  --accent: #2563eb;
   --accent-ink: #ffffff;
   --good: #34d399;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
@@ -1014,8 +1141,30 @@ function fmt(value) {
   font-weight: 600;
   letter-spacing: -.01em;
   word-break: break-all;
-  cursor: pointer;
   color: var(--ink);
+}
+
+.tm-address-copy {
+  display: block;
+  max-width: 100%;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  overflow-wrap: anywhere;
+  text-align: start;
+  cursor: pointer;
+}
+
+.tm-address-copy:focus-visible,
+.tm-btn:focus-visible,
+.tm-code:focus-visible,
+.tm-mail-open:focus-visible,
+.tm-attachment-file:focus-visible,
+.tm-attachment-actions button:focus-visible,
+.tm-view-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .tm-addr-skeleton {
@@ -1047,6 +1196,27 @@ function fmt(value) {
   line-height: 1.5;
   color: var(--ink-3);
 }
+
+.tm-connection {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid #385678;
+  border-radius: 10px;
+  background: #142439;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.tm-connection svg { flex-shrink: 0; color: #8cc4ff; }
+.tm-connection span { flex: 1 1 200px; min-width: 0; }
+.tm-connection.is-failed { border-color: #715033; background: #292019; color: #ffd6a6; }
+.tm-connection.is-failed svg { color: #fbbf7b; }
+.tm-connection .tm-btn { min-height: 44px; margin-inline-start: auto; color: inherit; }
 
 /* ---------- buttons ---------- */
 
@@ -1189,6 +1359,15 @@ function fmt(value) {
   background: var(--card);
 }
 
+.tm-history.is-empty {
+  margin-bottom: 14px;
+  padding: 12px 16px;
+}
+
+.tm-history.is-empty .tm-history-empty {
+  margin-top: 4px;
+}
+
 .tm-history-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .tm-history-head h2 { font-size: 14px; font-weight: 600; color: var(--ink); }
 .tm-history-head p { margin-top: 5px; font-size: 12px; line-height: 1.5; color: var(--ink-3); }
@@ -1257,8 +1436,20 @@ function fmt(value) {
   gap: 14px;
   padding: 15px 18px;
   border-bottom: 1px solid var(--line);
-  cursor: pointer;
+  position: relative;
   transition: background .15s;
+}
+
+.tm-mail-open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  cursor: pointer;
+}
+
+.tm-mail-open:focus-visible {
+  outline-offset: -3px;
 }
 
 .tm-mail:hover {
@@ -1301,6 +1492,8 @@ function fmt(value) {
 
 .tm-code {
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
   padding: 7px 13px;
   border: 1px solid rgba(59, 130, 246, .35);
   border-radius: 8px;
@@ -1530,7 +1723,7 @@ function fmt(value) {
 
 .tm-attachment {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 10px;
   min-width: 0;
@@ -1539,6 +1732,19 @@ function fmt(value) {
   border-radius: 5px;
   background: var(--card-2);
   font-size: 13px;
+}
+
+.tm-attachment-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: inherit;
+  text-align: start;
+}
+
+button.tm-attachment-file {
+  cursor: pointer;
 }
 
 .tm-attachment-name {
@@ -1556,10 +1762,7 @@ function fmt(value) {
 .tm-attachment-icon {
   display: grid;
   place-items: center;
-}
-
-.tm-attachment .is-previewable {
-  cursor: pointer;
+  flex: 0 0 auto;
 }
 
 .tm-attachment-actions {

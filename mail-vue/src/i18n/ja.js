@@ -1,5 +1,10 @@
 const ja = {
     "inbox": "受信箱",
+    "refreshMail": "メールを更新",
+    "backToList": "メール一覧に戻る",
+    "toggleNavigation": "ナビゲーションの表示を切り替える",
+    "enableDarkMode": "ダークモードに切り替える",
+    "enableLightMode": "ライトモードに切り替える",
     "drafts": "下書き",
     "sent": "送信済み",
     "starred": "スター付き",

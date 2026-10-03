@@ -1,5 +1,10 @@
 export default {
   "inbox": "البريد الوارد",
+  "refreshMail": "تحديث الرسائل",
+  "backToList": "العودة إلى قائمة الرسائل",
+  "toggleNavigation": "إظهار شريط التنقل أو إخفاؤه",
+  "enableDarkMode": "تفعيل الوضع الداكن",
+  "enableLightMode": "تفعيل الوضع الفاتح",
   "drafts": "المسودات",
   "sent": "تم الإرسال",
   "starred": "مميزة بنجمة",

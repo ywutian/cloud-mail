@@ -1,5 +1,10 @@
 const pt = {
     "inbox": "Caixa de entrada",
+    "refreshMail": "Atualizar e-mails",
+    "backToList": "Voltar à lista de e-mails",
+    "toggleNavigation": "Mostrar ou ocultar a navegação",
+    "enableDarkMode": "Ativar modo escuro",
+    "enableLightMode": "Ativar modo claro",
     "drafts": "Rascunhos",
     "sent": "Enviados",
     "starred": "Com estrela",
