@@ -61,7 +61,7 @@ jobs:
 
       - name: ✅ 验证邮件访问边界 / Verify mailbox access boundaries
         working-directory: ./mail-worker
-        run: pnpm exec vitest run --config test/unit.config.js
+        run: pnpm test
 
       - name: 🛠️ 设置环境 / Set up environment
         working-directory: ./mail-worker

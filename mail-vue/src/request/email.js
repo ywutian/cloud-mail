@@ -5,7 +5,7 @@ export function emailList(accountId, allReceive, emailId, timeSort, size, type, 
 }
 
 export function emailAddresses(keyword, num, size) {
-    return http.get('/email/addresses', {params: {keyword, num, size}})
+    return http.get('/email/addresses', {params: {keyword, num, size}, noMsg: true})
 }
 
 export function emailDelete(emailIds) {

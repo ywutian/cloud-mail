@@ -12,6 +12,12 @@ import settingService from "./setting-service";
 
 const attService = {
 
+	newKey(filename) {
+		const extension = fileUtils.getExtFileName(filename);
+		const safeExtension = /^\.[a-zA-Z0-9]{1,12}$/.test(extension) ? extension.toLowerCase() : '';
+		return constant.ATTACHMENT_PREFIX + uuidv4().replaceAll('-', '') + safeExtension;
+	},
+
 	async addAtt(c, attachments) {
 
 		for (let attachment of attachments) {
@@ -65,7 +71,7 @@ const attService = {
 				const file = fileUtils.base64ToFile(src);
 				const buff = await file.arrayBuffer();
 				const cid = uuidv4().replace(/-/g, '');
-				const key = constant.ATTACHMENT_PREFIX + await fileUtils.getBuffHash(buff) + fileUtils.getExtFileName(file.name);
+				const key = this.newKey(file.name);
 
 				img.setAttribute('src', 'cid:' + cid);
 
@@ -139,6 +145,8 @@ const attService = {
 			}
 
 			image.content = obj instanceof ArrayBuffer ? obj : await obj.arrayBuffer();
+			image.buff = image.content;
+			image.key = this.newKey(image.filename);
 		}))
 
 		imageDataList = imageDataList.filter(image => image.content);
@@ -152,7 +160,7 @@ const attService = {
 
 		for (let att of attList) {
 			att.buff = fileUtils.base64ToUint8Array(att.content);
-			att.key = constant.ATTACHMENT_PREFIX + await fileUtils.getBuffHash(att.buff) + fileUtils.getExtFileName(att.filename);
+			att.key = this.newKey(att.filename);
 			const attData = { userId, accountId, emailId };
 			attData.key = att.key;
 			attData.size = att.buff.length;
@@ -212,48 +220,118 @@ const attService = {
 			.all();
 	},
 
+	selectAllByEmailId(c, emailId) {
+		return orm(c).select().from(att).where(eq(att.emailId, emailId)).all();
+	},
+
+	async copyForDelivery(c, sourceRows) {
+		const keyMap = new Map();
+		const copies = [];
+		for (const row of sourceRows) {
+			if (!keyMap.has(row.key)) {
+				const object = await r2Service.getObj(c, row.key);
+				if (!object) throw new Error('Attachment source object is unavailable');
+				const content = object instanceof ArrayBuffer ? object : await object.arrayBuffer();
+				const key = this.newKey(row.filename || 'attachment');
+				await r2Service.putObj(c, key, content, {
+					contentType: row.mimeType,
+					contentDisposition: `${row.type === attConst.type.EMBED ? 'inline' : 'attachment'};filename=${row.filename || 'attachment'}`,
+					...(row.type === attConst.type.EMBED ? {cacheControl: 'max-age=259200'} : {})
+				});
+				keyMap.set(row.key, key);
+			}
+			copies.push({...row, key: keyMap.get(row.key), attId: null});
+		}
+		return {copies, keyMap};
+	},
+
 	async removeAttByField(c, fieldName, fieldValues) {
+		if (!['user_id', 'email_id', 'account_id'].includes(fieldName)) {
+			throw new Error('Unsupported attachment deletion field');
+		}
 
-		const sqlList = [];
+		const values = [...new Set(fieldValues.map(Number))];
+		if (values.some(value => !Number.isSafeInteger(value) || value <= 0)) {
+			throw new Error('Invalid attachment deletion ID');
+		}
+		if (values.length === 0) return;
 
-		fieldValues.forEach(value => {
+		const selectedIds = [];
+		const selectedKeyCounts = new Map();
+		const SELECT_PAGE_SIZE = 500;
+		for (const value of values) {
+			let afterId = 0;
+			while (true) {
+				const { results } = await c.env.db.prepare(
+					`SELECT att_id AS attId, key FROM attachments WHERE ${fieldName} = ? AND att_id > ? ORDER BY att_id LIMIT ?`
+				).bind(value, afterId, SELECT_PAGE_SIZE).all();
+				if (!results.length) break;
+				for (const row of results) {
+					selectedIds.push(row.attId);
+					selectedKeyCounts.set(row.key, (selectedKeyCounts.get(row.key) || 0) + 1);
+				}
+				afterId = results[results.length - 1].attId;
+				if (results.length < SELECT_PAGE_SIZE) break;
+			}
+		}
+		if (!selectedIds.length) return;
 
-			sqlList.push(
-
-				c.env.db.prepare(
-					`SELECT a.key, a.att_id
-						FROM attachments a
-							   JOIN (SELECT key
-									 FROM attachments
-									 GROUP BY key
-									 HAVING COUNT (*) = 1) t
-									ON a.key = t.key
-						WHERE a.${fieldName} = ?;`
-					).bind(value)
-			)
-
-			sqlList.push(c.env.db.prepare(`DELETE FROM attachments WHERE ${fieldName} = ?`).bind(value))
-
-		});
-
-		const attListResult = await c.env.db.batch(sqlList);
-
-		const delKeyList = attListResult.flatMap(r => r.results ? r.results.map(row => row.key) : []);
-
-		if (delKeyList.length > 0) {
-			try {
-				await this.batchDelete(c, delKeyList);
-			} catch (e) {
-				console.error('删除附件文件失败：', e);
+		const keysToDelete = [];
+		const keys = [...selectedKeyCounts.keys()];
+		const SQL_CHUNK_SIZE = 100;
+		for (let i = 0; i < keys.length; i += SQL_CHUNK_SIZE) {
+			const keyChunk = keys.slice(i, i + SQL_CHUNK_SIZE);
+			const placeholders = keyChunk.map(() => '?').join(', ');
+			const { results } = await c.env.db.prepare(
+				`SELECT key, COUNT(*) AS refCount FROM attachments WHERE key IN (${placeholders}) GROUP BY key`
+			).bind(...keyChunk).all();
+			for (const row of results) {
+				if (Number(row.refCount) === selectedKeyCounts.get(row.key)) {
+					keysToDelete.push(row.key);
+				}
 			}
 		}
 
+		try {
+			await this.batchDelete(c, keysToDelete);
+		} catch (error) {
+			console.error('Attachment object deletion failed', {
+				field: fieldName,
+				metadataRows: selectedIds.length,
+				objects: keysToDelete.length,
+				error
+			});
+			throw error;
+		}
+
+		const statements = [];
+		for (let i = 0; i < selectedIds.length; i += SQL_CHUNK_SIZE) {
+			const idChunk = selectedIds.slice(i, i + SQL_CHUNK_SIZE);
+			const placeholders = idChunk.map(() => '?').join(', ');
+			statements.push(c.env.db.prepare(`DELETE FROM attachments WHERE att_id IN (${placeholders})`).bind(...idChunk));
+		}
+		try {
+			for (let i = 0; i < statements.length; i += 50) {
+				const results = await c.env.db.batch(statements.slice(i, i + 50));
+				if (results.some(result => result.success === false)) {
+					throw new Error('Attachment metadata deletion failed');
+				}
+			}
+		} catch (error) {
+			console.error('Attachment metadata deletion failed', {
+				field: fieldName,
+				metadataRows: selectedIds.length,
+				objects: keysToDelete.length,
+				error
+			});
+			throw error;
+		}
 	},
 
 	async batchDelete(c, keys) {
 		if (!keys.length) return;
 
-		const BATCH_SIZE = 1000;
+		const BATCH_SIZE = 100;
 
 		for (let i = 0; i < keys.length; i += BATCH_SIZE) {
 			const batch = keys.slice(i, i + BATCH_SIZE);

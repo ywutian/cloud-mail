@@ -764,19 +764,26 @@ Authorization: &lt;secret&gt;</pre>
             </el-input-number>
           </div>
           <div class="notice-popup-item">
-            <el-input
+            <div v-if="isBuiltInNoticeContent(noticeForm.noticeContent) && !noticeRawEditing"
+                 class="stored-notice-preview">
+              <p>{{ displayNoticeContent(noticeForm.noticeContent, t) }}</p>
+              <el-button text type="primary" :aria-label="`${t('change')} ${t('noticeContentDesc')}`"
+                         @click="noticeRawEditing = true">{{ t('change') }}</el-button>
+            </div>
+            <el-input v-else
                 v-model="noticeForm.noticeContent"
                 :autosize="{ minRows: 15, maxRows: 25 }"
                 type="textarea"
+                :aria-label="t('noticeContentDesc')"
                 :placeholder="t('noticeContentDesc')"
             />
           </div>
         </form>
         <template #footer>
-          <div class="dialog-footer">
+          <div class="dialog-footer notice-dialog-footer">
             <el-switch v-model="noticeForm.notice" :active-value="0" :inactive-value="1" :active-text="$t('enable')"
                        :inactive-text="$t('disable')"/>
-            <div>
+            <div class="notice-footer-actions">
               <el-button @click="previewNoticePopup">
                 {{ $t('preview') }}
               </el-button>
@@ -900,6 +907,7 @@ import loading from "@/components/loading/index.vue";
 import {getTextWidth} from "@/utils/text.js";
 import {fileToBase64} from "@/utils/file-utils.js"
 import {useI18n} from 'vue-i18n';
+import {displayNoticeContent, isBuiltInNoticeContent} from '@/i18n/system-defaults.js';
 import axios from "axios";
 
 defineOptions({
@@ -922,6 +930,7 @@ const r2DomainShow = ref(false)
 const turnstileShow = ref(false)
 const tgSettingShow = ref(false)
 const noticePopupShow = ref(false)
+const noticeRawEditing = ref(false)
 const thirdEmailShow = ref(false)
 const webhookShow = ref(false)
 const forwardRulesShow = ref(false)
@@ -1167,6 +1176,7 @@ function openTgSetting() {
 }
 
 function openNoticePopupSetting() {
+  noticeRawEditing.value = false
   noticePopupShow.value = true
 }
 
@@ -1175,6 +1185,7 @@ function openResendList() {
 }
 
 function resetNoticeForm() {
+  noticeRawEditing.value = false
   noticeForm.notice = setting.value.notice
   noticeForm.noticeContent = setting.value.noticeContent
   noticeForm.noticeDuration = setting.value.noticeDuration
@@ -1926,6 +1937,38 @@ function editSetting(settingForm, refreshStatus = true) {
 
 .notice-popup-item {
   margin-top: 15px;
+}
+
+.stored-notice-preview {
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 8px;
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-primary);
+}
+
+.stored-notice-preview p {
+  margin: 0 0 8px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.notice-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  :deep(.el-button + .el-button) {
+    margin-left: 0;
+    margin-inline-start: 0;
+  }
+}
+
+@media (max-width: 540px) {
+  .notice-dialog-footer { flex-wrap: wrap; gap: 12px; }
+  .notice-footer-actions { flex: 1 1 100%; min-width: 0; }
 }
 
 .notice-line-item {

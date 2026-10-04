@@ -37,15 +37,16 @@ import workerHi from '../../mail-worker/src/i18n/hi.js'
 import expandedBackend from '../../mail-worker/src/i18n/expanded.js'
 import {dateLocale, getBrowserLanguage, intlLanguage, languageDirection, languageInfo, languages, manifestPath, matchLanguageTag, normalizeLanguage, resolveLanguage} from '../src/i18n/languages.js'
 import {requestLanguage, t} from '../../mail-worker/src/i18n/i18n.js'
+import {checkCandidate} from '../tools/check-locale-candidate.mjs'
 
 const expandedFrontend = Object.fromEntries(
-  languages.filter(language => language.coverage === 'preview').map(({code}) => [
+  languages.filter(language => language.delivery === 'lazy').map(({code}) => [
     code,
     JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), `../src/i18n/locales/${code}.json`), 'utf8')),
   ]),
 )
 const frontend = {...expandedFrontend, en: frontEn, zh: frontZh, es: frontEs, fr: frontFr, ja: frontJa, ko: frontKo, de: frontDe, pt: frontPt, ru: frontRu, it: frontIt, id: frontId, vi: frontVi, tr: frontTr, ar: frontAr, hi: frontHi}
-const backend = {...Object.fromEntries(languages.filter(language => language.coverage === 'preview').map(({code}) => [code, expandedBackend[code]])), en: workerEn, zh: workerZh, es: workerEs, fr: workerFr, ja: workerJa, ko: workerKo, de: workerDe, pt: workerPt, ru: workerRu, it: workerIt, id: workerId, vi: workerVi, tr: workerTr, ar: workerAr, hi: workerHi}
+const backend = {...Object.fromEntries(languages.filter(language => language.delivery === 'lazy').map(({code}) => [code, expandedBackend[code]])), en: workerEn, zh: workerZh, es: workerEs, fr: workerFr, ja: workerJa, ko: workerKo, de: workerDe, pt: workerPt, ru: workerRu, it: workerIt, id: workerId, vi: workerVi, tr: workerTr, ar: workerAr, hi: workerHi}
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../src')
 const workerRoot = resolve(root, '../../mail-worker/src')
 
@@ -68,7 +69,7 @@ test('all selectable languages have complete keys and matching placeholders', ()
     .filter(filename => filename.endsWith('.json'))
     .map(filename => filename.slice(0, -5)).sort()
   assert.deepEqual(bundledExtraLocales,
-    languages.filter(language => language.coverage === 'preview').map(language => language.code).sort())
+    languages.filter(language => language.delivery === 'lazy').map(language => language.code).sort())
   assert.deepEqual(Object.keys(frontend).sort(), languages.map(language => language.code).sort())
   assert.deepEqual(Object.keys(backend).sort(), languages.map(language => language.code).sort())
   for (const [surface, locales] of Object.entries({frontend, backend})) {
@@ -102,6 +103,26 @@ test('selectable dictionaries reject mass repetition and English carryover', () 
       assert.ok(Math.max(...frequency.values()) <= 10, `${surface}:${language}: repeated text`)
       assert.ok(unchanged <= (surface === 'frontend' ? 40 : 15), `${surface}:${language}: English carryover`)
     }
+  }
+})
+
+test('published translations pass the candidate safety gate', () => {
+  for (const {code} of languages) {
+    if (code === 'en') continue
+    assert.deepEqual(checkCandidate(frontend[code], backend[code]), [], code)
+  }
+})
+
+test('candidate gate rejects untranslated deletion decisions and policy errors', () => {
+  const frontCandidate = structuredClone(frontFr)
+  const workerCandidate = structuredClone(workerFr)
+  for (const key of ['delAccountMsg', 'delAccountConfirm', 'delAccountSoftMsg', 'delAccountSoftConfirm']) {
+    frontCandidate[key] = frontEn[key]
+  }
+  workerCandidate.deletionPolicyChanged = workerEn.deletionPolicyChanged
+  const findings = checkCandidate(frontCandidate, workerCandidate)
+  for (const key of ['delAccountMsg', 'delAccountConfirm', 'delAccountSoftMsg', 'delAccountSoftConfirm', 'deletionPolicyChanged']) {
+    assert.ok(findings.some(item => item.includes(key)), key)
   }
 })
 
@@ -193,6 +214,8 @@ test('published languages declare the date locale and page direction', () => {
     assert.equal(languageInfo(language.code), language)
     assert.ok(['ltr', 'rtl'].includes(language.dir), language.code)
     assert.ok(language.dateLocale, language.code)
+    assert.ok(['bundled', 'lazy'].includes(language.delivery), language.code)
+    assert.equal(language.status, 'published', language.code)
   }
 })
 

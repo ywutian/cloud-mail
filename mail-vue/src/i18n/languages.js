@@ -1,4 +1,4 @@
-const existing = [
+const bundled = [
     ['zh', '简体中文', 'zh-CN', 'zh-cn', 'ltr'],
     ['en', 'English', 'en-US', 'en', 'ltr'],
     ['es', 'Español', 'es-ES', 'es', 'ltr'],
@@ -16,13 +16,13 @@ const existing = [
     ['hi', 'हिन्दी', 'hi-IN', 'hi', 'ltr'],
 ]
 
-const expanded = [
+const lazy = [
     ['zh-Hant', '繁體中文', 'zh-TW', 'zh-tw', 'ltr'],
 ]
 
 export const languages = [
-    ...existing.map(([code, name, intl, dateLocale, dir]) => ({code, name, intl, dateLocale, dir, coverage: 'existing'})),
-    ...expanded.map(([code, name, intl, dateLocale, dir]) => ({code, name, intl, dateLocale, dir, coverage: 'preview'})),
+    ...bundled.map(([code, name, intl, dateLocale, dir]) => ({code, name, intl, dateLocale, dir, delivery: 'bundled', status: 'published'})),
+    ...lazy.map(([code, name, intl, dateLocale, dir]) => ({code, name, intl, dateLocale, dir, delivery: 'lazy', status: 'published'})),
 ]
 
 const byCode = new Map(languages.map(language => [language.code, language]))

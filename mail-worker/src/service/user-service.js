@@ -96,8 +96,11 @@ const userService = {
 			.get();
 	},
 
-	async delete(c, userId) {
-		const { syncDelete } = await settingService.query(c);
+	async delete(c, userId, expectedSyncDelete) {
+		const syncDelete = await settingService.deletionMode(c);
+		if (!['0', '1'].includes(String(expectedSyncDelete)) || String(syncDelete) !== String(expectedSyncDelete)) {
+			throw new BizError(t(c, 'deletionPolicyChanged'), 409);
+		}
 		if (syncDelete === settingConst.syncDelete.OPEN) {
 			await this.physicsDelete(c, { userIds: String(userId) });
 			await c.env.kv.delete(kvConst.AUTH_INFO + userId)

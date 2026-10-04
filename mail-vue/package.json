@@ -9,6 +9,7 @@
     "build": "node tools/generate-localized-manifests.mjs && vite build --mode release",
     "eo": "node tools/generate-localized-manifests.mjs && vite build --mode eo",
     "check:manifests": "node tools/generate-localized-manifests.mjs --check",
+    "check:locale": "node tools/check-locale-candidate.mjs",
     "preview": "vite preview",
     "test": "node --test test/*.test.js"
   },

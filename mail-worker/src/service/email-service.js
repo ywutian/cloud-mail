@@ -221,7 +221,7 @@ const emailService = {
 	async delete(c, params, userId) {
 		const { emailIds } = params;
 		const emailIdList = emailIds.split(',').map(Number);
-		const { syncDelete } = await settingService.query(c);
+		const syncDelete = await settingService.deletionMode(c);
 
 		if (syncDelete === settingConst.syncDelete.OPEN) {
 			const owned = await orm(c).select({ emailId: email.emailId }).from(email)
@@ -455,7 +455,7 @@ const emailService = {
 
 		//如果全是站内接收方，直接写入数据库
 		if (allInternal) {
-			await this.HandleOnSiteEmail(c, receiveEmail, emailResult, attList);
+			await this.HandleOnSiteEmail(c, receiveEmail, emailResult);
 		}
 
 		const dateStr = dayjs().format('YYYY-MM-DD');
@@ -637,10 +637,23 @@ const emailService = {
 		return content;
 	},
 
+	rewriteInlineImageKeys(content, keyMap) {
+		if (!content || !keyMap.size) return content;
+		const {document} = parseHTML(content);
+		for (const image of document.querySelectorAll('img')) {
+			const src = image.getAttribute('src');
+			if (!src?.startsWith('{{domain}}')) continue;
+			const replacement = keyMap.get(src.slice('{{domain}}'.length));
+			if (replacement) image.setAttribute('src', '{{domain}}' + replacement);
+		}
+		return document.toString();
+	},
+
 	//处理站内邮件发送
-	async HandleOnSiteEmail(c, receiveEmail, sendEmailData, attList) {
+	async HandleOnSiteEmail(c, receiveEmail, sendEmailData) {
 
 		const { noRecipient  } = await settingService.query(c);
+		const sourceAttachments = await attService.selectAllByEmailId(c, sendEmailData.emailId);
 
 		//查询所有收件人账号信息
 		let accountList = await orm(c).select().from(account).where(inArray(account.email, receiveEmail)).all();
@@ -743,11 +756,13 @@ const emailService = {
 		const receiveEmailList = emailDataList.filter(emailRow => emailRow.status === emailConst.status.RECEIVE || emailRow.status === emailConst.status.NOONE);
 
 		for (const emailData of receiveEmailList) {
+			const {copies, keyMap} = await attService.copyForDelivery(c, sourceAttachments);
+			emailData.content = this.rewriteInlineImageKeys(emailData.content, keyMap);
 
 			const emailRow = await orm(c).insert(email).values(emailData).returning().get();
 
 			//设置附件保存
-			for (const attRow of attList) {
+			for (const attRow of copies) {
 				const attValues = {...attRow};
 				attValues.emailId = emailRow.emailId;
 				attValues.accountId = emailRow.accountId;

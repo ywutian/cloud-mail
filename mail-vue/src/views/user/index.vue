@@ -91,7 +91,7 @@
                            prop="accountCount"/>
           <el-table-column v-if="createTimeShow" :label="$t('tabRegisteredAt')" min-width="160" prop="createTime">
             <template #default="props">
-              {{ tzDayjs(props.row.createTime).format('YYYY-MM-DD HH:mm') }}
+              {{ formatUserDate(props.row.createTime, true) }}
             </template>
           </el-table-column>
           <el-table-column v-if="statusShow" min-width="60px" :label="$t('tabStatus')" prop="status">
@@ -201,7 +201,7 @@
       <div class="dialog-box">
         <el-input disabled :model-value="$t('admin')" v-if="userForm.type === 0"/>
         <el-select v-else v-model="userForm.type" :placeholder="$t('select')">
-          <el-option v-for="item in roleList" :label="item.name" :value="item.roleId" :key="item.roleId"/>
+          <el-option v-for="item in roleList" :label="displayRoleName(item, t)" :value="item.roleId" :key="item.roleId"/>
         </el-select>
         <el-button :disabled="userForm.type === 0" class="btn" :loading="settingLoading" type="primary" @click="setType"
         >{{ $t('save') }}
@@ -237,7 +237,7 @@
         </el-input>
         <el-input type="password" v-model="addForm.password" :placeholder="$t('password')" @keyup.enter="submit"/>
         <el-select v-model="addForm.type" :placeholder="$t('perm')">
-          <el-option v-for="item in roleList" :label="item.name" :value="item.roleId" :key="item.roleId"/>
+          <el-option v-for="item in roleList" :label="displayRoleName(item, t)" :value="item.roleId" :key="item.roleId"/>
         </el-select>
         <el-button class="btn" type="primary" @click="submit" :loading="addLoading"
         >{{ $t('add') }}
@@ -299,7 +299,7 @@
           }}
         </div>
         <div v-if="!createTimeShow"><span class="details-item-title">{{ $t('tabRegisteredAt') }}:</span>{{
-            tzDayjs(userDetails.createTime).format('YYYY-MM-DD HH:mm')
+            formatUserDate(userDetails.createTime, true)
           }}
         </div>
         <div v-if="!typeShow"><span class="details-item-title">{{ $t('perm') }}:</span>
@@ -322,7 +322,7 @@
           }}
         </div>
         <div><span class="details-item-title">{{ $t('recentActivity') }}:</span>{{
-            userDetails.activeTime ? tzDayjs(userDetails.activeTime).format('YYYY-MM-DD') : $t('unknown')
+            userDetails.activeTime ? formatUserDate(userDetails.activeTime) : $t('unknown')
           }}
         </div>
         <div><span
@@ -445,12 +445,20 @@ import {useRoleStore} from "@/store/role.js";
 import {useUserStore} from "@/store/user.js";
 import {useI18n} from 'vue-i18n';
 import {hasPerm} from '@/perm/perm.js';
+import {intlLanguage} from '@/i18n/languages.js';
+import {displayRoleName} from '@/i18n/system-defaults.js';
 
 defineOptions({
   name: 'user'
 })
 
-const {t} = useI18n();
+const {t, locale} = useI18n();
+
+function formatUserDate(time, includeTime = false) {
+  const options = {year: 'numeric', month: 'short', day: 'numeric'}
+  if (includeTime) Object.assign(options, {hour: 'numeric', minute: '2-digit'})
+  return new Intl.DateTimeFormat(intlLanguage(locale.value), options).format(tzDayjs(time).toDate())
+}
 const roleStore = useRoleStore()
 const userStore = useUserStore()
 const settingStore = useSettingStore()
@@ -861,7 +869,7 @@ function toRoleName(type) {
 
   const index = roleList.findIndex(role => role.roleId === type)
   if (index > -1) {
-    return roleList[index].name
+    return displayRoleName(roleList[index], t)
   }
   return ""
 }

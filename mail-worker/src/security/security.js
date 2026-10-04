@@ -5,6 +5,10 @@ import KvConst from '../const/kv-const';
 import dayjs from 'dayjs';
 import userService from '../service/user-service';
 import permService from '../service/perm-service';
+import orm from '../entity/orm';
+import user from '../entity/user';
+import { eq } from 'drizzle-orm';
+import { isDel, userConst } from '../const/entity-const';
 import { t } from '../i18n/i18n'
 import app from '../hono/hono';
 
@@ -136,6 +140,17 @@ app.use('*', async (c, next) => {
 		throw new BizError(t(c, 'authExpired'), 401);
 	}
 
+	const currentUser = await orm(c).select({
+		userId: user.userId,
+		email: user.email,
+		status: user.status,
+		isDel: user.isDel,
+	}).from(user).where(eq(user.userId, userId)).get();
+
+	if (!currentUser || currentUser.isDel !== isDel.NORMAL || currentUser.status !== userConst.status.NORMAL || currentUser.email !== authInfo.user.email) {
+		throw new BizError(t(c, 'authExpired'), 401);
+	}
+
 	const permIndex = requirePerms.findIndex(item => {
 		return path.startsWith(item);
 	});
@@ -150,7 +165,7 @@ app.use('*', async (c, next) => {
 			return path.startsWith(item);
 		});
 
-		if (userPermIndex === -1 && authInfo.user.email !== c.env.admin) {
+		if (userPermIndex === -1 && currentUser.email !== c.env.admin) {
 			throw new BizError(t(c, 'unauthorized'), 403);
 		}
 

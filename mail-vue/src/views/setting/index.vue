@@ -37,10 +37,10 @@
     <div class="del-email" v-perm="'my:delete'">
       <div class="title">{{$t('deleteUser')}}</div>
       <div style="color: var(--regular-text-color);">
-        {{$t('delAccountMsg')}}
+        {{ t(settingStore.settings.syncDelete === 0 ? 'delAccountMsg' : 'delAccountSoftMsg') }}
       </div>
       <div>
-        <el-button type="primary" @click="deleteConfirm">{{$t('deleteUserBtn')}}</el-button>
+        <el-button type="primary" :loading="deleteChecking" @click="deleteConfirm">{{$t('deleteUserBtn')}}</el-button>
       </div>
     </div>
     <el-dialog v-model="pwdShow" :title="$t('changePassword')" width="340">
@@ -62,12 +62,15 @@ import {useAccountStore} from "@/store/account.js";
 import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
 import LanguageSelect from '@/components/language-select/index.vue'
+import {websiteConfig} from '@/request/setting.js'
+import {requestErrorMessage} from '@/utils/request-error.js'
 
 const { t } = useI18n()
 const accountStore = useAccountStore()
 const settingStore = useSettingStore()
 const userStore = useUserStore();
 const setPwdLoading = ref(false)
+const deleteChecking = ref(false)
 const setNameShow = ref(false)
 const accountName = ref(null)
 
@@ -120,22 +123,40 @@ const form = reactive({
   newPwd: '',
 })
 
-const deleteConfirm = () => {
-  ElMessageBox.confirm(t('delAccountConfirm'), {
-    confirmButtonText: t('confirm'),
-    cancelButtonText: t('cancel'),
-    type: 'warning'
-  }).then(() => {
-    userDelete().then(() => {
-      localStorage.removeItem('token');
-      router.replace('/login');
-      ElMessage({
-        message: t('delSuccessMsg'),
-        type: 'success',
-        plain: true,
+async function deleteConfirm() {
+  if (deleteChecking.value) return
+  deleteChecking.value = true
+  try {
+    let mode
+    try {
+      const current = await websiteConfig({timeout: 12000, noMsg: true})
+      mode = Number(current?.syncDelete)
+      if (mode !== 0 && mode !== 1) throw new Error('Deletion policy unavailable')
+      settingStore.settings.syncDelete = mode
+    } catch (error) {
+      ElMessage({message: requestErrorMessage(error, 'reqFailErrorMsg', t), type: 'error', plain: true})
+      return
+    }
+
+    try {
+      await ElMessageBox.confirm(t(mode === 0 ? 'delAccountConfirm' : 'delAccountSoftConfirm'), {
+        confirmButtonText: t('confirm'),
+        cancelButtonText: t('cancel'),
+        type: 'warning'
       })
-    })
-  })
+    } catch { return }
+
+    try {
+      await userDelete(mode)
+      localStorage.removeItem('token')
+      router.replace('/login')
+      ElMessage({message: t('delSuccessMsg'), type: 'success', plain: true})
+    } catch (error) {
+      ElMessage({message: requestErrorMessage(error, 'reqFailErrorMsg', t), type: 'error', plain: true})
+    }
+  } finally {
+    deleteChecking.value = false
+  }
 }
 
 

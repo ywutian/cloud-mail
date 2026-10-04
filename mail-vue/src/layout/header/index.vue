@@ -50,7 +50,8 @@
               <span dir="ltr">{{ userStore.user.email }}</span>
             </button>
             <div class="detail-user-type">
-              <el-tag>{{ userStore.user.role.name }}</el-tag>
+              <el-tag>{{ userStore.user.type === 0 && userStore.user.role?.name === 'admin'
+                ? t('admin') : displayRoleName(userStore.user.role, t) }}</el-tag>
             </div>
             <div class="action-info">
               <div>
@@ -98,6 +99,7 @@ import {computed, ref} from "vue";
 import {useSettingStore} from "@/store/setting.js";
 import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
+import {displayRoleName} from '@/i18n/system-defaults.js';
 
 const {t} = useI18n();
 const route = useRoute();

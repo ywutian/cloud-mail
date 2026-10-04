@@ -1155,11 +1155,11 @@ function mailPreview(mail) {
 .tm-history summary { cursor: pointer; color: var(--ink); font-size: 14px; font-weight: 700; }
 .tm-history summary span { margin-inline-start: 4px; color: var(--ink-2); font-weight: 500; }
 .tm-history-note { margin: 10px 0 0; color: var(--ink-2); font-size: 12px; line-height: 1.55; }
-.tm-history-list { display: grid; max-height: 240px; overflow-y: auto; margin-top: 12px; }
-.tm-history-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 46px; width: 100%; padding: 10px 0; border: 0; border-top: 1px solid var(--line); color: var(--ink); background: transparent; text-align: start; cursor: pointer; }
+.tm-history-list { display: grid; grid-template-columns: minmax(0, 1fr); max-height: 240px; overflow-y: auto; margin-top: 12px; }
+.tm-history-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; min-height: 46px; width: 100%; padding: 10px 0; border: 0; border-top: 1px solid var(--line); color: var(--ink); background: transparent; text-align: start; cursor: pointer; }
 .tm-history-item:hover, .tm-history-item.is-active { color: var(--accent); }
-.tm-history-address { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--mono); }
-.tm-history-count { flex: 0 0 auto; color: var(--ink-2); font-size: 11px; }
+.tm-history-address { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--mono); }
+.tm-history-count { flex: 0 0 auto; max-width: 45%; overflow-wrap: anywhere; color: var(--ink-2); font-size: 11px; text-align: end; }
 .tm-clear { display: inline-flex; min-height: 36px; align-items: center; padding: 7px 0; border: 0; background: transparent; color: var(--ui-danger, #b42332); font-size: 12px; font-weight: 650; cursor: pointer; }
 .tm-clear:hover { text-decoration: underline; }
 .tm-history-empty { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 16px; color: var(--ink-2); font-size: 12px; }

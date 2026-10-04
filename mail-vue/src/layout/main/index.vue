@@ -22,16 +22,21 @@ import {useSettingStore} from "@/store/setting.js";
 import {computed, onBeforeUnmount, onMounted, watch} from "vue";
 import { useRoute } from 'vue-router'
 import { hasPerm } from "@/perm/perm.js"
+import {useI18n} from 'vue-i18n'
+import {displayNoticeContent, isBuiltInNoticeContent} from '@/i18n/system-defaults.js'
 
 const settingStore = useSettingStore()
 const uiStore = useUiStore();
 const route = useRoute()
+const {t, locale} = useI18n()
 // 详情页只在从收件箱进入时保留收件箱双栏；其他来源使用各自的列表返回路径。
 const mailWorkspace = computed(() => route.name === 'email'
   || (route.name === 'content' && /^\/inbox(?:[?#]|$)/.test(window.history.state?.back || '')))
 let  innerWidth =  window.innerWidth
 
 let elNotification = null
+let activeNotice = null
+let noticeStyle = null
 
 const accountShow = computed(() => {
   return uiStore.accountShow && settingStore.settings.manyEmail === 0
@@ -59,35 +64,46 @@ watch(() => uiStore.changePreview, () => {
   showNotice(uiStore.previewData)
 })
 
+watch(locale, () => {
+  if (elNotification && activeNotice && isBuiltInNoticeContent(activeNotice.noticeContent)) {
+    showNotice(activeNotice)
+  }
+})
+
 function showNotice(data) {
+  elNotification?.close()
+  elNotification = null
+  activeNotice = null
+  if (data.notice === 1) return
 
-  if (data.notice === 1) {
-    return;
+  if (!noticeStyle) {
+    noticeStyle = document.createElement('style')
+    document.head.appendChild(noticeStyle)
   }
-
-  if (elNotification) {
-    elNotification.close()
-  }
-
-  const style = document.createElement('style');
   const noticeWidth = Math.max(240, Math.min(720, Number(data.noticeWidth) || 400));
-  style.textContent = `
+  noticeStyle.textContent = `
   .custom-notice.el-notification {
     --el-notification-width: min(${noticeWidth}px,calc(100% - 30px)) !important;
   }
   `;
 
-  document.head.appendChild(style);
-
-  elNotification = ElNotification({
+  activeNotice = {...data}
+  const notification = ElNotification({
     title: data.noticeTitle,
-    message: data.noticeContent || '',
+    message: displayNoticeContent(data.noticeContent, t),
     type: data.noticeType === 'none' ? '' : data.noticeType,
     duration: data.noticeDuration,
     position: data.noticePosition,
     offset: data.noticeOffset,
-    customClass: 'custom-notice'
+    customClass: 'custom-notice',
+    onClose() {
+      if (elNotification === notification) {
+        elNotification = null
+        activeNotice = null
+      }
+    },
   })
+  elNotification = notification
 }
 
 onMounted(() => {
@@ -97,6 +113,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
+  elNotification?.close()
+  noticeStyle?.remove()
 })
 
 const handleResize = () => {

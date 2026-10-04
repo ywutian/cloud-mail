@@ -19,14 +19,14 @@ zone 级 catch-all → 这个 Worker。
 
 ```bash
 cd ~/Documents/cloud-mail/mail-vue \
-  && PATH="/opt/homebrew/Cellar/node/26.0.0/bin:$PATH" pnpm --config.verifyDepsBeforeRun=false build \
+  && pnpm --config.verifyDepsBeforeRun=false build \
   && cd ../mail-worker \
-  && CLOUDFLARE_API_TOKEN=$(cat ~/.cf-okkmail-token) PATH="/opt/homebrew/Cellar/node/26.0.0/bin:$PATH" npx wrangler deploy --secrets-file ~/.config/cloud-mail/worker-secrets.env
+  && CLOUDFLARE_API_TOKEN=$(cat ~/.cf-okkmail-token) npx wrangler deploy --secrets-file ~/.config/cloud-mail/worker-secrets.env
 ```
 
 三处都不能省：
 
-- **`PATH`** — 系统默认 node 是 v20，wrangler 要 ≥22，brew 装的 26 没有 link。
+- **Node.js** — 运行前用 `node --version` 确认当前终端版本满足 Wrangler 的要求；不要固定到某个 Homebrew 补丁版本目录。
 - **`--config.verifyDepsBeforeRun=false`** — 否则 pnpm 会先做依赖检查、决定清空重建
   `node_modules`，然后因为没有 TTY 无法确认而中止
   （`ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`）。
@@ -54,8 +54,8 @@ Pages / Observability / Containers = Edit，**D1 = Edit**，Zone `okkmail.cc` �
 
 ### 改了 setting 表之后必须刷缓存
 
-设置缓存在 KV，直接改数据库不生效，而且 `query()` 没有 DB 回退——删 KV key 会让整站报
-「数据库未初始化」。若配置了独立的 `init_secret`，可通过受控的初始化接口刷新缓存：
+大部分设置缓存在 KV，直接改数据库后须刷新缓存，而且 `query()` 没有 DB 回退——删 KV key 会让整站报
+「数据库未初始化」。删除方式 `sync_delete` 的读取直接查询 D1，以免缓存传播延迟导致用户看到或执行错误的删除方式。若配置了独立的 `init_secret`，可通过受控的初始化接口刷新缓存：
 
 ```bash
 curl -X POST -H "X-Init-Key: <init_secret>" "https://box.okkmail.cc/api/init"

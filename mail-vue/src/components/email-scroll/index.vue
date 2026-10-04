@@ -799,7 +799,7 @@ function addItem(email) {
     return false;
   }
 
-  email.formatCreateTime = fromNow(email.formatCreateTime);
+  email.formatCreateTime = fromNow(email.createTime);
 
   if (props.timeSort) {
     if (noLoading.value) {

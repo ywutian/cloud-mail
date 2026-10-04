@@ -65,6 +65,7 @@ import {useSettingStore} from '@/store/setting.js';
 import {useI18n} from 'vue-i18n';
 import {intlLanguage, resolveLanguage} from '@/i18n/languages.js';
 import {tzDayjs} from '@/utils/day.js';
+import {requestErrorMessage} from '@/utils/request-error.js';
 
 defineOptions({
   name: 'address'
@@ -92,7 +93,7 @@ async function load(p) {
     page.value = p
     hasMore.value = list.length === SIZE
   } catch (e) {
-    ElMessage({message: e?.message || t('loadFailed'), type: 'error', plain: true})
+    ElMessage({message: requestErrorMessage(e, 'loadFailed', t), type: 'error', plain: true})
   } finally {
     loading.value = false
   }
@@ -127,12 +128,12 @@ async function claim(row) {
   if (claiming.value) return
   claiming.value = row.toEmail
   try {
-    const account = await accountAdd(row.toEmail, '')
+    const account = await accountAdd(row.toEmail, '', {noMsg: true})
     row.accountId = account.accountId
     accountStore.newAccountSignal++
     ElMessage({message: t('claimedWithHistory', {value: row.toEmail}), type: 'success', plain: true})
   } catch (e) {
-    ElMessage({message: e?.message || t('claimFailed'), type: 'error', plain: true})
+    ElMessage({message: requestErrorMessage(e, 'claimFailed', t), type: 'error', plain: true})
   } finally {
     claiming.value = ''
   }

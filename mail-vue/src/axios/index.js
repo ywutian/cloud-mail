@@ -19,12 +19,8 @@ http.interceptors.response.use((res) => {
             const noMsg = res.config.noMsg;
             const data = res.data
 
-            if (noMsg) {
-
-                data.code === 200 ? resolve(data.data) : reject(data)
-
-            } else if (data.code === 401) {
-                ElMessage({
+            if (data.code === 401) {
+                if (!noMsg) ElMessage({
                     message: data.message,
                     type: 'error',
                     plain: true,
@@ -34,6 +30,8 @@ http.interceptors.response.use((res) => {
                 localStorage.removeItem('token')
                 router.replace('/login')
                 reject(data)
+            } else if (noMsg) {
+                data.code === 200 ? resolve(data.data) : reject(data)
             } else if (data.code === 403) {
                 ElMessage({
                     message: data.message,

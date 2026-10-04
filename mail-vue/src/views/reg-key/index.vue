@@ -33,7 +33,7 @@
           <div class="code-info">
             <div class="info-left">
               <div class="info-left-item">
-                <button type="button" class="code" :aria-label="`${t('copyCode')}: ${item.code}`"
+                <button type="button" class="code" :aria-label="`${t('copy')}: ${item.code}`"
                         @click="copyCode(item.code)">{{ item.code }}</button>
               </div>
               <div class="info-left-item">
@@ -43,7 +43,7 @@
               </div>
               <div class="info-left-item">
                 <div>{{ $t('roleDesc') }}：</div>
-                <el-tag>{{ item.roleName }}</el-tag>
+                <el-tag>{{ displayRoleName({roleId: item.roleId, name: item.roleName}, t) }}</el-tag>
               </div>
               <div class="info-left-item">
                 <div>{{ $t('validUntil') }}：</div>
@@ -86,7 +86,7 @@
           </template>
         </el-input>
         <el-select v-model="addForm.roleId" :placeholder="$t('roleDesc')">
-          <el-option v-for="item in roleList" :label="item.name" :value="item.roleId" :key="item.roleId"/>
+          <el-option v-for="item in roleList" :label="displayRoleName(item, t)" :value="item.roleId" :key="item.roleId"/>
         </el-select>
         <el-date-picker
             v-model="addForm.expireTime"
@@ -125,6 +125,7 @@ import {getTextWidth} from "@/utils/text.js";
 import {tzDayjs} from "@/utils/day.js";
 import {useI18n} from "vue-i18n";
 import {intlLanguage, resolveLanguage} from '@/i18n/languages.js';
+import {displayRoleName} from '@/i18n/system-defaults.js';
 
 defineOptions({
   name: 'reg-key'

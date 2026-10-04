@@ -41,7 +41,7 @@
             <strong :lang="language.intl" :dir="language.dir">{{ language.name }}</strong>
             <small>
               <span lang="en" dir="ltr">{{ englishName(language) }}</span>
-              <span v-if="language.coverage === 'preview'" :lang="intlLanguage(locale)"
+              <span v-if="language.status === 'preview'" :lang="intlLanguage(locale)"
                     :dir="languageDirection(locale)" class="language-picker-preview">{{ t('languagePreview') }}</span>
             </small>
           </span>

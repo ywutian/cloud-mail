@@ -166,7 +166,7 @@ const accountService = {
 			throw new BizError(t(c, 'noUserAccount'));
 		}
 
-		const { syncDelete } = await settingService.query(c);
+		const syncDelete = await settingService.deletionMode(c);
 		if (syncDelete === settingConst.syncDelete.OPEN) {
 			await this.physicsDelete(c, { accountId });
 			return;

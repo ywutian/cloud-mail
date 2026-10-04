@@ -66,14 +66,24 @@ const settingService = {
 		return setting;
 	},
 
+	async deletionMode(c) {
+		const row = await orm(c).select({syncDelete: setting.syncDelete}).from(setting).get();
+		if (row?.syncDelete !== 0 && row?.syncDelete !== 1) {
+			throw new BizError(t(c, 'dbUninitialized'));
+		}
+		return row.syncDelete;
+	},
+
 	async get(c, showSiteKey = false) {
 
-		const [settingData, recordList] = await Promise.all([
-			await this.query(c),
-			verifyRecordService.selectListByIP(c)
+		const [settingData, recordList, syncDelete] = await Promise.all([
+			this.query(c),
+			verifyRecordService.selectListByIP(c),
+			this.deletionMode(c)
 		]);
 		const settingRow = {
 			...settingData,
+			syncDelete,
 			resendTokens: {...settingData.resendTokens},
 			webhookSecretConfigured: Boolean(settingData.webhookSecret)
 		};
@@ -199,11 +209,14 @@ const settingService = {
 
 	async websiteConfig(c) {
 
-		const settingRow = await this.get(c, true);
-		const token = await userContext.getToken(c);
+		const [settingRow, token] = await Promise.all([
+			this.get(c, true),
+			userContext.getToken(c)
+		]);
 
 		return {
 			register: settingRow.register,
+			syncDelete: settingRow.syncDelete,
 			title: settingRow.title,
 			manyEmail: settingRow.manyEmail,
 			addEmail: settingRow.addEmail,

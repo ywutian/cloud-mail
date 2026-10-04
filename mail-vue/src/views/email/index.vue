@@ -58,6 +58,7 @@ import { useRoute } from 'vue-router'
 import {accountAdd} from "@/request/account.js";
 import {ElMessage} from "element-plus";
 import {useI18n} from 'vue-i18n';
+import {requestErrorMessage} from '@/utils/request-error.js';
 
 defineOptions({
   name: 'email'
@@ -158,12 +159,12 @@ async function copyTemp() {
   if (!tempSaved.value) {
     randomLoading.value = true
     try {
-      const account = await accountAdd(tempAddr.value, '')
+      const account = await accountAdd(tempAddr.value, '', {noMsg: true})
       tempSaved.value = true
       try { localStorage.setItem(TEMP_SAVED_KEY, '1') } catch { /* 忽略 */ }
       accountStore.newAccountSignal++
     } catch (e) {
-      ElMessage({message: e?.message || t('mailboxCreateFailed'), type: 'error', plain: true})
+      ElMessage({message: requestErrorMessage(e, 'mailboxCreateFailed', t), type: 'error', plain: true})
       return
     } finally {
       randomLoading.value = false
