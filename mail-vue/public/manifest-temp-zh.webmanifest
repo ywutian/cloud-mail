@@ -2,7 +2,7 @@
   "id": "/temporary-mail-app",
   "name": "临时邮箱",
   "short_name": "临时邮箱",
-  "description": "免注册的临时收件箱，可在本机保存收到的邮件。",
+  "description": "临时收件箱，可查看服务器上的历史邮件并保存本机副本。",
   "start_url": "/find",
   "scope": "/",
   "display": "standalone",

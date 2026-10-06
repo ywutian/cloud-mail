@@ -402,7 +402,7 @@ onMounted(() => {
   updateContainerMode()
   if (typeof ResizeObserver !== 'undefined') {
     containerObserver = new ResizeObserver(updateContainerMode)
-    containerObserver.observe(container.value)
+    if (container.value) containerObserver.observe(container.value)
   } else {
     window.addEventListener('resize', updateContainerMode)
   }
@@ -432,7 +432,7 @@ function onScroll(e) {
 }
 
 const { arrivedState } = useScroll(scrollbarRef, {
-  offset: { bottom: isMobile.value ? 2200 : 1500 }
+  offset: { bottom: isCompact.value ? 2200 : 1500 }
 })
 
 

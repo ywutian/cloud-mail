@@ -74,7 +74,7 @@ curl -X POST -H "X-Init-Key: <init_secret>" "https://box.okkmail.cc/api/init"
 | `security/security.js` | 明确列出免登录路由 |
 | `hono/webs.js` | 注册 `open-api` |
 | `api/open-api.js` | **新增**。公开地址生成、列表、正文、附件、域名接口 |
-| `service/open-service.js` | **新增**。10 分钟窗口查询 + 正式邮箱归属校验；正文和附件均按地址、邮件 ID 与归属限定 |
+| `service/open-service.js` | **新增**。按地址分页查询服务器仍保留的公开邮件；正文和附件均按地址、邮件 ID 与归属限定，正式邮箱不可公开查询 |
 | `api/email-api.js` | 加 `/email/addresses` |
 | `service/email-service.js` | 加 `addressList()`（地址聚合）、`claimNoOne()`（认领无归属邮件） |
 | `service/account-service.js` | `add()` 末尾调 `claimNoOne`，添加邮箱时把历史信一并收编 |
@@ -99,7 +99,7 @@ curl -X POST -H "X-Init-Key: <init_secret>" "https://box.okkmail.cc/api/init"
 **公开页的地址不入库。** 服务端随机生成字符串，catch-all 本来就收所有地址，所以不会创建账号，
 也不会堆一堆没人用的废账号。信落在「无收件人」，管理端「地址记录」里能看到。
 
-**公开页按地址查询。** 知道地址的人在邮件抵达后 10 分钟内可以查看正文和附件。正式账号、
+**公开页按地址查询。** 知道地址的人可以查看服务器仍保留的邮件正文和附件。正式账号、
 其加号别名以及已归属某位用户的邮件不会进入公开查询。
 
 **收件箱顶部那个地址，点「复制」才建账号。** 只看不复制不留痕——复制这个动作本身就等于

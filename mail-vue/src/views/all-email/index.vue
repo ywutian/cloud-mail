@@ -300,7 +300,7 @@ async function latest() {
 
     await sleep(autoRefresh > 1 ? autoRefresh * 1000 : 3000);
 
-    const latestId = sysEmailScroll.value.latestEmail?.emailId
+    const latestId = sysEmailScroll.value?.latestEmail?.emailId
 
     if (autoRefresh < 2) {
       continue
@@ -315,7 +315,7 @@ async function latest() {
     }
 
 
-    if (params.type !== 'receive') {
+    if (params.type !== 'receive' && params.type !== 'all') {
       continue
     }
 
@@ -328,7 +328,7 @@ async function latest() {
         continue
       }
 
-      if (params.type !== 'receive') {
+      if (params.type !== 'receive' && params.type !== 'all') {
         continue
       }
 

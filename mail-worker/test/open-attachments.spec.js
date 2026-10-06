@@ -80,10 +80,28 @@ describe('public attachments', () => {
     expect(data).toEqual({address: data.address});
   });
 
-  it('allows address-only access to unclaimed recent mail', async () => {
+  it('allows address-only access to unclaimed mail regardless of age', async () => {
     const response = await request('/open/recentMails?address=right@example.com');
     const {data} = await response.json();
-    expect(data.map(row => row.emailId)).toEqual([1]);
+    expect(data.map(row => row.emailId)).toEqual([2, 1]);
+    const detail = await request('/open/mailContent?emailId=2&address=right@example.com');
+    expect((await detail.json()).data.subject).toBe('Old');
+    const attachment = await request('/open/attachment?emailId=2&address=right@example.com&attId=12');
+    expect(attachment.status).toBe(200);
+  });
+
+  it('pages older mail without exposing other addresses', async () => {
+    for (let id = 4; id <= 25; id++) {
+      database.prepare(`INSERT INTO email (email_id,to_email,create_time,type,is_del,user_id,account_id)
+        VALUES (?, 'right@example.com', datetime('now', '-30 days'), 0, 0, 0, 0)`).run(id);
+    }
+    const first = (await (await request('/open/recentMails?address=right@example.com')).json()).data;
+    expect(first).toHaveLength(20);
+    expect(first[0].emailId).toBe(25);
+    const second = (await (await request(`/open/recentMails?address=right@example.com&before=${first.at(-1).emailId}`)).json()).data;
+    expect(second.map(row => row.emailId)).toEqual([5, 4, 2, 1]);
+    const badCursor = await request('/open/recentMails?address=right@example.com&before=1%20OR%201=1');
+    expect((await badCursor.json()).code).not.toBe(200);
   });
 
   it('blocks a registered mailbox and its plus-address aliases', async () => {
@@ -99,7 +117,7 @@ describe('public attachments', () => {
   it('never exposes mail already assigned to a user, even if the account row is missing', async () => {
     database.exec('UPDATE email SET user_id = 8, account_id = 9 WHERE email_id = 1');
     const list = await request('/open/recentMails?address=right@example.com');
-    expect((await list.json()).data).toEqual([]);
+    expect((await list.json()).data.map(row => row.emailId)).toEqual([2]);
     const detail = await request('/open/mailContent?emailId=1&address=right@example.com');
     expect((await detail.json()).code).not.toBe(200);
     const attachment = await request('/open/attachment?emailId=1&address=right@example.com&attId=10');
@@ -149,7 +167,6 @@ describe('public attachments', () => {
 
   it.each([
     ['wrong address', 'emailId=1&address=other@example.com&attId=10'],
-    ['expired email', 'emailId=2&address=right@example.com&attId=12'],
     ['another email attachment', 'emailId=1&address=right@example.com&attId=13'],
     ['embedded image', 'emailId=1&address=right@example.com&attId=11']
   ])('rejects %s', async (_, query) => {
@@ -175,7 +192,7 @@ describe('public attachments', () => {
     expect(response.status).toBe(404);
   });
 
-  it('grants an inline image only for its still-visible message', async () => {
+  it('grants an inline image only while its message remains public', async () => {
     const detail = await request('/open/mailContent?emailId=1&address=right@example.com');
     const { data } = await detail.json();
     const url = data.inlineMedia['attachments/hidden'];
@@ -195,6 +212,16 @@ describe('public attachments', () => {
     expect((await request(url.replace('/api', ''))).status).toBe(404);
   });
 
+  it('serves old inline media and revokes it when the email is deleted', async () => {
+    database.exec("INSERT INTO attachments VALUES (17, 2, 'old-inline.png', 'image/png', 4, 'attachments/old-inline', 1, 'cid-old')");
+    const detail = await request('/open/mailContent?emailId=2&address=right@example.com');
+    const {data} = await detail.json();
+    const path = data.inlineMedia['attachments/old-inline'].replace('/api', '');
+    expect((await request(path)).status).toBe(200);
+    database.exec('UPDATE email SET is_del = 1 WHERE email_id = 2');
+    expect((await request(path)).status).toBe(404);
+  });
+
   it('does not expose attachment storage keys or accept old message links', async () => {
     expect((await request('/oss/attachments/photo')).status).toBe(404);
     const legacyLink = await request('/telegram/getEmail/eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbElkIjoxfQ.signature');
@@ -203,7 +230,7 @@ describe('public attachments', () => {
 
   it('localizes public attachment and message-view errors by language and script', async () => {
     const attachment = await app.request(
-      'http://localhost/open/attachment?emailId=2&address=right@example.com&attId=12',
+      'http://localhost/open/attachment?emailId=2&address=right@example.com&attId=999',
       {headers: {'Accept-Language': 'zh-HK'}}, context
     );
     expect(attachment.status).toBe(404);

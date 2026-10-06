@@ -2,7 +2,7 @@
   "id": "/temporary-mail-app",
   "name": "Temporary Mailbox",
   "short_name": "Temp Mail",
-  "description": "Temporary inbox for recent mail and verification codes, with local saved copies.",
+  "description": "Temporary inbox with online mail history and local copies.",
   "start_url": "/find",
   "scope": "/",
   "display": "standalone",

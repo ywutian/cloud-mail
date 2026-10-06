@@ -5,8 +5,8 @@ export function openCreateInbox() {
     return http.post('/open/inbox', null, {noMsg: true})
 }
 
-export function openRecentMails(address) {
-    return http.get('/open/recentMails', {params: {address}, noMsg: true, timeout: 12000})
+export function openRecentMails(address, before) {
+    return http.get('/open/recentMails', {params: {address, ...(before ? {before} : {})}, noMsg: true, timeout: 12000})
 }
 
 export function openMailContent(emailId, address) {

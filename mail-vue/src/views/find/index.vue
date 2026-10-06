@@ -124,7 +124,8 @@
             </div>
           </section>
 
-          <button v-if="hasMoreLocal" class="tm-btn tm-load-more" type="button" @click="loadMoreLocal">
+          <button v-if="hasMoreOnline || hasMoreLocal" class="tm-btn tm-load-more" type="button"
+                  :disabled="loadingOlder" @click="loadMoreMails">
             {{ t('temporaryInbox.loadOlder') }}
           </button>
           <p class="tm-foot">{{ t('temporaryInbox.retentionWithArchive') }}</p>
@@ -245,6 +246,7 @@ const REFRESH_SEC = 8
 const ADDR_KEY = 'findAddress'
 const SAVE_BINARY_FILES = true
 const LOCAL_PAGE_SIZE = 100
+const ONLINE_PAGE_SIZE = 20
 const archive = mailArchive()
 const {t, locale} = useI18n()
 const settingStore = useSettingStore()
@@ -277,6 +279,8 @@ const mails = computed(() => {
 })
 const history = ref([])
 const hasMoreLocal = ref(false)
+const hasMoreOnline = ref(false)
+const loadingOlder = ref(false)
 const archiveUnavailable = ref(false)
 const archiveWarning = ref('')
 const showClearConfirm = ref(false)
@@ -858,6 +862,33 @@ async function loadMoreLocal() {
   } catch { archiveUnavailable.value = true }
 }
 
+async function loadMoreOnline() {
+  if (!hasMoreOnline.value || !isOnline.value || loadingOlder.value || !address.value) return
+  const requestedAddress = address.value
+  const session = archiveSession
+  const before = Math.min(...liveMails.value.map(mail => Number(mail.emailId)))
+  if (!Number.isSafeInteger(before) || before <= 0) return
+  loadingOlder.value = true
+  try {
+    const rows = await openRecentMails(requestedAddress, before)
+    if (disposed || session !== archiveSession || address.value !== requestedAddress) return
+    const combined = new Map(liveMails.value.map(mail => [Number(mail.emailId), mail]))
+    for (const row of rows || []) combined.set(Number(row.emailId), row)
+    liveMails.value = [...combined.values()]
+    hasMoreOnline.value = (rows || []).length === ONLINE_PAGE_SIZE
+    void captureRecent(rows || [], requestedAddress, {queue: true})
+  } catch {
+    flash(t('reqFailErrorMsg'))
+  } finally {
+    loadingOlder.value = false
+  }
+}
+
+async function loadMoreMails() {
+  if (hasMoreOnline.value) await loadMoreOnline()
+  if (hasMoreLocal.value) await loadMoreLocal()
+}
+
 async function selectAddress(next) {
   if (disposed) return
   const session = archiveSession
@@ -899,6 +930,8 @@ function resetInbox() {
   liveMails.value = []
   archivedMails.value = []
   hasMoreLocal.value = false
+  hasMoreOnline.value = false
+  loadingOlder.value = false
   searched.value = false
   inboxError.value = ''
   countdown.value = REFRESH_SEC
@@ -914,7 +947,11 @@ async function load() {
   try {
     const result = await openRecentMails(requestedAddress)
     if (!disposed && requestId === inboxRequestId && address.value === requestedAddress) {
-      liveMails.value = result || []
+      const previouslyLoaded = liveMails.value.length
+      const combined = new Map(liveMails.value.map(mail => [Number(mail.emailId), mail]))
+      for (const row of result || []) combined.set(Number(row.emailId), row)
+      liveMails.value = [...combined.values()]
+      if (previouslyLoaded <= ONLINE_PAGE_SIZE) hasMoreOnline.value = (result || []).length === ONLINE_PAGE_SIZE
       searched.value = true
       inboxError.value = ''
       void captureRecent(result || [], requestedAddress)
@@ -933,10 +970,13 @@ function retryLoad() {
   void load()
 }
 
-function captureRecent(recent, mailbox) {
+function captureRecent(recent, mailbox, {queue = false} = {}) {
   if (archiveUnavailable.value || !recent.length) return
-  if (captureRuns.has(mailbox)) return captureRuns.get(mailbox)
-  const run = captureRecentBatch(recent, mailbox).finally(() => {
+  const previous = captureRuns.get(mailbox)
+  if (previous && !queue) return previous
+  const run = (previous
+    ? previous.catch(() => {}).then(() => captureRecentBatch(recent, mailbox))
+    : captureRecentBatch(recent, mailbox)).finally(() => {
     if (captureRuns.get(mailbox) === run) captureRuns.delete(mailbox)
   })
   captureRuns.set(mailbox, run)
@@ -1029,6 +1069,7 @@ function resetLocalState() {
   archivedMails.value = []
   history.value = []
   hasMoreLocal.value = false
+  hasMoreOnline.value = false
   searched.value = false
   inboxError.value = ''
   countdown.value = REFRESH_SEC

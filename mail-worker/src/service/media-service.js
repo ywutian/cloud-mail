@@ -93,8 +93,7 @@ const mediaService = {
 			if (row.toEmail.toLowerCase() !== grant.address || row.userId !== 0 || grant.emailId <= 0) throw new BizError(t(c, 'resourceExpired'), 404);
 			const visible = await c.env.db.prepare(
 				`SELECT 1 FROM email WHERE email_id = ? AND type = 0
-				 AND user_id = 0 AND account_id = 0
-				 AND create_time > datetime('now', '-10 minutes') LIMIT 1`
+				 AND is_del = 0 AND user_id = 0 AND account_id = 0 LIMIT 1`
 			).bind(grant.emailId).first();
 			const local = grant.address.split('@');
 			const baseAddress = `${local[0].split('+')[0]}@${local[1]}`;

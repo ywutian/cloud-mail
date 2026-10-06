@@ -4,14 +4,17 @@ import r2Service from './r2-service';
 import inboxAccessService from './inbox-access-service';
 import mediaService from './media-service';
 
-// 公开临时邮箱允许按地址查询，仅展示没有账户归属的近 10 分钟邮件。
-const OPEN_WINDOW_MINUTES = 10;
+// 公开临时邮箱按地址查询未归属邮件，列表按邮件 ID 分页。
 
 const openService = {
 
 	async recentMails(c, params) {
 
 		const address = await inboxAccessService.assertPublicAddress(c, params.address);
+		const before = params.before === undefined ? Number.MAX_SAFE_INTEGER : Number(params.before);
+		if (!Number.isSafeInteger(before) || before <= 0) {
+			throw new BizError(t(c, 'incompleteParameters'), 400);
+		}
 
 		// 只取摘要字段，不返回正文，少暴露一层
 		const { results } = await c.env.db.prepare(
@@ -26,10 +29,10 @@ const openService = {
 			   AND type = 0
 			   AND is_del = 0
 			   AND user_id = 0 AND account_id = 0
-			   AND create_time > datetime('now', '-${OPEN_WINDOW_MINUTES} minutes')
+			   AND email_id < ?
 			 ORDER BY email_id DESC
 			 LIMIT 20`
-		).bind(address).all();
+		).bind(address, before).all();
 
 		return results || [];
 	},
@@ -61,8 +64,7 @@ const openService = {
 			   AND to_email COLLATE NOCASE = ?
 			   AND type = 0
 			   AND is_del = 0
-			   AND user_id = 0 AND account_id = 0
-			   AND create_time > datetime('now', '-${OPEN_WINDOW_MINUTES} minutes')`
+			   AND user_id = 0 AND account_id = 0`
 		).bind(emailId, address).first();
 
 		if (!row) {
@@ -90,8 +92,7 @@ const openService = {
 		const address = await inboxAccessService.assertPublicAddress(c, params.address);
 		const email = await c.env.db.prepare(
 			`SELECT 1 FROM email WHERE email_id = ? AND to_email COLLATE NOCASE = ?
-			 AND type = 0 AND is_del = 0 AND user_id = 0 AND account_id = 0
-			 AND create_time > datetime('now', '-${OPEN_WINDOW_MINUTES} minutes') LIMIT 1`
+			 AND type = 0 AND is_del = 0 AND user_id = 0 AND account_id = 0 LIMIT 1`
 		).bind(emailId, address).first();
 		if (!email) throw new BizError(t(c, 'attachmentGone'));
 		const attachment = await c.env.db.prepare(
