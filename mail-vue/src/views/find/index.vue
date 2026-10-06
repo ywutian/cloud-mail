@@ -580,6 +580,9 @@ async function openMail(m, event) {
       if (requestId === viewRequestId && address.value === requestedAddress) {
         viewing.value = saved
         viewLoading.value = false
+        if (isOnline.value && !m.localOnly && saved.attList?.length) {
+          void cacheMedia(saved, requestedAddress, capturedAt, session, clearRevision)
+        }
         return
       }
     }
@@ -957,7 +960,13 @@ async function captureRecentBatch(recent, mailbox) {
     const pending = []
     for (const mail of recent) {
       if (disposed || session !== archiveSession) return
-      if (!(await archive.getMessage(mailbox, mail.emailId))?.complete) pending.push(mail)
+      const saved = await archive.getMessage(mailbox, mail.emailId)
+      if (!saved?.complete) {
+        pending.push(mail)
+      } else if (saved.attList?.length) {
+        // 正文已保存不代表附件已保存；网络中断后仍需在有效期内补齐文件。
+        void cacheMedia(saved, mailbox, capturedAt, session, clearRevision)
+      }
     }
     for (let index = 0; index < pending.length; index += 2) {
       if (disposed || session !== archiveSession) return

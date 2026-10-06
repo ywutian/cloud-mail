@@ -105,6 +105,7 @@ import {toUtc} from "@/utils/day.js";
 import {sleep} from "@/utils/time-utils.js";
 import {useSettingStore} from "@/store/setting.js";
 import { useRoute } from 'vue-router'
+import {restoreAllMailPreferences} from './preferences.js'
 
 defineOptions({
   name: 'all-email'
@@ -131,7 +132,7 @@ const openSelect = () => {
 
 const params = reactive({
   timeSort: 0,
-  type: 'receive',
+  type: 'all',
   userEmail: null,
   accountEmail: null,
   name: null,
@@ -173,16 +174,13 @@ const selectTitle = computed(() => {
 })
 
 const paramsStar = localStorage.getItem('all-email-params')
-if (paramsStar) {
-  const locaParams = JSON.parse(paramsStar)
-  params.type = locaParams.type
-  params.timeSort = locaParams.timeSort
-  params.status = locaParams.status
-  params.searchType = locaParams.searchType
-}
+Object.assign(params, restoreAllMailPreferences(paramsStar))
 
 watch(() => params, () => {
-  localStorage.setItem('all-email-params', JSON.stringify(params))
+  localStorage.setItem('all-email-params', JSON.stringify({
+    timeSort: params.timeSort,
+    searchType: params.searchType,
+  }))
 }, {
   deep: true
 })
@@ -238,7 +236,7 @@ function rightSearch(type, value) {
 function refreshBefore() {
   searchValue.value = null
   params.timeSort = 0
-  params.type = 'receive'
+  params.type = 'all'
   params.userEmail = null
   params.accountEmail = null
   params.name = null
