@@ -443,6 +443,7 @@ const en = {
         "description": "Temporary inbox with online mail history and local copies.",
         "noActiveAddress": "No active address",
         "createAddress": "Create an address",
+        "switchAddress": "Switch mailbox",
         "localHistory": "Saved in this browser or app",
         "localHistoryNote": "Anyone with access to this browser profile or installed app can read copies saved here. Clearing site data or low storage can remove them.",
         "clearLocal": "Clear local history",

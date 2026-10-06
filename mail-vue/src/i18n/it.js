@@ -443,6 +443,7 @@ const it = {
         "description": "Casella temporanea per e-mail recenti e codici di verifica, con copie salvate sul dispositivo.",
         "noActiveAddress": "Nessun indirizzo attivo",
         "createAddress": "Crea un indirizzo",
+        "switchAddress": "Cambia casella di posta",
         "localHistory": "Salvato in questo browser o nell'app",
         "localHistoryNote": "Chiunque abbia accesso a questo profilo del browser o all'app installata può leggere le copie salvate qui. La cancellazione dei dati del sito o lo spazio insufficiente possono eliminarle.",
         "clearLocal": "Cancella la cronologia locale",

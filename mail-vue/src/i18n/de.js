@@ -409,6 +409,7 @@ const de = {
         "description": "Temporäres Postfach für aktuelle E-Mails und Bestätigungscodes mit lokal gespeicherten Kopien.",
         "noActiveAddress": "Keine aktive Adresse",
         "createAddress": "Adresse erstellen",
+        "switchAddress": "Postfach wechseln",
         "localHistory": "In diesem Browser oder dieser App gespeichert",
         "localHistoryNote": "Wer Zugriff auf dieses Browserprofil oder die installierte App hat, kann die hier gespeicherten Kopien lesen. Das Löschen von Websitedaten oder wenig Speicherplatz kann sie entfernen.",
         "clearLocal": "Lokalen Verlauf löschen",

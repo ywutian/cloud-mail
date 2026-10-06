@@ -443,6 +443,7 @@ const zh = {
         "description": "临时收件箱，可查看服务器上的历史邮件并保存本机副本。",
         "noActiveAddress": "当前没有地址",
         "createAddress": "生成地址",
+        "switchAddress": "切换邮箱",
         "localHistory": "此浏览器或应用已保存",
         "localHistoryNote": "使用此浏览器配置文件或已安装应用的人都能查看这里的副本。清除网站数据或存储空间不足，也可能让副本丢失。",
         "clearLocal": "清空本机记录",

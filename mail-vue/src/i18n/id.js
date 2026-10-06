@@ -443,6 +443,7 @@ const id = {
         "description": "Kotak masuk sementara untuk email terbaru dan kode verifikasi, dengan salinan tersimpan di perangkat.",
         "noActiveAddress": "Tidak ada alamat aktif",
         "createAddress": "Buat alamat",
+        "switchAddress": "Ganti kotak masuk",
         "localHistory": "Disimpan di browser atau aplikasi ini",
         "localHistoryNote": "Siapa pun yang memiliki akses ke profil browser ini atau aplikasi yang terpasang dapat membaca salinan yang disimpan di sini. Menghapus data situs atau ruang penyimpanan yang hampir habis dapat menghilangkannya.",
         "clearLocal": "Hapus riwayat lokal",

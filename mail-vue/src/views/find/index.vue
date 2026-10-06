@@ -54,19 +54,22 @@
             </div>
           </form>
 
-          <details v-if="history.length" class="tm-history" :open="!address">
-            <summary>{{ t('temporaryInbox.localHistory') }} <span>{{ history.length }}</span></summary>
+          <section v-if="history.length" class="tm-history" aria-labelledby="tm-history-title">
+            <h2 id="tm-history-title">{{ t('temporaryInbox.switchAddress') }} <span>{{ history.length }}</span></h2>
             <p class="tm-history-note">{{ t('temporaryInbox.localHistoryNote') }}</p>
             <div class="tm-history-list">
               <button v-for="item in history" :key="item.address" type="button"
                       class="tm-history-item" :class="{'is-active': item.address === address}"
+                      :aria-current="item.address === address ? 'true' : undefined"
                       @click="switchAddress(item.address)">
+                <Icon :icon="item.address === address ? 'fluent:mail-24-filled' : 'fluent:mail-24-regular'"
+                      width="18" height="18" aria-hidden="true"/>
                 <span class="tm-history-address" dir="ltr">{{ item.address }}</span>
                 <span class="tm-history-count">{{ formatMailboxCount(t, publicLang, 'saved', item.messageCount || 0) }}</span>
               </button>
             </div>
             <button type="button" class="tm-clear" @click="showClearConfirm = true">{{ t('temporaryInbox.clearLocal') }}</button>
-          </details>
+          </section>
           <div v-else class="tm-history-empty">
             <span>{{ archiveUnavailable ? t('temporaryInbox.storageUnavailable') : t('temporaryInbox.noLocalHistory') }}</span>
             <button v-if="address || archiveUnavailable || archiveWarning === 'temporaryInbox.clearFailed'" type="button"
@@ -80,6 +83,7 @@
             <div class="tm-inbox-head">
               <div>
                 <h2 id="tm-inbox-title">{{ t('temporaryInbox.inbox') }}</h2>
+                <span v-if="address" class="tm-inbox-address" dir="ltr">{{ address }}</span>
                 <span v-if="mails.length" class="tm-inbox-count">{{ formatMailboxCount(t, publicLang, 'email', mails.length) }}</span>
               </div>
               <div v-if="address && !connectionNotice" class="tm-timer">
@@ -908,6 +912,11 @@ async function selectAddress(next) {
   }
 }
 
+async function switchAddress(next) {
+  if (next === address.value) return
+  await selectAddress(next)
+}
+
 async function genAddr() {
   if (creating.value) return
   creating.value = true
@@ -1202,12 +1211,14 @@ function mailPreview(mail) {
 .tm-manual input::placeholder { color: var(--ink-2); }
 .tm-manual input:focus-visible { border-color: var(--accent); }
 .tm-history { margin-top: 16px; padding: 16px 18px; }
-.tm-history summary { cursor: pointer; color: var(--ink); font-size: 14px; font-weight: 700; }
-.tm-history summary span { margin-inline-start: 4px; color: var(--ink-2); font-weight: 500; }
+.tm-history h2 { margin: 0; color: var(--ink); font-size: 14px; font-weight: 700; }
+.tm-history h2 span { margin-inline-start: 4px; color: var(--ink-2); font-weight: 500; }
 .tm-history-note { margin: 10px 0 0; color: var(--ink-2); font-size: 12px; line-height: 1.55; }
 .tm-history-list { display: grid; grid-template-columns: minmax(0, 1fr); max-height: 240px; overflow-y: auto; margin-top: 12px; }
-.tm-history-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; min-height: 46px; width: 100%; padding: 10px 0; border: 0; border-top: 1px solid var(--line); color: var(--ink); background: transparent; text-align: start; cursor: pointer; }
-.tm-history-item:hover, .tm-history-item.is-active { color: var(--accent); }
+.tm-history-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; min-height: 48px; width: 100%; padding: 10px 8px; border: 0; border-top: 1px solid var(--line); color: var(--ink); background: transparent; text-align: start; cursor: pointer; }
+.tm-history-item:hover { color: var(--accent); background: var(--card-2); }
+.tm-history-item.is-active { color: var(--accent); background: var(--card-2); font-weight: 700; }
+.tm-history-item svg { flex: 0 0 auto; }
 .tm-history-address { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--mono); }
 .tm-history-count { flex: 0 0 auto; max-width: 45%; overflow-wrap: anywhere; color: var(--ink-2); font-size: 11px; text-align: end; }
 .tm-clear { display: inline-flex; min-height: 36px; align-items: center; padding: 7px 0; border: 0; background: transparent; color: var(--ui-danger, #b42332); font-size: 12px; font-weight: 650; cursor: pointer; }
@@ -1217,6 +1228,7 @@ function mailPreview(mail) {
 .tm-inbox { min-height: 380px; overflow: hidden; }
 .tm-inbox-head { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 12px; padding: 19px 22px 15px; border-bottom: 1px solid var(--line); }
 .tm-inbox-head h2 { margin: 0; font-size: 18px; line-height: 1.3; letter-spacing: -.02em; }
+.tm-inbox-address { display: block; max-width: 100%; margin-top: 5px; overflow-wrap: anywhere; color: var(--ink-2); font: 12px/1.4 var(--mono); text-align: start; }
 .tm-inbox-count { display: block; margin-top: 3px; color: var(--ink-2); font-size: 12px; }
 .tm-timer { display: inline-flex; align-items: center; gap: 7px; min-height: 24px; color: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
 .tm-pulse { display: inline-block; width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--good); }
@@ -1511,9 +1523,9 @@ button.tm-attachment-file {
   .tm-side { display: contents; }
   .tm-card { order: 1; }
   .tm-manual { order: 2; margin-top: -4px; }
-  .tm-workspace { order: 3; }
-  .tm-history, .tm-history-empty { order: 4; margin-top: -4px; }
-  .tm-history-warning { order: 5; margin-top: -14px; }
+  .tm-history, .tm-history-empty { order: 3; margin-top: -4px; }
+  .tm-history-warning { order: 4; margin-top: -14px; }
+  .tm-workspace { order: 5; }
 }
 
 @media (max-width: 560px) {

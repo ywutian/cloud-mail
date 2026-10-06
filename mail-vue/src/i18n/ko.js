@@ -409,6 +409,7 @@ const ko = {
         "description": "최근 메일과 인증 코드를 확인하고 기기에 사본을 저장하는 임시 메일함.",
         "noActiveAddress": "사용 중인 주소가 없습니다",
         "createAddress": "주소 만들기",
+        "switchAddress": "메일함 전환",
         "localHistory": "이 브라우저 또는 앱에 저장됨",
         "localHistoryNote": "이 브라우저 프로필이나 설치된 앱에 접근할 수 있는 사람은 여기에 저장된 사본을 볼 수 있습니다. 사이트 데이터 삭제나 저장 공간 부족으로 사본이 사라질 수도 있습니다.",
         "clearLocal": "기기 기록 지우기",

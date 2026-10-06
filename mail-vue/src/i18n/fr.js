@@ -409,6 +409,7 @@ const fr = {
         "description": "Boîte temporaire pour les messages récents et les codes de vérification, avec des copies enregistrées sur l’appareil.",
         "noActiveAddress": "Aucune adresse active",
         "createAddress": "Créer une adresse",
+        "switchAddress": "Changer de boîte mail",
         "localHistory": "Enregistré dans ce navigateur ou cette application",
         "localHistoryNote": "Toute personne utilisant ce profil de navigateur ou l’application installée peut lire les copies enregistrées ici. Effacer les données du site ou manquer d’espace peut les supprimer.",
         "clearLocal": "Effacer l’historique local",

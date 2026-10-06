@@ -443,6 +443,7 @@ const tr = {
     "description": "Son e-postalar ve doğrulama kodları için geçici gelen kutusu; kopyalar cihazda saklanır.",
     "noActiveAddress": "Aktif adres yok",
     "createAddress": "Adres oluştur",
+    "switchAddress": "Posta kutusunu değiştir",
     "localHistory": "Bu tarayıcıda veya uygulamada kayıtlı",
     "localHistoryNote": "Bu tarayıcı profiline veya yüklü uygulamaya erişimi olan herkes burada kayıtlı kopyaları okuyabilir. Site verilerinin temizlenmesi veya depolama alanının azalması bunları kaldırabilir.",
     "clearLocal": "Yerel geçmişi temizle",

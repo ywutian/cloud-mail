@@ -442,6 +442,7 @@
     "description": "免註冊的臨時收件匣，可在本機儲存收到的郵件。",
     "noActiveAddress": "當前沒有地址",
     "createAddress": "生成地址",
+    "switchAddress": "切換郵箱",
     "localHistory": "此瀏覽器或應用程式已儲存",
     "localHistoryNote": "使用此瀏覽器設定檔或已安裝應用程式的人都能檢視這裡的副本。清除網站資料或儲存空間不足，也可能使副本遺失。",
     "clearLocal": "清空本機記錄",

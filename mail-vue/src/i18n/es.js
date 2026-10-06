@@ -409,6 +409,7 @@ const es = {
         "description": "Buzón temporal para correos recientes y códigos de verificación, con copias guardadas en el dispositivo.",
         "noActiveAddress": "No hay ninguna dirección activa",
         "createAddress": "Crear una dirección",
+        "switchAddress": "Cambiar de buzón",
         "localHistory": "Guardado en este navegador o aplicación",
         "localHistoryNote": "Cualquiera que use este perfil del navegador o la aplicación instalada puede leer las copias guardadas aquí. Borrar los datos del sitio o quedarse sin espacio puede eliminarlas.",
         "clearLocal": "Borrar historial local",

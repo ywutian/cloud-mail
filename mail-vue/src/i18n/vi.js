@@ -443,6 +443,7 @@ const vi = {
     "description": "Hộp thư tạm thời cho email gần đây và mã xác minh, lưu bản sao trên thiết bị.",
     "noActiveAddress": "Không có địa chỉ hoạt động",
     "createAddress": "Tạo một địa chỉ",
+    "switchAddress": "Chuyển hộp thư",
     "localHistory": "Đã lưu trong trình duyệt hoặc ứng dụng này",
     "localHistoryNote": "Bất kỳ ai có quyền truy cập hồ sơ trình duyệt này hoặc ứng dụng đã cài đặt đều có thể đọc các bản sao lưu ở đây. Xóa dữ liệu trang web hoặc thiếu dung lượng có thể làm chúng biến mất.",
     "clearLocal": "Xóa dữ liệu lưu trên thiết bị",

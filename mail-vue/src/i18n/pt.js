@@ -409,6 +409,7 @@ const pt = {
         "description": "Caixa temporária para e-mails recentes e códigos de verificação, com cópias salvas no dispositivo.",
         "noActiveAddress": "Nenhum endereço ativo",
         "createAddress": "Criar endereço",
+        "switchAddress": "Trocar de caixa de entrada",
         "localHistory": "Salvo neste navegador ou aplicativo",
         "localHistoryNote": "Qualquer pessoa com acesso a este perfil do navegador ou ao aplicativo instalado pode ler as cópias salvas aqui. Limpar os dados do site ou ficar sem espaço pode removê-las.",
         "clearLocal": "Limpar histórico local",
