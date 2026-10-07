@@ -4,6 +4,7 @@
 - Before continuing development in this repository, read `/Users/yitianwu/.config/development/pr-workflow.md` and keep the user's open work in one pull request. Preserve Git history and existing evidence.
 - Public temporary mail remains available by address alone. The app does not automatically clear local history. Binary attachment caching is limited to 10 MiB per file and 100 MiB in total; browser storage pressure or clearing site data can remove local copies. Preserve the current permission and attachment boundaries.
 - Treat the language registry as the single source for language selection, browser matching, page direction, server messages, and home-screen metadata. A language offered in the picker must have a validated application dictionary; do not present an English fallback as a completed translation.
+- Protect the D1 read budget whenever changing mail queries, filters, pagination, address lookup, or polling. `LIMIT`, a short time window, and local caching do not prove that a query reads few rows. Check the query plan against the production schema, verify required indexes were actually applied, and compare per-query and daily rows read before and after deployment. Keep background tabs from polling and back off on service errors. Never label a database or network failure as an invalid address. If D1 is over quota, report the production check as pending rather than claiming the issue is resolved.
 
 ## UI design specialists
 
