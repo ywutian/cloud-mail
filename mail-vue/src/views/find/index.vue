@@ -241,12 +241,14 @@ import {formatDetailDate, tzDayjs} from "@/utils/day.js";
 import {intlLanguage, normalizeLanguage} from '@/i18n/languages.js'
 import {formatMailboxCount} from '@/i18n/plurals.js'
 import {mailArchive, MAX_ARCHIVE_FILE_BYTES} from '@/local-mail/archive.js'
+import {isRejectedPublicAddress, publicLookupErrorKey} from './public-lookup.js'
 
 defineOptions({
   name: 'find'
 })
 
-const REFRESH_SEC = 8
+const REFRESH_SEC = 30
+const ERROR_REFRESH_SEC = 300
 const ADDR_KEY = 'findAddress'
 const SAVE_BINARY_FILES = true
 const LOCAL_PAGE_SIZE = 100
@@ -325,6 +327,7 @@ let archiveSession = 0
 let archiveClearRevision = null
 let localRequestId = 0
 let lastHistorySync = Date.now()
+let nextOnlineLookupAt = 0
 let disposed = false
 let returnFocusElement = null
 let previewReturnFocusElement = null
@@ -691,6 +694,7 @@ function onConnectionLost() {
 
 function onConnectionRestored() {
   isOnline.value = true
+  nextOnlineLookupAt = 0
   countdown.value = REFRESH_SEC
   void load()
 }
@@ -704,11 +708,11 @@ onMounted(async () => {
   document.addEventListener('visibilitychange', onVisible)
   archiveChannel?.addEventListener('message', onArchiveMessage)
   timer = setInterval(() => {
-    if (isOnline.value) {
+    if (isOnline.value && !document.hidden) {
       countdown.value -= 1
       if (countdown.value <= 0) {
-        countdown.value = REFRESH_SEC
-        load()
+        countdown.value = Math.max(1, Math.ceil((nextOnlineLookupAt - Date.now()) / 1000))
+        if (Date.now() >= nextOnlineLookupAt) void load()
       }
     }
     if (!document.hidden && Date.now() - lastHistorySync >= 60 * 60 * 1000) void onVisible()
@@ -752,7 +756,8 @@ onMounted(async () => {
   if (disposed) return
   if (normalized && domains.value.some(domain => normalized.endsWith('@' + domain.toLowerCase()))) {
     if (sharedAddress) {
-      try { await openRecentMails(normalized) } catch { saved = null }
+      try { await openRecentMails(normalized) }
+      catch (error) { if (isRejectedPublicAddress(error)) saved = null }
     }
     if (saved) {
       await selectAddress(normalized)
@@ -777,7 +782,12 @@ onUnmounted(() => {
 })
 
 async function onVisible() {
-  if (document.hidden || archiveUnavailable.value) return
+  if (document.hidden) return
+  if (isOnline.value && address.value) {
+    countdown.value = Math.max(1, Math.ceil((nextOnlineLookupAt - Date.now()) / 1000))
+    if (Date.now() >= nextOnlineLookupAt) void load()
+  }
+  if (archiveUnavailable.value) return
   lastHistorySync = Date.now()
   try {
     const session = await archive.startSession()
@@ -943,16 +953,18 @@ function resetInbox() {
   loadingOlder.value = false
   searched.value = false
   inboxError.value = ''
+  nextOnlineLookupAt = 0
   countdown.value = REFRESH_SEC
   void refreshLocalMessages()
   void load()
 }
 
 async function load() {
-  if (disposed || !address.value || loading.value || !isOnline.value) return
+  if (disposed || !address.value || loading.value || !isOnline.value || Date.now() < nextOnlineLookupAt) return
   const requestId = ++inboxRequestId
   const requestedAddress = address.value
   loading.value = true
+  nextOnlineLookupAt = Date.now() + REFRESH_SEC * 1000
   try {
     const result = await openRecentMails(requestedAddress)
     if (!disposed && requestId === inboxRequestId && address.value === requestedAddress) {
@@ -963,11 +975,15 @@ async function load() {
       if (previouslyLoaded <= ONLINE_PAGE_SIZE) hasMoreOnline.value = (result || []).length === ONLINE_PAGE_SIZE
       searched.value = true
       inboxError.value = ''
+      nextOnlineLookupAt = Date.now() + REFRESH_SEC * 1000
+      countdown.value = REFRESH_SEC
       void captureRecent(result || [], requestedAddress)
     }
   } catch (error) {
     if (!disposed && requestId === inboxRequestId && address.value === requestedAddress) {
-      inboxError.value = error?.code === 403 ? 'temporaryInbox.registeredAddress' : 'reqFailErrorMsg'
+      inboxError.value = publicLookupErrorKey(error)
+      nextOnlineLookupAt = Date.now() + ERROR_REFRESH_SEC * 1000
+      countdown.value = ERROR_REFRESH_SEC
     }
   } finally {
     if (requestId === inboxRequestId) loading.value = false
@@ -975,6 +991,7 @@ async function load() {
 }
 
 function retryLoad() {
+  nextOnlineLookupAt = 0
   countdown.value = REFRESH_SEC
   void load()
 }
@@ -1059,8 +1076,8 @@ async function useManual() {
   }
   try {
     await openRecentMails(addr)
-  } catch {
-    flash(t('temporaryInbox.invalidAddress'))
+  } catch (error) {
+    flash(t(publicLookupErrorKey(error)))
     return
   }
   await selectAddress(addr)

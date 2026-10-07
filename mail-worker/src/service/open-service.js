@@ -17,22 +17,29 @@ const openService = {
 		}
 
 		// 只取摘要字段，不返回正文，少暴露一层
-		const { results } = await c.env.db.prepare(
-			`SELECT email_id AS emailId,
+		const query = `SELECT email_id AS emailId,
 			        send_email AS sendEmail,
 			        name       AS sendName,
 			        subject,
 			        code,
 			        create_time AS createTime
-			 FROM email
+			 FROM email INDEXED BY idx_email_to_email_nocase
 			 WHERE to_email COLLATE NOCASE = ?
 			   AND type = 0
 			   AND is_del = 0
 			   AND user_id = 0 AND account_id = 0
 			   AND email_id < ?
 			 ORDER BY email_id DESC
-			 LIMIT 20`
-		).bind(address, before).all();
+			 LIMIT 20`;
+		let results;
+		try {
+			({ results } = await c.env.db.prepare(query).bind(address, before).all());
+		} catch (error) {
+			if (!/no such index: idx_email_to_email_nocase/i.test(String(error?.message))) throw error;
+			({ results } = await c.env.db.prepare(
+				query.replace(' INDEXED BY idx_email_to_email_nocase', '')
+			).bind(address, before).all());
+		}
 
 		return results || [];
 	},

@@ -63,6 +63,11 @@ export default {
 	},
 	email: email,
 	async scheduled(c, env, ctx) {
+		try {
+			await env.db.prepare('CREATE INDEX IF NOT EXISTS idx_email_to_email_nocase ON email(to_email COLLATE NOCASE)').run()
+		} catch (error) {
+			console.error('Public mailbox index migration failed', error)
+		}
 		if (c.cron === '*/30 * * * *') {
 			await analysisService.refreshEchartsCache({ env })
 			return;

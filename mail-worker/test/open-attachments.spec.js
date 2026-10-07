@@ -40,6 +40,7 @@ beforeEach(async () => {
       (16, 1, 'inline.png', 'image/png', 4, 'attachments/inline', 0, 'cid-2');
     ALTER TABLE email ADD COLUMN user_id INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE email ADD COLUMN account_id INTEGER NOT NULL DEFAULT 0;
+    CREATE INDEX idx_email_to_email_nocase ON email(to_email COLLATE NOCASE);
   `);
   values = new Map();
   context = { domain: ['example.com'], kv: {
@@ -73,6 +74,20 @@ function request(path) {
 }
 
 describe('public attachments', () => {
+  it('uses the address index for public mailbox pages', () => {
+    const plan = database.prepare(`EXPLAIN QUERY PLAN SELECT email_id FROM email INDEXED BY idx_email_to_email_nocase
+      WHERE to_email COLLATE NOCASE = ? AND type = 0 AND is_del = 0
+        AND user_id = 0 AND account_id = 0 AND email_id < ?
+      ORDER BY email_id DESC LIMIT 20`).all('right@example.com', Number.MAX_SAFE_INTEGER);
+    expect(plan.some(step => step.detail.startsWith('SEARCH email USING INDEX idx_email_to_email_nocase'))).toBe(true);
+  });
+
+  it('continues serving public pages before the index migration runs', async () => {
+    database.exec('DROP INDEX idx_email_to_email_nocase');
+    const response = await request('/open/recentMails?address=right@example.com');
+    expect((await response.json()).data.map(row => row.emailId)).toEqual([2, 1]);
+  });
+
   it('issues a random public inbox address', async () => {
     const response = await app.request('http://localhost/open/inbox', {method: 'POST'}, context);
     const { data } = await response.json();
