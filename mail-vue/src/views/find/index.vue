@@ -981,9 +981,10 @@ async function load() {
     }
   } catch (error) {
     if (!disposed && requestId === inboxRequestId && address.value === requestedAddress) {
+      const rejected = isRejectedPublicAddress(error)
       inboxError.value = publicLookupErrorKey(error)
-      nextOnlineLookupAt = Date.now() + ERROR_REFRESH_SEC * 1000
-      countdown.value = ERROR_REFRESH_SEC
+      nextOnlineLookupAt = rejected ? Number.POSITIVE_INFINITY : Date.now() + ERROR_REFRESH_SEC * 1000
+      countdown.value = rejected ? 0 : ERROR_REFRESH_SEC
     }
   } finally {
     if (requestId === inboxRequestId) loading.value = false
