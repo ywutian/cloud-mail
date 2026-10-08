@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { EmailUnreadEnum } from '../enums/email-enum.js'
 import {loadCompleteMailPage} from '../utils/mail-recovery.js'
+import {useWriterStore} from './writer.js'
 
 export const useEmailStore = defineStore('email', {
     state: () => ({
@@ -27,6 +28,7 @@ export const useEmailStore = defineStore('email', {
     },
     actions: {
         clearPrivateSession() {
+            useWriterStore().setSessionUser(0)
             const revision = this.sessionRevision + 1
             this.$reset()
             this.sessionRevision = revision
@@ -39,6 +41,7 @@ export const useEmailStore = defineStore('email', {
             }
             if (id !== this.sessionUserId) this.clearPrivateSession()
             this.sessionUserId = id
+            useWriterStore().setSessionUser(id)
         },
         fetchList(request) {
             const revision = this.sessionRevision

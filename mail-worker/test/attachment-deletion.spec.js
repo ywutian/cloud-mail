@@ -28,6 +28,7 @@ beforeEach(() => {
             return {
               sql,
               all: async () => ({results: statement.all(...values)}),
+              raw: async () => statement.all(...values).map(Object.values),
               run: async () => {
                 statement.run(...values);
                 return {success: true};
@@ -59,6 +60,27 @@ afterEach(() => {
 });
 
 describe('attachment deletion', () => {
+  it('reuses only inline images from an active mail owned by the sender', async () => {
+    database.exec(`CREATE TABLE email (email_id INTEGER PRIMARY KEY, user_id INTEGER, is_del INTEGER);
+      ALTER TABLE attachments ADD COLUMN filename TEXT;
+      ALTER TABLE attachments ADD COLUMN mime_type TEXT;
+      ALTER TABLE attachments ADD COLUMN size INTEGER;
+      ALTER TABLE attachments ADD COLUMN type INTEGER;
+      ALTER TABLE attachments ADD COLUMN status TEXT;
+      ALTER TABLE attachments ADD COLUMN disposition TEXT;
+      ALTER TABLE attachments ADD COLUMN related TEXT;
+      ALTER TABLE attachments ADD COLUMN content_id TEXT;
+      ALTER TABLE attachments ADD COLUMN encoding TEXT;
+      ALTER TABLE attachments ADD COLUMN create_time TEXT;
+      INSERT INTO email VALUES (10,7,0),(11,8,0),(12,7,1);
+      INSERT INTO attachments(att_id,user_id,email_id,key,type) VALUES
+        (1,7,10,'attachments/own',1),(2,8,11,'attachments/other',1),
+        (3,7,12,'attachments/deleted',1),(4,7,10,'attachments/download',0);`);
+    const keys=['attachments/own','attachments/other','attachments/deleted','attachments/download'];
+    const result=await attService.selectOneByKeys(context,keys,7);
+    expect(result.map(row=>row.key)).toEqual(['attachments/own']);
+    expect(await attService.selectOneByKeys(context,keys,0)).toEqual([]);
+  });
   it('assigns distinct object keys and copies an existing inline image before reuse', async () => {
     const first = attService.newKey('same.png');
     const second = attService.newKey('same.png');

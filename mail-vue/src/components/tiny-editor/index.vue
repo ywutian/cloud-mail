@@ -32,7 +32,7 @@ const props = defineProps({
 
 
 const {locale} = useI18n()
-const emit = defineEmits(['change','focus']);
+const emit = defineEmits(['change','focus','escape']);
 const editor = shallowRef(null);
 const isInitialized = ref(false);
 const editorRef = ref(null);
@@ -133,6 +133,9 @@ function initEditor(content = props.defValue) {
         const content = ed.getContent();
         const text = ed.getContent({format: 'text'});
         emit('change', content, text);
+      });
+      ed.on('keydown', event => {
+        if (event.key === 'Escape') emit('escape', event)
       });
       ed.on('focus', () => {
         emit('focus', focus);

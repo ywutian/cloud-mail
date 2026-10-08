@@ -13,11 +13,11 @@
         <Icon v-else icon="solar:star-line-duotone" width="18" height="18"/>
       </button>
       <button v-if="emailStore.contentData.showReply" v-perm="'email:send'" type="button" class="icon-button"
-              :aria-label="t('reply')" :title="t('reply')" @click="openReply">
+              :disabled="preparingCompose" :aria-label="t('reply')" :title="t('reply')" @click="openReply">
         <Icon icon="la:reply" width="21" height="21"/>
       </button>
       <button v-if="emailStore.contentData.showReply" v-perm="'email:send'" type="button" class="icon-button"
-              :aria-label="t('forward')" :title="t('forward')" @click="openForward">
+              :disabled="preparingCompose" :aria-label="t('forward')" :title="t('forward')" @click="openForward">
         <Icon icon="iconoir:arrow-up-right" width="20" height="20"/>
       </button>
     </div>
@@ -108,7 +108,7 @@ import {useEmailStore} from "@/store/email.js";
 import {useAccountStore} from "@/store/account.js";
 import {formatDetailDate} from "@/utils/day.js";
 import {starAdd, starCancel} from "@/request/star.js";
-import {getExtName, formatBytes} from "@/utils/file-utils.js";
+import {getExtName, formatBytes, fileToBase64} from "@/utils/file-utils.js";
 import {getIconByName} from "@/utils/icon-utils.js";
 import {allEmailDelete, allEmailContentMedia} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
@@ -116,6 +116,7 @@ import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
 import {inlineMediaKeys, hasCompleteInlineMedia} from '@/utils/inline-media.js'
 import {attachmentPath} from '@/utils/mail-recovery.js'
+import {prepareComposeMail} from '@/utils/compose-media.js'
 
 const uiStore = useUiStore();
 const accountStore = useAccountStore();
@@ -260,13 +261,35 @@ function handleKeyDown(event) {
   handleBack();
 }
 
-function openReply() {
-  uiStore.writerRef.openReply(email.value)
+const preparingCompose = ref(false)
+async function openCompose(forward) {
+  if (preparingCompose.value) return
+  preparingCompose.value = true
+  const source = email.value
+  const revision = emailStore.sessionRevision
+  try {
+    const urls = inlineMediaKeys(source.content).length ? await emailContentMedia(source.emailId) : {}
+    const prepared = await prepareComposeMail(source, {
+      inlineUrls: urls, forward,
+      readInline: async url => {
+        const response = await fetch(url, {cache:'no-store', signal:AbortSignal.timeout(12000)})
+        if (!response.ok || !response.headers.get('Content-Type')?.startsWith('image/')) throw new Error('Unavailable image')
+        return fileToBase64(await response.blob(), true)
+      },
+      readAttachment: async att => {
+        const blob = await attachmentBlob(att)
+        return {content:await fileToBase64(blob),size:blob.size}
+      }
+    })
+    if (email.value !== source || emailStore.sessionRevision !== revision) return
+    if (forward) uiStore.writerRef.openForward(prepared)
+    else uiStore.writerRef.openReply(prepared)
+  } catch {
+    ElMessage({message:t('attachmentReopen'),type:'error',plain:true})
+  } finally { preparingCompose.value = false }
 }
-
-function openForward() {
-  uiStore.writerRef.openForward(email.value)
-}
+function openReply() { return openCompose(false) }
+function openForward() { return openCompose(true) }
 
 function toMessage(message) {
   if (!message) return ''

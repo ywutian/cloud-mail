@@ -9,6 +9,8 @@ import { parseHTML } from 'linkedom';
 import { v4 as uuidv4 } from 'uuid';
 import domainUtils from '../utils/domain-uitls';
 import settingService from "./setting-service";
+import BizError from "../error/biz-error";
+import {t} from "../i18n/i18n.js";
 
 const attService = {
 
@@ -53,9 +55,10 @@ const attService = {
 		).all();
 	},
 
-	async toImageUrlHtml(c, content) {
+	async toImageUrlHtml(c, content, userId) {
 
 		const { r2Domain } = await settingService.query(c);
+		const storageOrigin = domainUtils.toOssDomain(r2Domain);
 
 		const { document } = parseHTML(content);
 
@@ -88,14 +91,14 @@ const attService = {
 			}
 
 			//邮件正文站内图片转cid附件
-			if (src && (src.startsWith(domainUtils.toOssDomain(r2Domain)) || src.startsWith('attachments/'))) {
+			if (src && ((storageOrigin && src.startsWith(storageOrigin + '/attachments/')) || src.startsWith('attachments/'))) {
 
 				const cid = uuidv4().replace(/-/g, '')
 				img.setAttribute('src', 'cid:' + cid);
 
 				const attData = {};
 
-				if (src.startsWith(domainUtils.toOssDomain(r2Domain))) {
+				if (storageOrigin && src.startsWith(storageOrigin + '/attachments/')) {
 					attData.key = src.replace(domainUtils.toOssDomain(r2Domain) + '/','');
 				}
 
@@ -121,7 +124,7 @@ const attService = {
 
 		//查询已有内嵌url图片信息
 		const keys = [...new Set(imageDataList.filter(item => !item.content).map(item => item.key))];
-		const dbImageList  = await this.selectOneByKeys(c, keys);
+		const dbImageList  = await this.selectOneByKeys(c, keys, userId);
 
 		//设置给当前附件
 		await Promise.all(imageDataList.map(async image => {
@@ -130,9 +133,7 @@ const attService = {
 			}
 
 			const dbImage = dbImageList.find(dbImage => image.key === dbImage.key);
-			if (!dbImage) {
-				return;
-			}
+			if (!dbImage) throw new BizError(t(c, 'attachmentNotFound'), 404);
 
 			image.size = dbImage.size;
 			image.filename = dbImage.filename;
@@ -140,9 +141,7 @@ const attService = {
 			image.contentType = dbImage.mimeType;
 
 			const obj = await r2Service.getObj(c, image.key);
-			if (!obj) {
-				return;
-			}
+			if (!obj) throw new BizError(t(c, 'attachmentNotFound'), 404);
 
 			image.content = obj instanceof ArrayBuffer ? obj : await obj.arrayBuffer();
 			image.buff = image.content;
@@ -344,11 +343,15 @@ const attService = {
 		await this.removeAttByField(c, "account_id", [accountId])
 	},
 
-	selectOneByKeys(c, keys) {
-		if (!keys || keys.length === 0) {
-			return []
-		}
-		return orm(c).select().from(att).where(inArray(att.key, keys)).orderBy(desc(att.attId)).groupBy(att.key).all();
+	async selectOneByKeys(c, keys, userId) {
+		if (!keys?.length || !Number.isSafeInteger(userId) || userId <= 0) return [];
+		const {results} = await c.env.db.prepare(
+			`SELECT a.key, a.filename, a.mime_type AS mimeType, a.size FROM attachments a
+			 JOIN email e ON e.email_id = a.email_id
+			 WHERE a.key IN (${keys.map(() => '?').join(',')}) AND a.type = 1
+			 AND e.user_id = ? AND e.is_del = 0 ORDER BY a.att_id DESC`
+		).bind(...keys, userId).all();
+		return results;
 	}
 };
 

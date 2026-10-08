@@ -2,6 +2,22 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {createPinia, setActivePinia} from 'pinia'
 import {useEmailStore} from '../src/store/email.js'
+import {useWriterStore} from '../src/store/writer.js'
+
+test('recent recipients are isolated by signed-in account and recover on return', () => {
+  setActivePinia(createPinia())
+  const email = useEmailStore()
+  const writer = useWriterStore()
+  email.setSessionUser(1)
+  writer.sendRecipientRecord = ['first@example.test']
+  email.clearPrivateSession()
+  assert.deepEqual(writer.sendRecipientRecord, [])
+  email.setSessionUser(2)
+  assert.deepEqual(writer.sendRecipientRecord, [])
+  writer.sendRecipientRecord = ['second@example.test']
+  email.setSessionUser(1)
+  assert.deepEqual(writer.sendRecipientRecord, ['first@example.test'])
+})
 
 test('changing signed-in user clears prior private messages and the selected detail', () => {
   setActivePinia(createPinia())
