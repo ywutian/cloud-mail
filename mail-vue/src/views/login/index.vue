@@ -123,6 +123,7 @@
 </template>
 
 <script setup>
+import {useEmailStore} from '@/store/email.js'
 import router from "@/router";
 import {useRoute} from "vue-router";
 import {computed, nextTick, reactive, ref} from "vue";
@@ -431,9 +432,11 @@ const submit = () => {
 }
 
 async function saveToken(token) {
+  useEmailStore().clearPrivateSession()
   localStorage.setItem('token', token)
   refreshWebsiteConfig()
   const user = await loginUserInfo();
+  useEmailStore().setSessionUser(user.userId)
   accountStore.currentAccountId = user.account.accountId;
   accountStore.currentAccount = user.account;
   userStore.user = user;

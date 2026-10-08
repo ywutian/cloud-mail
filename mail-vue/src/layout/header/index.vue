@@ -86,6 +86,7 @@
 </template>
 
 <script setup>
+import {useEmailStore} from '@/store/email.js'
 import router from "@/router";
 import hanburger from '@/components/hamburger/index.vue'
 import AppInstallButton from '@/components/app-install-button/index.vue'
@@ -253,6 +254,7 @@ function changeAside() {
 function clickLogout() {
   logoutLoading.value = true
   logout().then(() => {
+    useEmailStore().clearPrivateSession()
     localStorage.removeItem("token")
     router.replace('/login')
   }).finally(() => {

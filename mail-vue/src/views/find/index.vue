@@ -228,6 +228,7 @@
 </template>
 
 <script setup>
+import {needsInlineRecovery} from '@/utils/inline-media.js'
 import {computed, defineOptions, nextTick, onMounted, onUnmounted, ref} from "vue";
 import {Icon} from "@iconify/vue";
 import LanguageSelect from '@/components/language-select/index.vue'
@@ -568,6 +569,7 @@ async function cacheOneBinary(key, kind, id, source, capturedAt, session, clearR
 }
 
 async function openMail(m, event) {
+  let savedFull = null
   const requestId = ++viewRequestId
   const requestedAddress = address.value
   const capturedAt = Date.now()
@@ -589,12 +591,13 @@ async function openMail(m, event) {
     const saved = await cachedFullMail(requestedAddress, m.emailId)
     if (saved) {
       if (requestId === viewRequestId && address.value === requestedAddress) {
+        savedFull = saved
         viewing.value = saved
         viewLoading.value = false
         if (isOnline.value && !m.localOnly && saved.attList?.length) {
           void cacheMedia(saved, requestedAddress, capturedAt, session, clearRevision)
         }
-        return
+        if (!isOnline.value || m.localOnly || !needsInlineRecovery(saved.content, saved.inlineMedia)) return
       }
     }
   } catch { archiveUnavailable.value = true }
@@ -606,9 +609,10 @@ async function openMail(m, event) {
   let full
   try {
     full = await openMailContent(m.emailId, requestedAddress)
+    if (savedFull) full.inlineMedia = {...full.inlineMedia, ...savedFull.inlineMedia}
   } catch {
     if (requestId === viewRequestId && viewing.value?.emailId === m.emailId) {
-      viewError.value = true
+      viewError.value = !savedFull
     }
   } finally {
     if (requestId === viewRequestId) viewLoading.value = false

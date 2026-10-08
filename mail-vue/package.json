@@ -10,6 +10,7 @@
     "eo": "node tools/generate-localized-manifests.mjs && vite build --mode eo",
     "check:manifests": "node tools/generate-localized-manifests.mjs --check",
     "check:locale": "node tools/check-locale-candidate.mjs",
+    "check:mail-flows": "node tools/verify-mail-flows.cjs",
     "preview": "vite preview",
     "test": "node --test test/*.test.js"
   },
@@ -38,6 +39,7 @@
     "@vitejs/plugin-vue": "^5.2.1",
     "fake-indexeddb": "^6.2.5",
     "less": "^4.2.2",
+    "playwright": "1.61.0",
     "sass": "^1.82.0",
     "terser": "^5.39.0",
     "unplugin-auto-import": "^19.3.0",

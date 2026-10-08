@@ -349,6 +349,7 @@ let scrollTop = 0
 const latestEmail = ref(null)
 const scrollbarRef = ref(null)
 let reqLock = false
+let listRequestId = 0
 const isCompact = ref(true)
 let containerObserver
 let skeletonRows = 0
@@ -415,6 +416,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  ++listRequestId
   containerObserver?.disconnect()
   window.removeEventListener('resize', updateContainerMode)
   window.removeEventListener('wheel', closeDropdownOnWheel)
@@ -889,7 +891,7 @@ function jumpDetails(email) {
 
 function getEmailList(refresh = false) {
 
-  if (reqLock) return;
+  if (reqLock && !refresh) return;
 
   let emailId = emailList.length > 0 ? emailList.at(-1).emailId : 0;
 
@@ -914,6 +916,7 @@ function getEmailList(refresh = false) {
   } else {
     followLoading.value = !refresh;
   }
+  const requestId = ++listRequestId
   let start = Date.now();
 
   Promise.resolve().then(() => props.getEmailList(emailId, queryParam.size)).then(async data => {
@@ -922,6 +925,7 @@ function getEmailList(refresh = false) {
     if (duration < 300 && !emailId) {
         await sleep(300 - duration)
     }
+    if (requestId !== listRequestId) return
     firstLoad.value = false
     loadError.value = false
 
@@ -946,12 +950,14 @@ function getEmailList(refresh = false) {
 
     total.value = data.total;
   }).catch(error => {
+    if (requestId !== listRequestId) return
     console.error('Could not load emails:', error)
     firstLoad.value = false
     loadError.value = true
     noLoading.value = false
     followLoading.value = false
   }).finally(() => {
+    if (requestId !== listRequestId) return
     loading.value = false
     reqLock = false
   })
@@ -975,7 +981,11 @@ function handleList(list) {
     if (email.isDel) {
       email.isDelContent = t('selectDeleted');
     }
-    email.statusIcon = statusIconMap[email.status];
+    email.statusIcon = statusIconMap[email.status] || {
+      icon: 'material-symbols:mail-outline',
+      color: 'var(--el-text-color-secondary)',
+      content: t('unknown')
+    };
   })
 }
 

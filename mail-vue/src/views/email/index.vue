@@ -52,6 +52,7 @@ import {emailList, emailDelete, emailLatest, emailRead} from "@/request/email.js
 import {starAdd, starCancel} from "@/request/star.js";
 import {defineOptions, h, onMounted, onUnmounted, nextTick, reactive, ref, watch} from "vue";
 import {sleep} from "@/utils/time-utils.js";
+import {canPollMail, mailPollingDelay} from '@/utils/mail-recovery.js'
 import router from "@/router/index.js";
 import {Icon} from "@iconify/vue";
 import { useRoute } from 'vue-router'
@@ -185,6 +186,7 @@ function changeTimeSort() {
 }
 
 function jumpContent(email) {
+  emailStore.contentData.sourceRoute = 'email'
   lastOpenedRow = document.activeElement instanceof HTMLElement ? document.activeElement : null
   lastOpenedEmailId = email?.emailId
   emailStore.contentData.email = emailStore.toContentEmail(email)
@@ -198,14 +200,15 @@ function jumpContent(email) {
 const existIds = new Set();
 
 async function latest() {
+  let failures = 0
   while (!disposed) {
 
     let autoRefresh = settingStore.settings.autoRefresh;
-    await sleep(autoRefresh > 1 ? autoRefresh * 1000 : 3000);
+    await sleep(mailPollingDelay(autoRefresh, failures));
 
     if (disposed) break
 
-    if (route.name !== 'email') {
+    if (!canPollMail({active: route.name === 'email', hidden: document.hidden, disposed})) {
       continue;
     }
 
@@ -221,10 +224,11 @@ async function latest() {
         //确保发起请求时最后一个邮件是当前账号的,或者
         if (accountId === scroll.value.latestEmail?.reqAccountId) {
           list = await emailLatest(latestId, accountId, allReceive);
+          failures = 0
         }
 
         //确保请求回来后，账号没有切换，时间排序没有改变，全部邮件类型没变
-        if (accountId === accountStore.currentAccountId && params.timeSort === curTimeSort && allReceive === accountStore.currentAccount.allReceive) {
+        if (canPollMail({active: route.name === 'email', hidden: document.hidden, disposed}) && accountId === accountStore.currentAccountId && params.timeSort === curTimeSort && allReceive === accountStore.currentAccount.allReceive) {
           if (list.length > 0) {
             emailStore.applyFullList(list)
 
@@ -247,6 +251,7 @@ async function latest() {
 
         }
       } catch (e) {
+        failures += 1
         if (e.code === 401 || e.code === 403) {
           settingStore.settings.autoRefresh = 0;
         }

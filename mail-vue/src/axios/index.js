@@ -1,6 +1,7 @@
 import axios from "axios";
 import router from "@/router";
 import i18n from "@/i18n/index.js";
+import {useEmailStore} from '@/store/email.js'
 
 let http = axios.create({
     baseURL: import.meta.env.VITE_BASE_URL
@@ -28,6 +29,7 @@ http.interceptors.response.use((res) => {
                     repeatNum: -4,
                 })
                 localStorage.removeItem('token')
+                useEmailStore().clearPrivateSession()
                 router.replace('/login')
                 reject(data)
             } else if (noMsg) {
@@ -66,12 +68,7 @@ http.interceptors.response.use((res) => {
     },
     (error) => {
 
-        if (error.status === 403) {
-            location.reload();
-            return;
-        }
-
-        const noMsg = error.config.noMsg;
+        const noMsg = error.config?.noMsg;
 
         if (noMsg) {
             return Promise.reject(error)

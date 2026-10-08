@@ -115,6 +115,7 @@ import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
 import {inlineMediaKeys, hasCompleteInlineMedia} from '@/utils/inline-media.js'
+import {attachmentPath} from '@/utils/mail-recovery.js'
 
 const uiStore = useUiStore();
 const accountStore = useAccountStore();
@@ -135,6 +136,7 @@ const mediaState = ref('loading')
 const previewUrls = new Set()
 let mediaRequestId = 0
 let mediaLoadedAt = 0
+let previewRequestId = 0
 
 const inlineKeys = computed(() => inlineMediaKeys(email.value?.content))
 
@@ -167,7 +169,7 @@ async function loadInlineMedia() {
   }
 }
 
-watch(() => [email.value?.emailId, email.value?.content], loadInlineMedia, { immediate: true })
+watch(() => [email.value?.emailId, email.value?.content, emailStore.contentData.delType], loadInlineMedia, { immediate: true })
 
 function refreshInlineMedia() {
   if (document.hidden || !inlineKeys.value.length) return
@@ -230,6 +232,10 @@ watch(
 )
 
 onMounted(() => {
+  if (!email.value?.emailId) {
+    router.replace({name: 'email'})
+    return
+  }
   tryMarkRead()
   window.addEventListener('keydown', handleKeyDown, true);
   document.addEventListener('visibilitychange', refreshInlineMedia)
@@ -270,15 +276,18 @@ function toMessage(message) {
 
 function attachmentUrl(att) {
   const params = new URLSearchParams({emailId: String(email.value.emailId), attId: String(att.attId)})
-  return `${import.meta.env.VITE_BASE_URL.replace(/\/$/, '')}/email/attachment?${params}`
+  return `${import.meta.env.VITE_BASE_URL.replace(/\/$/, '')}${attachmentPath(emailStore.contentData.delType)}?${params}`
 }
 
 async function attachmentBlob(att) {
   const response = await fetch(attachmentUrl(att), {
     headers: {Authorization: localStorage.getItem('token') || ''},
+    signal: AbortSignal.timeout(12000),
     cache: 'no-store'
   })
-  if (!response.ok) throw new Error(t('attachmentReopen'))
+  if (!response.ok || response.headers.get('Content-Type')?.startsWith('application/json')) {
+    throw new Error(t('attachmentReopen'))
+  }
   return response.blob()
 }
 
@@ -301,6 +310,7 @@ async function downloadAttachment(att) {
 let previewOpener = null
 
 function closePreview(restoreFocus = true) {
+  ++previewRequestId
   showPreview.value = false
   srcList.length = 0
   for (const url of previewUrls) URL.revokeObjectURL(url)
@@ -317,15 +327,18 @@ function closePreview(restoreFocus = true) {
 async function showImage(att) {
   if (!isImage(att.filename)) return
   closePreview(false)
+  const requestId = previewRequestId
+  const emailId = email.value.emailId
   previewOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null
   try {
     const blob = await attachmentBlob(att)
+    if (requestId !== previewRequestId || email.value.emailId !== emailId) return
     const url = URL.createObjectURL(blob)
     previewUrls.add(url)
     srcList.push(url)
     showPreview.value = true
   } catch {
-    ElMessage.error(t('imageReopen'))
+    if (requestId === previewRequestId) ElMessage.error(t('imageReopen'))
   }
 }
 

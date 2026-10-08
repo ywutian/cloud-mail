@@ -279,4 +279,14 @@ describe('public attachments', () => {
     expect(response.status).toBe(200);
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3, 4]));
   });
+
+  it('uses all-mail access for a deleted mail attachment without granting personal cross-account access', async () => {
+    database.exec('UPDATE email SET user_id = 8, is_del = 1 WHERE email_id = 1');
+    await expect(mediaService.privateAttachment({env: context}, {emailId: 1, attId: 10}, 9)).rejects.toThrow();
+    const response = await mediaService.adminAttachment({env: context}, {emailId: 1, attId: 10});
+    expect(response.status).toBe(200);
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3, 4]));
+    await expect(mediaService.adminAttachment({env: context}, {emailId: 1, attId: 13})).rejects.toThrow();
+    await expect(mediaService.adminAttachment({env: context}, {emailId: 1, attId: 11})).rejects.toThrow();
+  });
 });

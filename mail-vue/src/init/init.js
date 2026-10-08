@@ -1,4 +1,5 @@
 import {useUserStore} from "@/store/user.js";
+import {useEmailStore} from '@/store/email.js'
 import {useSettingStore} from "@/store/setting.js";
 import {useAccountStore} from "@/store/account.js";
 import {loginUserInfo} from "@/request/my.js";
@@ -18,6 +19,7 @@ export async function init() {
     const accountStore = useAccountStore();
 
     const token = localStorage.getItem('token');
+    if (!token) useEmailStore().clearPrivateSession()
     if (!settingStore.lang) settingStore.lang = 'auto'
     const publicPage = window.location.hostname.startsWith('temp.') || window.location.pathname === '/find'
     const landingPage = publicPage || window.location.pathname === '/login'
@@ -77,6 +79,7 @@ export async function init() {
         document.title = setting.title;
 
         if (user) {
+            useEmailStore().setSessionUser(user.userId)
             accountStore.currentAccountId = user.account.accountId;
             accountStore.currentAccount = user.account;
             userStore.user = user;

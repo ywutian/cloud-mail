@@ -90,7 +90,7 @@
 <script setup>
 import {starAdd, starCancel} from "@/request/star.js";
 import emailScroll from "@/components/email-scroll/index.vue"
-import {computed, defineOptions, reactive, ref, watch, onMounted} from "vue";
+import {computed, defineOptions, reactive, ref, watch, onMounted, onUnmounted} from "vue";
 import {useEmailStore} from "@/store/email.js";
 import {
   allEmailList,
@@ -106,6 +106,7 @@ import {sleep} from "@/utils/time-utils.js";
 import {useSettingStore} from "@/store/setting.js";
 import { useRoute } from 'vue-router'
 import {restoreAllMailPreferences} from './preferences.js'
+import {canPollMail, mailPollingDelay} from '@/utils/mail-recovery.js'
 
 defineOptions({
   name: 'all-email'
@@ -121,6 +122,9 @@ const searchValue = ref('')
 const mySelect = ref()
 const showBathDelete = ref(false)
 const clearLoading = ref(false)
+let disposed = false
+
+onUnmounted(() => { disposed = true })
 
 onMounted(() => {
   latest();
@@ -280,10 +284,12 @@ function typeSelectChange() {
 }
 
 function jumpContent(email) {
+  emailStore.contentData.sourceRoute = 'all-email'
   emailStore.contentData.email = emailStore.toContentEmail(email)
   emailStore.contentData.delType = 'physics'
   emailStore.contentData.showStar = false
   emailStore.contentData.showReply = false
+  emailStore.contentData.showUnread = false
   router.push({name: 'content'})
 }
 
@@ -293,12 +299,13 @@ function getEmailList(emailId, size) {
 }
 
 async function latest() {
-
-  while (true) {
+  let failures = 0
+  while (!disposed) {
 
     let autoRefresh = settingStore.settings.autoRefresh;
 
-    await sleep(autoRefresh > 1 ? autoRefresh * 1000 : 3000);
+    await sleep(mailPollingDelay(autoRefresh, failures));
+    if (disposed) break
 
     const latestId = sysEmailScroll.value?.latestEmail?.emailId
 
@@ -310,7 +317,8 @@ async function latest() {
       continue
     }
 
-    if (route.name !== 'all-email') {
+    if (!canPollMail({active: route.name === 'all-email', hidden: document.hidden, disposed,
+      filtered: Boolean(params.name || params.subject || params.accountEmail || params.userEmail)})) {
       continue
     }
 
@@ -322,7 +330,12 @@ async function latest() {
     try {
 
       const curTimeSort = params.timeSort
+      const filterSnapshot = JSON.stringify(params)
       let list = await allEmailLatest(latestId)
+      failures = 0
+
+      if (!canPollMail({active: route.name === 'all-email', hidden: document.hidden, disposed})
+          || JSON.stringify(params) !== filterSnapshot) continue
 
       if (list.length === 0) {
         continue
@@ -347,6 +360,7 @@ async function latest() {
       }
 
     } catch (e) {
+      failures += 1
       if (e.code === 401 || e.code === 403) {
         settingStore.settings.autoRefresh = 0;
       }

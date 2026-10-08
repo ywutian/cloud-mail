@@ -67,6 +67,24 @@ const mediaService = {
 			 WHERE a.att_id = ? AND a.email_id = ? AND a.type = 0
 			 AND e.user_id = ? AND e.is_del = 0`
 		).bind(attId, emailId, userId).first();
+		return this.attachmentResponse(c, row, params);
+	},
+
+	async adminAttachment(c, params) {
+		const emailId = Number(params.emailId);
+		const attId = Number(params.attId);
+		if (!Number.isSafeInteger(emailId) || emailId <= 0 || !Number.isSafeInteger(attId) || attId <= 0) {
+			throw new BizError(t(c, 'attachmentNotFound'), 404);
+		}
+		const row = await c.env.db.prepare(
+			`SELECT a.key, a.filename, a.mime_type AS mimeType
+			 FROM attachments a JOIN email e ON e.email_id = a.email_id
+			 WHERE a.att_id = ? AND a.email_id = ? AND a.type = 0`
+		).bind(attId, emailId).first();
+		return this.attachmentResponse(c, row, params);
+	},
+
+	async attachmentResponse(c, row, params) {
 		if (!row) throw new BizError(t(c, 'attachmentNotFound'), 404);
 		const object = await r2Service.getObj(c, row.key);
 		if (!object) throw new BizError(t(c, 'attachmentNotFound'), 404);

@@ -6,6 +6,7 @@ import permService from '../src/service/perm-service';
 
 app.get('/session-state-probe', c => c.json({ code: 200 }));
 app.get('/allEmail/contentMedia', c => c.json({ code: 200 }));
+app.get('/allEmail/attachment', c => c.json({ code: 200 }));
 
 async function authenticatedRequest(databaseUser, path = '/session-state-probe', permissions = []) {
   const token = await jwtUtils.generateToken(
@@ -65,5 +66,11 @@ describe('authenticated account state', () => {
     const active = { user_id: 7, email: 'person@example.test', is_del: 0, status: 0 };
     expect((await authenticatedRequest(active, '/allEmail/contentMedia')).code).toBe(403);
     expect((await authenticatedRequest(active, '/allEmail/contentMedia', ['all-email:query'])).code).toBe(200);
+  });
+
+  it('requires all-mail viewing permission for attachment bytes', async () => {
+    const active = { user_id: 7, email: 'person@example.test', is_del: 0, status: 0 };
+    expect((await authenticatedRequest(active, '/allEmail/attachment')).code).toBe(403);
+    expect((await authenticatedRequest(active, '/allEmail/attachment', ['all-email:query'])).code).toBe(200);
   });
 });

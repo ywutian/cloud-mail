@@ -85,11 +85,15 @@ import {computed} from 'vue';
 import {Icon} from "@iconify/vue";
 import {useSettingStore} from "@/store/setting.js";
 import {useUiStore} from '@/store/ui.js';
+import {useEmailStore} from '@/store/email.js'
 
 const settingStore = useSettingStore();
 const route = useRoute();
 const uiStore = useUiStore();
-const activeName = computed(() => route.meta.name === 'content' ? 'email' : route.meta.name);
+const emailStore = useEmailStore()
+const activeName = computed(() => route.meta.name === 'content'
+  ? emailStore.contentData.sourceRoute || (emailStore.contentData.delType === 'physics' ? 'all-email' : 'email')
+  : route.meta.name);
 
 </script>
 
