@@ -228,6 +228,7 @@
 </template>
 
 <script setup>
+import {mailFramePolicy} from '@/utils/mail-frame-policy.js'
 import {needsInlineRecovery} from '@/utils/inline-media.js'
 import {computed, defineOptions, nextTick, onMounted, onUnmounted, ref} from "vue";
 import {Icon} from "@iconify/vue";
@@ -345,7 +346,7 @@ const viewHtml = computed(() => {
   const raw = htmlContent
       || `<pre dir="auto" style="white-space:pre-wrap;font:inherit">${escapeHtml(viewError.value ? t('temporaryInbox.mailExpired') : viewing.value.text || t('temporaryInbox.emptyMail'))}</pre>`
   return `<!doctype html><meta charset="utf-8">`
-      + `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${window.location.origin} data: blob:; style-src 'unsafe-inline'">`
+      + `<meta http-equiv="Content-Security-Policy" content="${mailFramePolicy(window.location.origin)}">`
       + `<meta name="referrer" content="no-referrer">`
       + `<base target="_blank">`
       + `<style>body{margin:0;padding:18px;background:#fff;color:#1a1a1a;`

@@ -9,7 +9,8 @@ fs.mkdirSync(output, {recursive:true})
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aXioAAAAASUVORK5CYII=', 'base64')
 const key = 'attachments/audit.png'
 const media = '/api/media/' + 'A'.repeat(43)
-const email = {emailId: 12, name: 'Test sender', sendEmail: 'sender@example.test', toEmail: 'mail@example.test', userEmail:'owner@example.test', recipient:'[{"address":"mail@example.test"}]', subject:'Audit message', content:`<p>Complete message body</p><img src="{{domain}}${key}">`, text:'Complete message body', type:0, status:99, unread:0, isDel:0, createTime:'2026-10-08 12:00:00', attList:[{attId:4,filename:'audit.pdf',size:10,mimeType:'application/pdf'}]}
+const externalImage = 'https://mail-images.example.test/history.png'
+const email = {emailId: 12, name: 'Test sender', sendEmail: 'sender@example.test', toEmail: 'mail@example.test', userEmail:'owner@example.test', recipient:'[{"address":"mail@example.test"}]', subject:'Audit message', content:`<p>Complete message body</p><img src="{{domain}}${key}"><img class="external-image" src="${externalImage}" alt="Historical external image"><script src="https://mail-images.example.test/blocked.js"></script>`, text:'Complete message body', type:0, status:99, unread:0, isDel:0, createTime:'2026-10-08 12:00:00', attList:[{attId:4,filename:'audit.pdf',size:10,mimeType:'application/pdf'}]}
 const server = http.createServer((req,res)=>{
   const name = decodeURIComponent(new URL(req.url,'http://localhost').pathname)
   const file = path.join(root, name === '/' || !path.extname(name) ? 'index.html' : name)
@@ -29,6 +30,9 @@ const server = http.createServer((req,res)=>{
       if(dark) document.addEventListener('DOMContentLoaded',()=>document.documentElement.classList.add('dark'),{once:true})
     },{lang,dark})
     const page = await context.newPage()
+    await page.route(externalImage,route=>route.fulfill({contentType:'image/png',body:png}))
+    let scriptRequests=0
+    await page.route('**/blocked.js',route=>{scriptRequests++;return route.fulfill({body:'throw new Error("unsafe script")'})})
     const errors=[]; const requests=[]
     let listCalls = 0
     let attachmentDenied = false
@@ -66,8 +70,11 @@ const server = http.createServer((req,res)=>{
     await page.locator('.row-open-action[data-email-id="12"]').click({timeout:15000})
     await page.frameLocator('.mail-frame').locator('p').waitFor()
     await page.waitForTimeout(250)
-    const image=await page.frameLocator('.mail-frame').locator('img').evaluate(el=>el.naturalWidth)
+    const image=await page.frameLocator('.mail-frame').locator('img').first().evaluate(el=>el.naturalWidth)
     assert.equal(image,1)
+    await page.frameLocator('.mail-frame').locator('.external-image').evaluate(el=>el.decode())
+    assert.equal(scriptRequests,0)
+    assert.equal(await page.locator('.mail-frame').getAttribute('sandbox'),'allow-popups allow-popups-to-escape-sandbox')
     const downloadPromise=page.waitForEvent('download')
     await page.locator('.att-item .opt-icon button').click()
     const download=await downloadPromise
@@ -87,7 +94,7 @@ const server = http.createServer((req,res)=>{
     await page.goto(origin+'/inbox')
     await page.locator('.row-open-action[data-email-id="12"]').click()
     await page.getByRole('button',{name:({zh:'回复',en:'Reply',de:'Antworten',ar:'الرد'})[lang],exact:true}).click()
-    const quoteImage=page.frameLocator('.write-box iframe').locator('img')
+    const quoteImage=page.frameLocator('.write-box iframe').locator('img').first()
     await quoteImage.waitFor()
     assert.ok(await page.evaluate(()=>window.tinymce.activeEditor.getContent().includes('data:image/png;base64,')))
     await quoteImage.evaluate(el=>el.decode())
@@ -106,7 +113,7 @@ const server = http.createServer((req,res)=>{
     const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth)
     assert.equal(overflow,false)
     await page.screenshot({path:path.join(output, `${width}-${lang}.png`)})
-    results.push({width,lang,dark,body:true,image:true,attachment:true,replyImage:true,forwardImageAndAttachment:true,overflow,errors})
+    results.push({width,lang,dark,body:true,image:true,externalImage:true,scriptsBlocked:true,attachment:true,replyImage:true,forwardImageAndAttachment:true,overflow,errors})
     await context.close()
   }
   const failedContext = await browser.newContext()
@@ -146,6 +153,7 @@ const server = http.createServer((req,res)=>{
     localStorage.setItem('setting',JSON.stringify({lang:'en',publicMailboxLanguage:'en'}))
   })
   const publicPage = await publicContext.newPage()
+  await publicPage.route(externalImage,route=>route.fulfill({contentType:'image/png',body:png}))
   let mediaWorks = false
   let contentCalls = 0
   const publicErrors=[]
@@ -172,7 +180,8 @@ const server = http.createServer((req,res)=>{
   await publicPage.locator('.tm-mail-open').click()
   await publicPage.waitForTimeout(900)
   assert.ok(contentCalls>=2)
-  assert.equal(await publicPage.frameLocator('.tm-view-frame').locator('img').evaluate(el=>el.naturalWidth),1)
+  await publicPage.frameLocator('.tm-view-frame').locator('.external-image').evaluate(el=>el.decode())
+  assert.equal(await publicPage.frameLocator('.tm-view-frame').locator('img').first().evaluate(el=>el.naturalWidth),1)
   await publicPage.locator('.tm-view-close').click()
   await publicPage.locator('.tm-manual input').fill('b@example.test')
   await publicPage.locator('.tm-manual button[type="submit"]').click()
@@ -186,10 +195,10 @@ const server = http.createServer((req,res)=>{
   const beforeOffline=contentCalls
   await publicPage.locator('.tm-mail-open').click()
   await publicPage.waitForTimeout(250)
-  assert.equal(await publicPage.frameLocator('.tm-view-frame').locator('img').evaluate(el=>el.naturalWidth),1)
+  assert.equal(await publicPage.frameLocator('.tm-view-frame').locator('img').first().evaluate(el=>el.naturalWidth),1)
   assert.equal(contentCalls,beforeOffline)
   assert.deepEqual(publicErrors,[])
-  results.push({publicCacheRecovery:true,addressIsolation:true,offlineImage:true,errors:publicErrors})
+  results.push({publicCacheRecovery:true,publicExternalImage:true,addressIsolation:true,offlineImage:true,errors:publicErrors})
   await publicContext.close()
   console.log(JSON.stringify({output, results}))
   await browser.close(); server.close()

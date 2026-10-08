@@ -99,6 +99,7 @@
   </div>
 </template>
 <script setup>
+import {mailFramePolicy} from '@/utils/mail-frame-policy.js'
 import {computed, reactive, ref, watch, onMounted, onUnmounted, nextTick} from "vue";
 import {useRouter} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
@@ -186,7 +187,7 @@ const frameHtml = computed(() => {
   ).replace(/\{\{domain\}\}/g, '')
   const origin = window.location.origin
   return `<!doctype html><meta charset="utf-8">`
-      + `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${origin} data: blob:; style-src 'unsafe-inline'">`
+      + `<meta http-equiv="Content-Security-Policy" content="${mailFramePolicy(origin)}">`
       + `<meta name="referrer" content="no-referrer"><base target="_blank">`
       + `<style>body{margin:0;padding:16px;background:#fff;color:#13181d;font:14px/1.5 sans-serif;word-break:break-word}`
       + `img{max-width:100%;height:auto}table{max-width:100%}</style>${content}`

@@ -130,3 +130,5 @@ curl -X POST -H "X-Init-Key: <init_secret>" "https://box.okkmail.cc/api/init"
 - 登录签名密钥和可选的初始化密钥通过 Worker Secret 配置，不保存在仓库配置中
 
 回复或转发相关修改须覆盖引用图片、普通附件及草稿变更确认。复用图片查询发布前确认生产存在 `idx_attachments_key_type`，并核对实际查询计划与读行数。真实账号验收见 [检查记录](docs/ui/mail-authenticated-review-2026-10-08.md)。
+
+图片验收必须同时覆盖历史邮件的外部HTTPS图片与内嵌附件图片，并分别验证个人邮箱、全部邮件和临时邮箱。以图片成功解码为准，不能只检查正文有图片标签。两个阅读入口共用正文加载规则；脚本、嵌套页面、表单及同源访问仍须隔离。
