@@ -1,6 +1,7 @@
 import app from '../hono/hono';
 import emailService from '../service/email-service';
 import result from '../model/result';
+import mediaService from '../service/media-service';
 
 app.get('/allEmail/list', async (c) => {
 	const data = await emailService.allList(c, c.req.query());
@@ -20,4 +21,10 @@ app.delete('/allEmail/batchDelete', async (c) => {
 app.get('/allEmail/latest', async (c) => {
 	const list = await emailService.allEmailLatest(c, c.req.query());
 	return c.json(result.ok(list));
+})
+
+app.get('/allEmail/contentMedia', async (c) => {
+	const data = await mediaService.adminInlineMap(c, c.req.query('emailId'));
+	c.header('Cache-Control', 'no-store');
+	return c.json(result.ok(data));
 })

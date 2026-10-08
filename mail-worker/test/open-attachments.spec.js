@@ -267,4 +267,16 @@ describe('public attachments', () => {
     expect(response.status).toBe(200);
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3, 4]));
   });
+
+  it('lets the all-mail viewer load another account’s inline image, including deleted mail', async () => {
+    database.exec('UPDATE email SET user_id = 8, is_del = 1 WHERE email_id = 1');
+    await expect(mediaService.privateInlineMap({env: context}, 1, 9)).rejects.toThrow();
+
+    const map = await mediaService.adminInlineMap({env: context}, 1);
+    const url = map['attachments/hidden'];
+    expect(url).toMatch(/^\/api\/media\/[A-Za-z0-9_-]{43}$/);
+    const response = await mediaService.get({env: context}, url.split('/').pop());
+    expect(response.status).toBe(200);
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3, 4]));
+  });
 });

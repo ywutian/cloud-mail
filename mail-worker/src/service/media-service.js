@@ -45,6 +45,16 @@ const mediaService = {
 		return this.inlineMap(c, emailId, { userId });
 	},
 
+	async adminInlineMap(c, emailId) {
+		emailId = Number(emailId);
+		if (!Number.isSafeInteger(emailId) || emailId <= 0) throw new BizError(t(c, 'mailNotFound'), 404);
+		const email = await c.env.db.prepare(
+			'SELECT user_id AS userId FROM email WHERE email_id = ? LIMIT 1'
+		).bind(emailId).first();
+		if (!email) throw new BizError(t(c, 'mailNotFound'), 404);
+		return this.inlineMap(c, emailId, { userId: email.userId, includeDeleted: true });
+	},
+
 	async privateAttachment(c, params, userId) {
 		const emailId = Number(params.emailId);
 		const attId = Number(params.attId);
@@ -85,8 +95,9 @@ const mediaService = {
 		const row = await c.env.db.prepare(
 			`SELECT a.key, a.mime_type AS mimeType, e.to_email AS toEmail, e.user_id AS userId
 			 FROM attachments a JOIN email e ON e.email_id = a.email_id
-			 WHERE a.att_id = ? AND a.email_id = ? AND a.type = 1 AND e.is_del = 0`
-		).bind(grant.attId, grant.emailId).first();
+			 WHERE a.att_id = ? AND a.email_id = ? AND a.type = 1
+			 AND (e.is_del = 0 OR ? = 1)`
+		).bind(grant.attId, grant.emailId, grant.includeDeleted === true ? 1 : 0).first();
 		if (!row) throw new BizError(t(c, 'resourceExpired'), 404);
 
 		if (grant.address) {

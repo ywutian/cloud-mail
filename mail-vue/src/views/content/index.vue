@@ -44,9 +44,14 @@
             <el-alert v-if="email.status === 5" :closable="false" :title="$t('delayed')" class="email-msg" type="warning" show-icon />
           </div>
           <el-scrollbar class="htm-scrollbar" :class="!email.attList?.length ? 'bottom-distance' : ''">
-            <iframe class="mail-frame" :title="t('emailText')" :srcdoc="frameHtml" v-if="email.content"
+            <div v-if="email.content && mediaState === 'error'" class="media-error" role="alert">
+              <span>{{ t('imageReopen') }}</span>
+              <button type="button" @click="loadInlineMedia">{{ t('pwa.retry') }}</button>
+            </div>
+            <iframe class="mail-frame" :title="t('emailText')" :srcdoc="frameHtml"
+                    v-if="email.content && mediaState !== 'loading'"
                     sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"/>
-            <pre v-else class="email-text" dir="auto">{{email.text}}</pre>
+            <pre v-else-if="!email.content" class="email-text" dir="auto">{{email.text}}</pre>
           </el-scrollbar>
           <div class="att" v-if="email.attList?.length > 0">
             <div class="att-title">
@@ -105,10 +110,11 @@ import {formatDetailDate} from "@/utils/day.js";
 import {starAdd, starCancel} from "@/request/star.js";
 import {getExtName, formatBytes} from "@/utils/file-utils.js";
 import {getIconByName} from "@/utils/icon-utils.js";
-import {allEmailDelete} from "@/request/all-email.js";
+import {allEmailDelete, allEmailContentMedia} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
+import {inlineMediaKeys, hasCompleteInlineMedia} from '@/utils/inline-media.js'
 
 const uiStore = useUiStore();
 const accountStore = useAccountStore();
@@ -125,20 +131,50 @@ const email = computed(() => emailStore.contentData.email || {
 const showPreview = ref(false)
 const srcList = reactive([])
 const inlineMedia = ref({})
+const mediaState = ref('loading')
 const previewUrls = new Set()
 let mediaRequestId = 0
+let mediaLoadedAt = 0
 
-watch(() => [email.value?.emailId, email.value?.content], async () => {
+const inlineKeys = computed(() => inlineMediaKeys(email.value?.content))
+
+async function loadInlineMedia() {
   const requestId = ++mediaRequestId
   inlineMedia.value = {}
-  if (!email.value?.emailId || !email.value?.content) return
-  try {
-    const urls = await emailContentMedia(email.value.emailId)
-    if (requestId === mediaRequestId) inlineMedia.value = urls || {}
-  } catch {
-    // 邮件正文仍可阅读，内嵌图片将在下次打开时重试。
+  mediaState.value = 'loading'
+  if (!inlineKeys.value.length) {
+    mediaState.value = 'ready'
+    return
   }
-}, { immediate: true })
+  if (!email.value?.emailId) {
+    mediaState.value = 'error'
+    return
+  }
+  try {
+    const urls = await (emailStore.contentData.delType === 'physics'
+      ? allEmailContentMedia(email.value.emailId)
+      : emailContentMedia(email.value.emailId))
+    if (requestId !== mediaRequestId) return
+    if (!hasCompleteInlineMedia(inlineKeys.value, urls)) {
+      mediaState.value = 'error'
+      return
+    }
+    inlineMedia.value = urls
+    mediaLoadedAt = Date.now()
+    mediaState.value = 'ready'
+  } catch {
+    if (requestId === mediaRequestId) mediaState.value = 'error'
+  }
+}
+
+watch(() => [email.value?.emailId, email.value?.content], loadInlineMedia, { immediate: true })
+
+function refreshInlineMedia() {
+  if (document.hidden || !inlineKeys.value.length) return
+  if (mediaState.value === 'error' || (mediaState.value === 'ready' && Date.now() - mediaLoadedAt > 12 * 60 * 1000)) {
+    loadInlineMedia()
+  }
+}
 
 const frameHtml = computed(() => {
   const content = String(email.value?.content || '').replace(
@@ -196,6 +232,7 @@ watch(
 onMounted(() => {
   tryMarkRead()
   window.addEventListener('keydown', handleKeyDown, true);
+  document.addEventListener('visibilitychange', refreshInlineMedia)
   nextTick(() => readerHeading.value?.focus())
 })
 
@@ -203,6 +240,8 @@ onUnmounted(() => {
   emailStore.contentData.showUnread = false;
   readRequesting = false
   window.removeEventListener('keydown', handleKeyDown, true);
+  document.removeEventListener('visibilitychange', refreshInlineMedia)
+  ++mediaRequestId
   closePreview(false)
 })
 
@@ -393,10 +432,32 @@ const handleDelete = () => {
 }
 
 .icon-button:focus-visible,
-.att-item button:focus-visible {
+.att-item button:focus-visible,
+.media-error button:focus-visible {
   outline: 2px solid var(--el-color-primary);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+.media-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--el-color-danger-light-7);
+  border-radius: 6px;
+  color: var(--el-color-danger);
+  background: var(--el-color-danger-light-9);
+
+  button {
+    padding: 4px 8px;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    color: inherit;
+    cursor: pointer;
+  }
 }
 
 

@@ -1,11 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import app from '../src/hono/hono';
 import '../src/security/security';
 import jwtUtils from '../src/utils/jwt-utils';
+import permService from '../src/service/perm-service';
 
 app.get('/session-state-probe', c => c.json({ code: 200 }));
+app.get('/allEmail/contentMedia', c => c.json({ code: 200 }));
 
-async function authenticatedRequest(databaseUser) {
+async function authenticatedRequest(databaseUser, path = '/session-state-probe', permissions = []) {
   const token = await jwtUtils.generateToken(
     { env: { jwt_secret: 'local-session-state-secret' } },
     { userId: 7, token: 'old-session' },
@@ -31,10 +33,15 @@ async function authenticatedRequest(databaseUser) {
       },
     },
   };
-  const response = await app.request('http://example.test/session-state-probe', {
-    headers: { Authorization: token, 'Accept-Language': 'en' },
-  }, env);
-  return response.json();
+  const permissionLookup = vi.spyOn(permService, 'userPermKeys').mockResolvedValue(permissions);
+  try {
+    const response = await app.request(`http://example.test${path}`, {
+      headers: { Authorization: token, 'Accept-Language': 'en' },
+    }, env);
+    return response.json();
+  } finally {
+    permissionLookup.mockRestore();
+  }
 }
 
 describe('authenticated account state', () => {
@@ -52,5 +59,11 @@ describe('authenticated account state', () => {
 
   it('accepts an active account with a valid session', async () => {
     expect((await authenticatedRequest({ user_id: 7, email: 'person@example.test', is_del: 0, status: 0 })).code).toBe(200);
+  });
+
+  it('requires all-mail viewing permission for the administrator inline-image endpoint', async () => {
+    const active = { user_id: 7, email: 'person@example.test', is_del: 0, status: 0 };
+    expect((await authenticatedRequest(active, '/allEmail/contentMedia')).code).toBe(403);
+    expect((await authenticatedRequest(active, '/allEmail/contentMedia', ['all-email:query'])).code).toBe(200);
   });
 });
