@@ -20,3 +20,5 @@ Read the matching skill before work. A request may need more than one, in this o
 | Independent UI acceptance and regression review | `.agents/skills/review-mail-interface/SKILL.md` |
 
 Each specialist should produce the artifact or evidence described in its skill, and state what it did not verify. For whole-interface work, experience research and the current-state audit can run in parallel. Settle the screen and visual design before implementation, then have an independent reviewer check the rendered result. Keep file ownership explicit so parallel edits do not collide.
+
+- Reply and forward must preserve inline images through controlled reads and durable compose content, forward ordinary attachments, and retain attachment changes in draft confirmation. Include recent-recipient isolation, keyboard search, compose controls, and editor Escape in the release checks.

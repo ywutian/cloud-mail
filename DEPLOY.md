@@ -128,3 +128,5 @@ curl -X POST -H "X-Init-Key: <init_secret>" "https://box.okkmail.cc/api/init"
 - Cloudflare 账号 `A01123490047@gmail.com`，Account ID `79c3d88c58b0a43008575287de4cafb6`
 - D1 `cloudmail-db`、KV、Workers AI binding 见 `mail-worker/wrangler.toml`
 - 登录签名密钥和可选的初始化密钥通过 Worker Secret 配置，不保存在仓库配置中
+
+回复或转发相关修改须覆盖引用图片、普通附件及草稿变更确认。复用图片查询发布前确认生产存在 `idx_attachments_key_type`，并核对实际查询计划与读行数。真实账号验收见 [检查记录](docs/ui/mail-authenticated-review-2026-10-08.md)。
